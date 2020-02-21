@@ -13,12 +13,24 @@ View example: https://cpl-makerlab.github.io/simple-website-template/
 This website template uses CSS & JS to hide and show different parts of index.html and uses Github Pages to render the website from the gh-pages branch.
 
 ## Things to try
-- Edit index.html and change the title of the page
+- Edit index.html and change the title of the page (h1)
 - Edit index.html and change the content displayed in home, about, and contact.
 - Edit index.html and change the content in the footer region.
 - Replace logo.jpg and background.jpg with your own images.
 - Update the metadata in the header portion of index.html (this is used by search engines and browsers).
 - Edit style.css and change the link color and font style.
+
+## Tags
+
+- Image (relative): ``` <img src="image.jpg" /> ```
+- Image (absolute): ``` <img src="http://www.example.com/image.jpg" /> ```
+
+
+Element | Tag | Example usage
+--- | --- | ---
+Link | a | ```<a href="http://example.com">Check out this link</a>```
+Image (external) | img | ```<img src="http://www.example.com/image.jpg" />```
+Image (relative) | img | ```<img src="image.jpg" />```
 
 ## Further reading
 
