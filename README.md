@@ -42,7 +42,7 @@ Yes! Github Pages supports [custom domain configuration](https://help.github.com
 Yes! You can embed Google Analytics to see who is visiting your site.
 
 ### Can I add a blog, etc?
-Not really. This template works best for simple sites. For a simple blog check out [Jekyll, which is a static site generator that also works on Github pages](https://help.github.com/en/github/working-with-github-pages/setting-up-a-github-pages-site-with-jekyll). To make editing Jekyll pages easier, check out [Prose.io](http://prose.io/). For more functionality, you will probably need a content management system (CMS) such as [Wordpress](https://wordpress.com), [Drupal](http://drupal.org), or [Django](https://www.djangoproject.com). A CMS will require additional setup and a website host, such as [Dreamhost](https://www.dreamhost.com/). 
+Not really. This template works best for simple sites. For a simple blog check out [Jekyll, which is a static site generator that also works on Github pages](https://help.github.com/en/github/working-with-github-pages/setting-up-a-github-pages-site-with-jekyll). For more functionality, you will probably need a content management system (CMS) such as [Wordpress](https://wordpress.com), [Drupal](http://drupal.org), or [Django](https://www.djangoproject.com). A CMS will require additional setup and a website host, such as [Dreamhost](https://www.dreamhost.com/). 
 
 ### Can I sell products or add a store?
 Not easily, but if you are determined you can add Paypal buttons or something like [SnipCart](https://snipcart.com/). If you are interested in selling many products online or need a full store, check out Woocommerce, BigCartel, Shopify, or Etsy.
