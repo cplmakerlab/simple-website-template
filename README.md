@@ -22,10 +22,6 @@ This website template uses CSS & JS to hide and show different parts of index.ht
 
 ## Tags
 
-- Image (relative): ``` <img src="image.jpg" /> ```
-- Image (absolute): ``` <img src="http://www.example.com/image.jpg" /> ```
-
-
 Element | Tag | Example usage
 --- | --- | ---
 Link | a | ```<a href="http://example.com">Check out this link</a>```
