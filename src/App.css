@@ -1,0 +1,47 @@
+/* src/App.css */
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .app {
+    text-align: center;
+  }
+  
+  nav {
+    background-color: #3498db;
+    padding: 10px;
+  }
+  
+  nav a {
+    color: white;
+    margin: 0 10px;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  
+  nav a.active {
+    text-decoration: underline;
+  }
+  
+  .job {
+    margin-bottom: 20px;
+  }
+  
+  .description {
+    display: none;
+  }
+  
+  .toggle-btn {
+    background-color: #2ecc71;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+  
+  .hidden {
+    display: none;
+  }  
