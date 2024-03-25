@@ -64,26 +64,27 @@
           <!-- Projects Section -->
           <div id="Projects" class="content-region hide">
             <h2>Projects</h2>
-            <p>
-              Pellentesque nec nam aliquam sem et tortor consequat. Quisque sagittis purus sit amet volutpat consequat. Magna eget est lorem ipsum dolor. 
-            </p>
             <!-- Project 1 -->
-            <a href="project1.html" class="project-link">
-                <div class="project">
-                    <h3>Project Title 1</h3>
-                    <p>Description of Project 1. This could be a brief summary of what the project is about, the problem it solves, and how it works.</p>
-                    <p><strong>Technologies Used:</strong> HTML, CSS, JavaScript, React</p>
-                </div>
-            </a>
+            <div class="project">
+                <h3>Project Title 1</h3>
+                <p>
+                    <span class="short-description">This is the short description...</span>
+                    <span class="full-description">This is the extended description with more details about the project.</span>
+                    <span class="project-link" onclick="toggleDescription('project1')">Read more</span>
+                </p>
+                <p><strong>Technologies Used:</strong> HTML, CSS, JavaScript, React</p>
+            </div>
 
             <!-- Project 2 -->
-            <a href="project2.html" class="project-link">
-                <div class="project">
-                    <h3>Project Title 2</h3>
-                    <p>Description of Project 2. This could be a brief summary of what the project is about, the problem it solves, and how it works.</p>
-                    <p><strong>Technologies Used:</strong> Python, Flask, PostgreSQL</p>
-                </div>
-            </a>  
+            <div class="project">
+                <h3>Project Title 1</h3>
+                <p>
+                    <span class="short-description">This is the short description...</span>
+                    <span class="full-description">This is the extended description with more details about the project.</span>
+                    <span class="project-link" onclick="toggleDescription('project1')">Read more</span>
+                </p>
+                <p><strong>Technologies Used:</strong> HTML, CSS, JavaScript, React</p>
+            </div> 
 
             <!-- Add more projects as needed -->
           </div>
@@ -99,11 +100,36 @@
       </div>
     </div>
 
-    <footer>  
-      Footer region
-    </footer>
+    <style>
+         .full-description {
+            display: none;
+        }
+        .project-link {
+            cursor: pointer;
+            color: blue;
+            text-decoration: underline;
+         }
+   </style>
     
     <!-- Load additional JS scripts here -->
+    <script>
+    function toggleDescription(projectId) {
+        var project = document.getElementById(projectId);
+        var fullDescription = project.querySelector('.full-description');
+        var shortDescription = project.querySelector('.short-description');
+        var linkText = project.querySelector('.project-link');
+
+        if (fullDescription.style.display === 'none') {
+            fullDescription.style.display = 'inline';
+            shortDescription.style.display = 'none';
+            linkText.textContent = 'Read less';
+        } else {
+            fullDescription.style.display = 'none';
+            shortDescription.style.display = 'inline';
+            linkText.textContent = 'Read more';
+        }
+    }
+     </script>
     <script type="text/javascript" src="script.js"></script>
     
   </body>
