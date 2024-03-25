@@ -65,7 +65,7 @@
           <div id="Projects" class="content-region hide">
             <h2>Projects</h2>
             <!-- Project 1 -->
-            <div class="project">
+            <div class="project" id="project1">
                 <h3>Project Title 1</h3>
                 <p>
                     <span class="short-description">This is the short description...</span>
@@ -76,8 +76,8 @@
             </div>
 
             <!-- Project 2 -->
-            <div class="project">
-                <h3>Project Title 1</h3>
+            <div class="project" id="project1">
+                <h3>Project Title 2</h3>
                 <p>
                     <span class="short-description">This is the short description...</span>
                     <span class="full-description">This is the extended description with more details about the project.</span>
@@ -113,23 +113,23 @@
     
     <!-- Load additional JS scripts here -->
     <script>
-    function toggleDescription(projectId) {
-        var project = document.getElementById(projectId);
-        var fullDescription = project.querySelector('.full-description');
-        var shortDescription = project.querySelector('.short-description');
-        var linkText = project.querySelector('.project-link');
+        function toggleDescription(projectId) {
+            var project = document.getElementById(projectId);
+            var fullDescription = project.querySelector('.full-description');
+            var shortDescription = project.querySelector('.short-description');
+            var linkText = project.querySelector('.project-link');
 
-        if (fullDescription.style.display === 'none') {
-            fullDescription.style.display = 'inline';
-            shortDescription.style.display = 'none';
-            linkText.textContent = 'Read less';
-        } else {
-            fullDescription.style.display = 'none';
-            shortDescription.style.display = 'inline';
-            linkText.textContent = 'Read more';
-        }
-    }
-     </script>
+            if (fullDescription.style.display === 'none' || fullDescription.style.display === '') {
+                fullDescription.style.display = 'block';
+                shortDescription.style.display = 'none';
+                linkText.textContent = 'Read less';
+            } else {
+                fullDescription.style.display = 'none';
+                shortDescription.style.display = 'block';
+                linkText.textContent = 'Read more';
+            }
+         }
+    </script>
     <script type="text/javascript" src="script.js"></script>
     
   </body>
