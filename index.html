@@ -1,79 +1,360 @@
-<!doctype html>
-<html>
-  <head>
-    <!-- Page setup -->
-    <meta charset="utf-8">
-    <title>Your title here</title>
-    <meta name="description" content="A brief description of your site for search engines">
-    <meta name="author" content="Information about the author here">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-    <link rel="icon" type="image/png" href="favicon.png">
-  
-    <!-- Stylesheets -->
-    <!-- Reset default styles and add support for google fonts -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" type="text/css" />
-    <link href="http://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css" />
-   
-    <!-- Custom styles -->
-    <link href="style.css" rel="stylesheet" type="text/css" />
-
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>    
-
-    <!-- Want to add Bootstrap? -->
-    <!-- Visit: https://getbootstrap.com/docs/4.3/getting-started/introduction/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Vector Studio - Premium FiveM Development Services. Custom scripts, maps, and modifications for your FiveM server.">
+    <meta name="author" content="Vector Studio">
+    <meta name="keywords" content="FiveM, FiveM Development, FiveM Scripts, FiveM Resources, GTA V Roleplay, Custom FiveM Server">
+    <title>Vector Studio | Premium FiveM Development</title>
     
-  </head>
-  
-  <body>
-
-    <header id="header">
-      <img src="logo.jpg">
-      <h1>Simple Website</h1>
-      
-      <!-- Menu link fragment #id should match a div id. Example: <a href="#home"> links to <div id="home"></div>  -->
-      <ul class="main-menu">
-        <li><a href="#home">home</a></li>
-        <li><a href="#about">about</a></li>
-        <li><a href="#contact">contact</a></li>
-      </ul>                 
-    </header>
-   
-    <div id="container">
-      <div class="inner">
-        <div id="content"> 
-          
-          <div id="home" class="content-region hide">
-            <h2>Home</h2>
-            <p>
-              This is a simple website template published with Github Pages. <a href="https://github.com/cpl-makerlab/simple-website-template">Fork this repository</a> to create your own site!
-            </p>
-          </div>
-          
-          <div id="about" class="content-region hide">
-            <h2>About</h2>
-            <p>
-              Sed tempus urna et pharetra pharetra massa massa ultricies. Porttitor rhoncus dolor purus non enim praesent. Id aliquet risus feugiat in ante metus dictum. 
-            </p>
-          </div>
-          
-          <div id="contact" class="content-region hide">
-            <h2>Contact</h2>
-            <p>
-              Pellentesqsue nec nam aliquam sem et tortor consequat. Quisque sagittis purus sit amet volutpat consequat. Magna eget est lorem ipsum dolor. 
-            </p>
-          </div>
-          
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="assets/images/logo.jpg">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+    
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="container">
+            <div class="nav-wrapper">
+                <div class="logo">
+                    <img src="assets/images/logo.jpg" alt="Vector Studio Logo">
+                    <span>Vector Studio</span>
+                </div>
+                <ul class="nav-menu" id="nav-menu">
+                    <li><a href="#home" class="nav-link active">Home</a></li>
+                    <li><a href="#services" class="nav-link">Services</a></li>
+                    <li><a href="#products" class="nav-link">Products</a></li>
+                    <li><a href="#portfolio" class="nav-link">Portfolio</a></li>
+                    <li><a href="#about" class="nav-link">About</a></li>
+                    <li><a href="#contact" class="nav-link">Contact</a></li>
+                </ul>
+                <div class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
+    </nav>
 
-    <footer>  
-      Footer region
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="hero-overlay"></div>
+        <div class="container">
+            <div class="hero-content">
+                <h1 class="hero-title animate-fade-in">Premium FiveM Development</h1>
+                <p class="hero-subtitle animate-fade-in-delay">Elevate your FiveM server with custom scripts, maps, and modifications</p>
+                <div class="hero-buttons animate-fade-in-delay-2">
+                    <a href="#products" class="btn btn-primary">Browse Products</a>
+                    <a href="#contact" class="btn btn-secondary">Get Custom Work</a>
+                </div>
+            </div>
+        </div>
+        <div class="scroll-indicator">
+            <i class="fas fa-chevron-down"></i>
+        </div>
+    </section>
+
+    <!-- Services Section -->
+    <section id="services" class="services section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Our Services</h2>
+                <p class="section-subtitle">Professional FiveM development tailored to your needs</p>
+            </div>
+            <div class="services-grid">
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-code"></i>
+                    </div>
+                    <h3>Custom Scripts</h3>
+                    <p>Bespoke FiveM scripts designed specifically for your server's unique requirements and gameplay mechanics.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-map-marked-alt"></i>
+                    </div>
+                    <h3>Custom Maps & MLOs</h3>
+                    <p>Unique map modifications and custom interior designs to make your server stand out from the competition.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-server"></i>
+                    </div>
+                    <h3>Server Optimization</h3>
+                    <p>Performance tuning and optimization to ensure your FiveM server runs smoothly with minimal lag.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-paint-brush"></i>
+                    </div>
+                    <h3>UI/UX Design</h3>
+                    <p>Modern and intuitive user interfaces that enhance player experience and server aesthetics.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-toolbox"></i>
+                    </div>
+                    <h3>Script Integration</h3>
+                    <p>Seamless integration of existing scripts and frameworks with custom modifications.</p>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon">
+                        <i class="fas fa-life-ring"></i>
+                    </div>
+                    <h3>Support & Maintenance</h3>
+                    <p>Ongoing support, updates, and maintenance to keep your server running at peak performance.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Products Section -->
+    <section id="products" class="products section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Featured Products</h2>
+                <p class="section-subtitle">Ready-to-use premium FiveM resources</p>
+            </div>
+            <div class="products-grid">
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="assets/images/background.jpg" alt="Product">
+                        <div class="product-overlay">
+                            <a href="#" class="btn btn-small">View Details</a>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3>Advanced Banking System</h3>
+                        <p>Complete banking solution with ATMs, credit cards, and mobile banking.</p>
+                        <div class="product-footer">
+                            <span class="price">$49.99</span>
+                            <a href="#" class="btn btn-primary btn-small">Purchase</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="assets/images/background.jpg" alt="Product">
+                        <div class="product-overlay">
+                            <a href="#" class="btn btn-small">View Details</a>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3>Vehicle Dealership</h3>
+                        <p>Professional car dealership system with test drives and financing options.</p>
+                        <div class="product-footer">
+                            <span class="price">$39.99</span>
+                            <a href="#" class="btn btn-primary btn-small">Purchase</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="product-card">
+                    <div class="product-image">
+                        <img src="assets/images/background.jpg" alt="Product">
+                        <div class="product-overlay">
+                            <a href="#" class="btn btn-small">View Details</a>
+                        </div>
+                    </div>
+                    <div class="product-info">
+                        <h3>Custom HUD Pack</h3>
+                        <p>Modern, sleek HUD with customizable elements and responsive design.</p>
+                        <div class="product-footer">
+                            <span class="price">$29.99</span>
+                            <a href="#" class="btn btn-primary btn-small">Purchase</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portfolio Section -->
+    <section id="portfolio" class="portfolio section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Our Work</h2>
+                <p class="section-subtitle">Projects we're proud of</p>
+            </div>
+            <div class="portfolio-grid">
+                <div class="portfolio-item">
+                    <img src="assets/images/background.jpg" alt="Portfolio Item">
+                    <div class="portfolio-overlay">
+                        <h3>Custom Server Framework</h3>
+                        <p>Complete framework for a 500+ player roleplay server</p>
+                    </div>
+                </div>
+                <div class="portfolio-item">
+                    <img src="assets/images/background.jpg" alt="Portfolio Item">
+                    <div class="portfolio-overlay">
+                        <h3>MLO Interior Pack</h3>
+                        <p>20+ custom interiors for business and residential properties</p>
+                    </div>
+                </div>
+                <div class="portfolio-item">
+                    <img src="assets/images/background.jpg" alt="Portfolio Item">
+                    <div class="portfolio-overlay">
+                        <h3>Emergency Services MDT</h3>
+                        <p>Advanced mobile data terminal for police and EMS</p>
+                    </div>
+                </div>
+                <div class="portfolio-item">
+                    <img src="assets/images/background.jpg" alt="Portfolio Item">
+                    <div class="portfolio-overlay">
+                        <h3>Inventory System</h3>
+                        <p>Drag-and-drop inventory with crafting system</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about" class="about section">
+        <div class="container">
+            <div class="about-content">
+                <div class="about-text">
+                    <h2 class="section-title">About Vector Studio</h2>
+                    <p>Vector Studio is a premier FiveM development team dedicated to creating high-quality, innovative resources for the FiveM community. With years of experience in game modification and server development, we bring your vision to life.</p>
+                    <p>Our team of skilled developers specializes in creating custom scripts, maps, and complete server frameworks that exceed expectations. We pride ourselves on clean code, optimal performance, and exceptional customer service.</p>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <h3>500+</h3>
+                            <p>Projects Completed</p>
+                        </div>
+                        <div class="stat-item">
+                            <h3>200+</h3>
+                            <p>Happy Clients</p>
+                        </div>
+                        <div class="stat-item">
+                            <h3>5+</h3>
+                            <p>Years Experience</p>
+                        </div>
+                        <div class="stat-item">
+                            <h3>24/7</h3>
+                            <p>Support Available</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" class="contact section">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Get In Touch</h2>
+                <p class="section-subtitle">Ready to start your project? Let's talk!</p>
+            </div>
+            <div class="contact-content">
+                <div class="contact-info">
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h4>Email</h4>
+                            <p>contact@vectorstudio.dev</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fab fa-discord"></i>
+                        <div>
+                            <h4>Discord</h4>
+                            <p>discord.gg/vectorstudio</p>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <h4>Response Time</h4>
+                            <p>Usually within 24 hours</p>
+                        </div>
+                    </div>
+                </div>
+                <form class="contact-form" id="contactForm">
+                    <div class="form-group">
+                        <input type="text" id="name" name="name" placeholder="Your Name" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="email" id="email" name="email" placeholder="Your Email" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="subject" name="subject" placeholder="Subject" required>
+                    </div>
+                    <div class="form-group">
+                        <textarea id="message" name="message" rows="5" placeholder="Your Message" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Send Message</button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="logo">
+                        <img src="assets/images/logo.jpg" alt="Vector Studio Logo">
+                        <span>Vector Studio</span>
+                    </div>
+                    <p>Premium FiveM development services for the community.</p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Discord"><i class="fab fa-discord"></i></a>
+                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+                        <a href="#" aria-label="YouTube"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="#home">Home</a></li>
+                        <li><a href="#services">Services</a></li>
+                        <li><a href="#products">Products</a></li>
+                        <li><a href="#portfolio">Portfolio</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="#">Documentation</a></li>
+                        <li><a href="#">Support</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <ul>
+                        <li><i class="fas fa-envelope"></i> contact@vectorstudio.dev</li>
+                        <li><i class="fab fa-discord"></i> discord.gg/vectorstudio</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Vector Studio. All rights reserved.</p>
+            </div>
+        </div>
     </footer>
-    
-    <!-- Load additional JS scripts here -->
-    <script type="text/javascript" src="script.js"></script>
-    
-  </body>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-top" id="scrollTop">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- JavaScript -->
+    <script src="assets/js/script.js"></script>
+</body>
 </html>

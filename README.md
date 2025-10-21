@@ -1,63 +1,141 @@
-# Simple Website Using Github Pages
-Make a simple HTML website and publish it using Github Pages.  
-View example: https://cplmakerlab.github.io/simple-website-template/
+# Vector Studio - FiveM Development Store
 
-## Setup
-- Create a Github account (if you don't have one yet)
-- Fork this repository to copy it to your account, i.e. github.com/username/simple-website-template (you can rename it as well)
-- Make sure you see the gh-pages branch (it should be the default)
-- Edit website files on the gh-pages branch, then wait a minute or two for Github Pages to update and deploy your site.
-- View your site: https://username.github.io/simple-website-template
+A modern, dark-themed website for Vector Studio's FiveM development services and products.
 
-## How does this work?
-This website template uses CSS & JS to hide and show different parts of index.html and uses Github Pages to render the website from the gh-pages branch.
+## 🎨 Features
 
-## Things to try
-- Edit index.html and change the title of the page (both ```<title>``` in the header and ```<h1>``` in the body)
-- Upload your own logo.jpg and background.jpg images to overwrite the default images.
-- Edit index.html and change the content displayed in home, about, and contact.
-- Edit index.html and change the content in the footer region.
-- Edit style.css and change the link color and font style.
-- Update the metadata in the header portion of index.html (this is used by search engines and browsers).
+- **Modern Dark Theme** - Sleek, professional design with gradient accents
+- **Fully Responsive** - Works perfectly on desktop, tablet, and mobile devices
+- **Smooth Animations** - Engaging scroll animations and transitions
+- **Performance Optimized** - Fast loading and smooth performance
+- **SEO Friendly** - Proper meta tags and semantic HTML structure
 
-## Common tags
+## 📁 Project Structure
 
-Element | Tag | Example usage
---- | --- | ---
-Header | h1 | ```<h1>Title of page</h1>```
-Link | a | ```<a href="http://example.com">Check out this link</a>```
-Image | img | ```<img src="http://www.example.com/image.jpg">```
-Paragraph | p | ```<p>This is a new paragraph.</p>```
-Line break | br | ```This is the first line of a poem. <br> This second line will appear below the first. ```
+```
+simple-website-template/
+├── assets/
+│   ├── css/
+│   │   └── style.css          # Main stylesheet with modern dark theme
+│   ├── js/
+│   │   └── script.js          # JavaScript for interactions and animations
+│   └── images/
+│       ├── background.jpg     # Hero section background
+│       └── logo.jpg           # Vector Studio logo
+├── index.html                 # Main HTML file
+└── README.md                  # Project documentation
+```
 
-## Further reading
+## 🚀 Getting Started
 
-### Where can I learn more about HTML, CSS, JS, and webdevelopment in general?
-Check out Mozilla Developers Network (https://developer.mozilla.org). They have lots of good resources, tips, and tutorials to further your knowledge.
+### Local Development
 
-### Can I configure a custom domain for my site, i.e. johnnymakerportfolio.com?
-Yes! Github Pages supports [custom domain configuration](https://help.github.com/en/github/working-with-github-pages/configuring-a-custom-domain-for-your-github-pages-site). However, you will need to buy a domain name from a registrar such as [NameCheap](https://www.namecheap.com/) or [Gandi](https://www.gandi.net/) -- the cost is usually around $10 - $15 a year.
+1. Clone this repository
+2. Open `index.html` in your web browser
+3. That's it! No build process required.
 
-### Can I add tracking?
-Yes! You can embed Google Analytics to see who is visiting your site.
+### GitHub Pages Deployment
 
-### Can I add a blog, etc?
-Not really. This template works best for simple sites. For a simple blog check out [Jekyll, which is a static site generator that also works on Github pages](https://help.github.com/en/github/working-with-github-pages/setting-up-a-github-pages-site-with-jekyll). For more functionality, you will probably need a content management system (CMS) such as [Wordpress](https://wordpress.com), [Drupal](http://drupal.org), or [Django](https://www.djangoproject.com). A CMS will require additional setup and a website host, such as [Dreamhost](https://www.dreamhost.com/). 
+1. Push your changes to the `gh-pages` branch
+2. Enable GitHub Pages in your repository settings
+3. Your site will be live at `https://yourusername.github.io/repository-name`
 
-### Can I sell products or add a store?
-Not easily, but if you are determined you can add Paypal buttons or something like [SnipCart](https://snipcart.com/). If you are interested in selling many products online or need a full store, check out Woocommerce, BigCartel, Shopify, or Etsy.
+## 🛠️ Customization
 
-### Can I make separate HTML files for each page?
-Yes, you can use Javascript AJAX calls to pull in external content into your index.html page. See script.js for more details.
+### Update Content
 
-### I heard I need to be using XYZ framework (Bootstrap, React, etc).
-Web technology changes rapidly, and it easy to get lost in the hype. Learning the basics of HTML, CSS, and JS is a good place to start. From there, you can explore different frameworks and libraries to see what interests you.
+- **Company Name**: Search and replace "Vector Studio" in `index.html`
+- **Logo**: Replace `assets/images/logo.jpg` with your logo
+- **Background**: Replace `assets/images/background.jpg` with your hero background
+- **Services**: Edit the services section in `index.html`
+- **Products**: Update the products grid with your offerings
+- **Portfolio**: Add your project screenshots and descriptions
+- **Contact Info**: Update email and Discord links in the contact section
 
-### I don't want to write code or deal with website hosting. Are there any website builders you recommend?
-- Google Sites (free)
-- Squarespace
-- Wix
-- Strikingly (free tier includes single product store)
-- Big Cartel, Shopify, Etsy (e-commerce)
+### Customize Colors
 
+Edit the CSS variables in `assets/css/style.css`:
 
+```css
+:root {
+    --primary-color: #00d9ff;      /* Main accent color */
+    --secondary-color: #7b2cbf;    /* Secondary accent */
+    --accent-color: #ff006e;       /* Additional accent */
+    --dark-bg: #0a0a0f;           /* Main background */
+    --card-bg: #13131a;           /* Card background */
+}
+```
+
+### Add New Sections
+
+1. Add the HTML section in `index.html`
+2. Add corresponding navigation link in the navbar
+3. Style the section in `assets/css/style.css`
+4. The JavaScript will automatically handle smooth scrolling
+
+## 📱 Sections
+
+- **Home** - Hero section with call-to-action buttons
+- **Services** - Showcase your FiveM development services
+- **Products** - Display ready-to-use FiveM resources
+- **Portfolio** - Highlight your best work
+- **About** - Tell your story with statistics
+- **Contact** - Contact form and information
+
+## 🎯 Technologies Used
+
+- HTML5
+- CSS3 (with CSS Grid & Flexbox)
+- Vanilla JavaScript (ES6+)
+- Google Fonts (Poppins)
+- Font Awesome Icons
+
+## 💡 Features Breakdown
+
+### Navigation
+- Sticky header with blur effect
+- Smooth scroll to sections
+- Active link highlighting
+- Responsive hamburger menu for mobile
+
+### Animations
+- Scroll-triggered animations
+- Hover effects on cards and buttons
+- Smooth transitions throughout
+- Parallax effect on hero section
+
+### Forms
+- Contact form with validation
+- Custom notification system
+- Ready for backend integration
+
+### Responsive Design
+- Mobile-first approach
+- Breakpoints for tablet and desktop
+- Touch-friendly on mobile devices
+
+## 🔧 Browser Support
+
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)
+
+## 📝 License
+
+© 2025 Vector Studio. All rights reserved.
+
+## 🤝 Support
+
+For support or custom development work, contact Vector Studio:
+- Email: contact@vectorstudio.dev
+- Discord: discord.gg/vectorstudio
+
+## 🌟 Credits
+
+Design & Development: Vector Studio
+Built for the FiveM community
+
+---
+
+**Note**: This is a static website template. For e-commerce functionality, you'll need to integrate a payment processor and backend system.
