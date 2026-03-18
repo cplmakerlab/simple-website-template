@@ -1,79 +1,1278 @@
-<!doctype html>
-<html>
-  <head>
-    <!-- Page setup -->
-    <meta charset="utf-8">
-    <title>Your title here</title>
-    <meta name="description" content="A brief description of your site for search engines">
-    <meta name="author" content="Information about the author here">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-    <link rel="icon" type="image/png" href="favicon.png">
-  
-    <!-- Stylesheets -->
-    <!-- Reset default styles and add support for google fonts -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" type="text/css" />
-    <link href="http://fonts.googleapis.com/css?family=Roboto" rel="stylesheet" type="text/css" />
-   
-    <!-- Custom styles -->
-    <link href="style.css" rel="stylesheet" type="text/css" />
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Batterij ROI Calculator</title>
+  <style>
+    :root {
+      --primary: #2c7be5;
+      --primary-dark: #1a5fba;
+      --success: #00b478;
+      --warning: #f6a623;
+      --danger: #e54545;
+      --bg: #f0f4fb;
+      --card: #ffffff;
+      --border: #dce3f0;
+      --text: #1e2a3a;
+      --muted: #6b7a99;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+    h1 {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-bottom: 4px;
+    }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 28px; }
 
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>    
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(44,123,229,0.06);
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 18px;
+      color: var(--primary-dark);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h2 .icon { font-size: 1.3rem; }
 
-    <!-- Want to add Bootstrap? -->
-    <!-- Visit: https://getbootstrap.com/docs/4.3/getting-started/introduction/ -->
-    
-  </head>
-  
-  <body>
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 0.85rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    input[type="number"], input[type="file"] {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.97rem;
+      color: var(--text);
+      background: #f7f9fd;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+    input[type="number"]:focus, input[type="file"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+    }
+    .unit {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
 
-    <header id="header">
-      <img src="logo.jpg">
-      <h1>Simple Website</h1>
-      
-      <!-- Menu link fragment #id should match a div id. Example: <a href="#home"> links to <div id="home"></div>  -->
-      <ul class="main-menu">
-        <li><a href="#home">home</a></li>
-        <li><a href="#about">about</a></li>
-        <li><a href="#contact">contact</a></li>
-      </ul>                 
-    </header>
-   
-    <div id="container">
-      <div class="inner">
-        <div id="content"> 
-          
-          <div id="home" class="content-region hide">
-            <h2>Home</h2>
-            <p>
-              This is a simple website template published with Github Pages. <a href="https://github.com/cpl-makerlab/simple-website-template">Fork this repository</a> to create your own site!
-            </p>
-          </div>
-          
-          <div id="about" class="content-region hide">
-            <h2>About</h2>
-            <p>
-              Sed tempus urna et pharetra pharetra massa massa ultricies. Porttitor rhoncus dolor purus non enim praesent. Id aliquet risus feugiat in ante metus dictum. 
-            </p>
-          </div>
-          
-          <div id="contact" class="content-region hide">
-            <h2>Contact</h2>
-            <p>
-              Pellentesque nec nam aliquam sem et tortor consequat. Quisque sagittis purus sit amet volutpat consequat. Magna eget est lorem ipsum dolor. 
-            </p>
-          </div>
-          
-        </div>
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 28px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+    .btn:hover { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    #results { display: none; }
+
+    .alert {
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.92rem;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .alert-warning { background: #fff8ec; border: 1px solid #f6a623; color: #7a5000; }
+    .alert-info    { background: #eef4ff; border: 1px solid #2c7be5; color: #1a3a6e; }
+    .alert-success { background: #eafaf4; border: 1px solid #00b478; color: #005c3c; }
+
+    .scenarios-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+      gap: 20px;
+      margin-top: 4px;
+    }
+
+    .scenario-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: 0 2px 8px rgba(44,123,229,0.07);
+    }
+    .scenario-card.active { border-color: var(--primary); }
+    .scenario-card.worst-case { border-color: var(--warning); }
+    .scenario-card.optimistic { border-color: var(--primary); }
+    .scenario-card.optimal { border-color: var(--success); }
+
+    .scenario-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .scenario-card .scenario-sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.93rem;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: var(--muted); }
+    .stat-value { font-weight: 600; }
+    .stat-value.big { font-size: 1.25rem; color: var(--primary); }
+    .stat-value.green { color: var(--success); }
+    .stat-value.orange { color: var(--warning); }
+
+    .badge {
+      display: inline-block;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+    .badge-blue  { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+    .badge-orange{ background: #fef3c7; color: #92400e; }
+
+    .data-period {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .chart-wrap {
+      margin-top: 20px;
+      overflow-x: auto;
+    }
+    .chart-wrap h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--primary-dark);
+    }
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.87rem;
+    }
+    table.data-table th {
+      background: var(--bg);
+      color: var(--muted);
+      font-weight: 600;
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 2px solid var(--border);
+    }
+    table.data-table td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    table.data-table tr:last-child td { border-bottom: none; }
+    table.data-table tr.highlight td { background: #eef4ff; font-weight: 600; }
+
+    .bar-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .bar-bg {
+      flex: 1;
+      height: 10px;
+      background: var(--border);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.6s ease;
+    }
+    .bar-fill.blue    { background: var(--primary); }
+    .bar-fill.green   { background: var(--success); }
+    .bar-fill.orange  { background: var(--warning); }
+
+    .bar-bg.dual {
+      position: relative;
+      height: 14px;
+    }
+    .bar-bg.dual .bar-fill {
+      position: absolute;
+      top: 0;
+      height: 100%;
+    }
+    .bar-legend {
+      display: flex;
+      gap: 12px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+    .bar-legend span { display: flex; align-items: center; gap: 4px; }
+    .bar-legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    @media (max-width: 600px) {
+      h1 { font-size: 1.3rem; }
+      .scenarios-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 1020px) {
+      .scenarios-grid { grid-template-columns: 1fr; }
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+      margin-top: 4px;
+    }
+    .summary-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .summary-item .s-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .summary-item .s-value {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .summary-item .s-value.accent { color: var(--primary-dark); }
+    .summary-item .s-value.green  { color: var(--success); }
+    .summary-item .s-value.orange { color: var(--warning); }
+    .summary-divider {
+      grid-column: 1 / -1;
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 4px 0;
+    }
+
+    .cap-table-wrap { overflow-x: auto; margin-top: 4px; }
+    table.cap-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.87rem;
+    }
+    table.cap-table th {
+      background: var(--bg);
+      color: var(--muted);
+      font-weight: 600;
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 2px solid var(--border);
+    }
+    table.cap-table td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    table.cap-table tr.cap-ok td   { background: #eafaf4; }
+    table.cap-table tr.cap-max td  { background: #d1fae5; font-weight: 700; }
+    table.cap-table tr.cap-fail td { background: #fff8ec; color: #7a5000; }
+    table.cap-table tr.cap-max td .badge-max {
+      display: inline-block;
+      background: var(--success);
+      color: #fff;
+      border-radius: 10px;
+      padding: 1px 8px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    /* ── Save / Share ────────────────────────────────────────────────────── */
+    .btn-secondary {
+      background: #fff;
+      color: var(--primary);
+      border: 1.5px solid var(--primary);
+      padding: 10px 20px;
+      font-size: 0.92rem;
+    }
+    .btn-secondary:hover { background: #eef4ff; transform: translateY(-1px); }
+    .save-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .share-url-row { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+    .share-url-row input {
+      flex: 1; font-size: 0.85rem; padding: 8px 12px;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      background: #f7f9fd; color: var(--text);
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 28px; left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: #1e2a3a; color: #fff;
+      padding: 12px 26px;
+      border-radius: 10px;
+      font-size: 0.95rem; font-weight: 600;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+      z-index: 9999; white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Config picker ───────────────────────────────────────────────────── */
+    .config-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      margin-top: 12px;
+    }
+    select {
+      border: 1.5px solid var(--border); border-radius: 8px;
+      padding: 10px 12px; font-size: 0.9rem;
+      color: var(--text); background: #f7f9fd;
+      transition: border-color 0.2s; width: 100%; cursor: pointer;
+    }
+    select:focus { outline: none; border-color: var(--primary); background: #fff; }
+
+    .config-group-header {
+      font-size: 0.97rem; font-weight: 700; color: var(--primary-dark);
+      padding: 10px 0 8px; border-bottom: 2px solid var(--border);
+      margin-bottom: 14px; display: flex; align-items: center;
+      gap: 10px; flex-wrap: wrap;
+    }
+    .config-group-header .cfg-sub {
+      font-size: 0.82rem; font-weight: 400; color: var(--muted);
+    }
+    .config-specs-badge {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 10px;
+      font-size: 0.8rem; font-weight: 500; color: var(--text);
+      margin-left: auto;
+    }
+
+    /* ── Recommendation card ─────────────────────────────────────────────── */
+    .recommendation-card {
+      background: linear-gradient(135deg, #eafaf4 0%, #d1fae5 100%);
+      border: 2px solid var(--success);
+      border-radius: var(--radius); padding: 22px;
+    }
+    .recommendation-card h3 { color: var(--success); font-size: 1.1rem; margin-bottom: 12px; }
+    .rec-row { display: flex; justify-content: space-between; align-items: baseline;
+      padding: 6px 0; border-bottom: 1px solid #b2e8d5; font-size: 0.93rem; }
+    .rec-row:last-child { border-bottom: none; }
+
+    /* ── Spinner ─────────────────────────────────────────────────────────── */
+    .spinner { width: 16px; height: 16px; border: 2px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<h1>⚡ Batterij ROI Calculator</h1>
+<p class="subtitle">Bereken de terugverdientijd van uw batterijinstallatie op basis van uw verbruikshistoriek.</p>
+
+<!-- INPUT CARD -->
+<div class="card">
+  <h2><span class="icon">📂</span> Verbruikshistoriek uploaden</h2>
+  <div class="form-group">
+    <label>CSV Bestand (Fluvius verbruikshistoriek)</label>
+    <input type="file" id="csvFile" accept=".csv" />
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="icon">🔧</span> Installatieparameters</h2>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>Vermogen omvormer zonnepanelen</label>
+      <input type="number" id="pvInverter" min="0" step="0.1" placeholder="bijv. 5" />
+      <span class="unit">kW</span>
+    </div>
+    <div class="form-group">
+      <label>Kostprijs elektriciteit dag</label>
+      <input type="number" id="elecPrice" min="0" step="0.001" placeholder="bijv. 0.28" />
+      <span class="unit">€ / kWh — dagtarief (ma–vr 07:00–22:00) of enkelvoudig tarief</span>
+    </div>
+    <div class="form-group">
+      <label>Kostprijs elektriciteit nacht <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel)</span></label>
+      <input type="number" id="elecPriceNight" min="0" step="0.001" placeholder="bijv. 0.18" />
+      <span class="unit">€ / kWh — nachttarief. Vul in voor tweevoudig tarief.</span>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2><span class="icon">🔋</span> Productconfiguratie selectie</h2>
+  <div class="form-grid" style="margin-bottom:16px;">
+    <div class="form-group">
+      <label>BTW tarief</label>
+      <select id="btwSelect">
+        <option value="6">6% (residentieel)</option>
+        <option value="21">21%</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Keuring</label>
+      <select id="keuringSelect">
+        <option value="no">Zonder keuring</option>
+        <option value="yes">Met keuring</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+    <button class="btn btn-secondary" style="margin-top:0;" onclick="loadConfigs()">🔄 Configuraties laden</button>
+    <span id="configsStatus" style="font-size:0.85rem;color:var(--muted);">Klik om productconfiguraties te laden vanuit de prijslijst.</span>
+  </div>
+  <div id="configSelectorsArea" style="display:none;">
+    <div class="config-picker-grid">
+      <div class="form-group">
+        <label>Configuratie 1 <span style="color:var(--danger);font-size:1rem;">*</span></label>
+        <select id="config1Select"><option value="">— Kies een configuratie —</option></select>
+      </div>
+      <div class="form-group">
+        <label>Configuratie 2 <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel)</span></label>
+        <select id="config2Select"><option value="">— Geen tweede configuratie —</option></select>
+      </div>
+      <div class="form-group">
+        <label>Configuratie 3 <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel)</span></label>
+        <select id="config3Select"><option value="">— Geen derde configuratie —</option></select>
       </div>
     </div>
+  </div>
+</div>
 
-    <footer>  
-      Footer region
-    </footer>
-    
-    <!-- Load additional JS scripts here -->
-    <script type="text/javascript" src="script.js"></script>
-    
-  </body>
+<div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+  <button class="btn" onclick="calculate()">
+    <span>⚡</span> Bereken ROI
+  </button>
+  <label class="btn btn-secondary" style="cursor:pointer; margin-top:0; display:inline-flex; align-items:center; gap:8px;">
+    <span>📂</span> Laden vanuit opgeslagen berekening
+    <input type="file" id="loadSaveFileTop" accept=".json" onchange="loadFromJSONFile(event)" style="display:none">
+  </label>
+</div>
+
+<!-- LOADED FROM SAVE BANNER -->
+<div id="loadedBanner" style="display:none; margin-top:20px;"></div>
+
+<!-- RESULTS -->
+<div id="results">
+  <div class="card" style="margin-top:28px;">
+    <h2><span class="icon">📊</span> Resultaten</h2>
+    <div id="periodAlert"></div>
+    <div id="scenarioAlert"></div>
+    <div class="data-period" id="dataPeriod"></div>
+  </div>
+
+  <div class="card" id="summaryCard" style="margin-top:0;">
+    <h2><span class="icon">🔍</span> Overzicht meetpunt</h2>
+    <div id="summaryContent"></div>
+  </div>
+
+  <div class="scenarios-grid" id="scenariosGrid"></div>
+
+  <div class="card" id="capAnalysisCard" style="display:none; margin-top:0;">
+    <h2><span class="icon">🔋</span> Maximale batterijcapaciteit analyse <span style="font-size:0.85rem;font-weight:400;color:var(--muted);margin-left:8px;">bij gelijke omvormers — ≥ 100 zonnedagen volledig geladen</span></h2>
+    <div id="capAnalysisContent"></div>
+  </div>
+
+  <div class="card" id="monthlyCard" style="margin-top:0;">
+    <h2><span class="icon">📅</span> Maandoverzicht injectie vs. batterijbenutting</h2>
+    <div class="chart-wrap" id="monthlyTable"></div>
+  </div>
+
+  <!-- SAVE / SHARE CARD -->
+  <div class="card" id="saveCard" style="display:none; margin-top:0;">
+    <h2><span class="icon">💾</span> Bewaar / Deel resultaten</h2>
+    <p style="font-size:0.88rem;color:var(--muted);margin-bottom:14px;">
+      Sla de berekening op als deelbare URL of als JSON-bestand. De CSV-data wordt <strong>niet</strong> opgeslagen — enkel de berekende resultaten en ingegeven parameters.
+    </p>
+    <div class="save-actions">
+      <button class="btn btn-secondary" onclick="copyShareLink()">🔗 Kopieer deellink</button>
+      <button class="btn btn-secondary" onclick="downloadSave()">⬇️ Download JSON</button>
+      <label class="btn btn-secondary" style="cursor:pointer; margin:0;">
+        📂 Laden vanuit JSON
+        <input type="file" id="loadSaveFile" accept=".json" onchange="loadFromJSONFile(event)" style="display:none">
+      </label>
+    </div>
+    <div class="share-url-row" id="shareUrlRow" style="display:none;">
+      <input type="text" id="shareUrlInput" readonly onclick="this.select()" />
+      <button class="btn btn-secondary" style="white-space:nowrap" onclick="document.getElementById('shareUrlInput').select();document.execCommand('copy');showToast('🔗 Gekopieerd!')">Kopieer</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ─── CSV PARSER ────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const header = lines[0].split(';').map(h => h.trim());
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(';');
+    if (cols.length < 9) continue;
+    const obj = {};
+    header.forEach((h, idx) => { obj[h] = (cols[idx] || '').trim(); });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function parseDate(str) {
+  // dd-mm-yyyy
+  const [d, m, y] = str.split('-');
+  return new Date(+y, +m - 1, +d);
+}
+
+function parsVolume(str) {
+  if (!str || str === '') return 0;
+  return parseFloat(str.replace(',', '.')) || 0;
+}
+
+function formatDate(d) {
+  return d.toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function fmt2(n) { return n.toFixed(2); }
+function fmtEur(n) { return '€\u00a0' + n.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+// ─── SAVE / LOAD STATE ────────────────────────────────────────────────────────
+let _saved = null; // last renderResults argument, set at render time
+
+function _serializeState() {
+  if (!_saved) return null;
+  const d = _saved;
+  return {
+    v: 2,
+    form: {
+      pvInv:    d.pvInv,
+      priceDay: d.priceDay,
+      priceNight: (d.dualTariff && !isNaN(d.priceNight)) ? d.priceNight : null,
+      selectedConfigTypes: d.configResults.map(cr => cr.cfg.type),
+    },
+    r: {
+      isFullYear: d.isFullYear,
+      windowStart: d.windowStart.toISOString().slice(0,10),
+      lastDate:    d.lastDate.toISOString().slice(0,10),
+      firstDate:   d.firstDate.toISOString().slice(0,10),
+      daysInWindow: d.daysInWindow,
+      totalDaysCSV: d.allDays.length,
+      totalAfname: d.totalAfname, totalInjectie: d.totalInjectie,
+      totalAfnamedag: d.totalAfnamedag, totalAfnamenacht: d.totalAfnamenacht,
+      totalInjectiedag: d.totalInjectiedag, totalInjectienacht: d.totalInjectienacht,
+      dualTariff: d.dualTariff, priceDay: d.priceDay,
+      priceNight: d.dualTariff ? d.priceNight : null,
+      effectivePrice: d.effectivePrice,
+      pvInv: d.pvInv,
+      configResults: d.configResults,
+      monthMap: d.monthMap,
+      eanCode: d.eanCode, meterNr: d.meterNr, meterType: d.meterType,
+      capAnalysis: d.capAnalysis
+    }
+  };
+}
+
+function _stateToB64(state) {
+  return btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+}
+function _b64ToState(b64) {
+  return JSON.parse(decodeURIComponent(escape(atob(b64))));
+}
+function _restoreState(r) {
+  r.windowStart = new Date(r.windowStart + 'T00:00:00');
+  r.lastDate    = new Date(r.lastDate    + 'T00:00:00');
+  r.firstDate   = new Date(r.firstDate   + 'T00:00:00');
+  r.allDays     = { length: r.totalDaysCSV };
+  if (r.priceNight == null) r.priceNight = NaN;
+  return r;
+}
+
+function copyShareLink() {
+  const state = _serializeState();
+  if (!state) return;
+  const b64  = _stateToB64(state);
+  const url  = location.origin + location.pathname + '?data=' + b64;
+  history.replaceState(null, '', '?data=' + b64);
+  const urlRow   = document.getElementById('shareUrlRow');
+  const urlInput = document.getElementById('shareUrlInput');
+  urlInput.value = url;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url)
+      .then(() => { showToast('🔗 Deellink gekopieerd naar klembord!'); urlRow.style.display = 'none'; })
+      .catch(() => { urlRow.style.display = ''; urlInput.select(); showToast('Kopieer de link hieronder handmatig.'); });
+  } else {
+    urlRow.style.display = '';
+    urlInput.select();
+  }
+}
+
+function downloadSave() {
+  const state = _serializeState();
+  if (!state) return;
+  const json  = JSON.stringify(state, null, 2);
+  const blob  = new Blob([json], { type: 'application/json' });
+  const a     = document.createElement('a');
+  a.href      = URL.createObjectURL(blob);
+  a.download  = `batterij_berekening_${state.r.eanCode || 'export'}_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('⬇️ JSON-bestand gedownload');
+}
+
+function loadFromJSONFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      _applyLoadedState(JSON.parse(ev.target.result), true);
+    } catch(err) {
+      alert('Ongeldig bestandsformaat. Controleer of het een geldig batterij-JSON-bestand is.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function _applyLoadedState(state, showBanner) {
+  if (!state || (state.v !== 1 && state.v !== 2)) { alert('Onbekend of verouderd bestandsformaat.'); return; }
+  const f = state.form || {};
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val != null ? val : ''; };
+  set('pvInverter',    f.pvInv);
+  set('elecPrice',     f.priceDay);
+  set('elecPriceNight',f.priceNight);
+  if (state.v === 2 && f.selectedConfigTypes && f.selectedConfigTypes.some(t => t)) {
+    loadConfigs().then(() => _populateConfigSelects(f.selectedConfigTypes)).catch(() => {});
+  }
+  const r = _restoreState(state.r);
+  if (showBanner) {
+    const banner = document.getElementById('loadedBanner');
+    banner.innerHTML = `<div class="alert alert-info">
+      📥 <div><strong>Geladen vanuit opgeslagen berekening.</strong><br>
+      EAN: <strong>${r.eanCode || 'onbekend'}</strong> &nbsp;|&nbsp; Periode: <strong>${formatDate(r.windowStart)} – ${formatDate(r.lastDate)}</strong> &nbsp;|&nbsp; ${r.daysInWindow} dagen<br>
+      <span style="font-size:0.85rem;margin-top:4px;display:inline-block;">Upload een nieuwe CSV en klik op <em>Bereken ROI</em> om opnieuw te berekenen met actuele data.</span></div></div>`;
+    banner.style.display = '';
+  }
+  renderResults(r);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ─── PRODUCT SHEET CONFIG ─────────────────────────────────────────────────────
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1EYtro9wiOepsHxK8VAWNZtiQoA19yKKFjx98Dg8zdDk/export?format=csv&gid=555912186';
+let _sheetConfigs = null;
+
+function _parseCSVLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else { cur += ch; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
+function _parseEurAmount(str) {
+  return parseFloat((str || '').replace(/[€\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+function _parseSheetConfigs(csvText) {
+  const lines = csvText.trim().split('\n');
+  const header = _parseCSVLine(lines[0]).map(h => h.replace(/^"|"$/g, ''));
+  return lines.slice(1).map(line => {
+    const cols = _parseCSVLine(line);
+    const o = {};
+    header.forEach((h, i) => { o[h] = (cols[i] || '').replace(/^"|"$/g, '').trim(); });
+    return {
+      type:        o['type'],
+      omschrijving:o['omschrijving'],
+      batCap:      parseFloat(o['nuttig opslag'].replace(',', '.')),
+      batInv:      parseFloat(o['omvorm vermogen'].replace(',', '.')),
+      eff:         parseFloat(o['efficientie']) / 100,
+      prices: {
+        '6_no':   _parseEurAmount(o['prijs install 6%']),
+        '6_yes':  _parseEurAmount(o['prijs install en keuring 6%']),
+        '21_no':  _parseEurAmount(o['prijs install 21%']),
+        '21_yes': _parseEurAmount(o['prijs install en keuring 21%']),
+      }
+    };
+  }).filter(c => c.type && !isNaN(c.batCap));
+}
+
+function _getPriceKey() {
+  return `${document.getElementById('btwSelect').value}_${document.getElementById('keuringSelect').value}`;
+}
+
+function _populateConfigSelects(selectedTypes) {
+  const priceKey = _getPriceKey();
+  const opts = (_sheetConfigs || []).map(c =>
+    `<option value="${c.type}">${c.type} — ${c.omschrijving} | ${fmt2(c.batCap)} kWh, ${fmt2(c.batInv)} kW | ${fmtEur(c.prices[priceKey])}</option>`
+  ).join('');
+  ['config1Select','config2Select','config3Select'].forEach((id, idx) => {
+    const el = document.getElementById(id);
+    const prev = selectedTypes ? (selectedTypes[idx] || '') : el.value;
+    el.innerHTML = (idx === 0 ? '<option value="">— Kies een configuratie —</option>' : '<option value="">— Geen configuratie —</option>') + opts;
+    if (prev) el.value = prev;
+  });
+}
+
+async function loadConfigs() {
+  const statusEl = document.getElementById('configsStatus');
+  statusEl.innerHTML = '<span class="spinner"></span> Laden...';
+  try {
+    const resp = await fetch(SHEET_CSV_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    _sheetConfigs = _parseSheetConfigs(await resp.text());
+    if (!_sheetConfigs.length) throw new Error('Geen configuraties gevonden in de sheet.');
+    _populateConfigSelects();
+    document.getElementById('configSelectorsArea').style.display = '';
+    statusEl.textContent = `✅ ${_sheetConfigs.length} configuraties geladen.`;
+  } catch(e) {
+    statusEl.textContent = `❌ Fout bij laden: ${e.message}`;
+  }
+}
+
+// ─── MAIN CALC ─────────────────────────────────────────────────────────────────
+function calculate() {
+  const fileInput = document.getElementById('csvFile');
+  if (!fileInput.files.length) { alert('Laad eerst een CSV bestand op.'); return; }
+
+  const pvInv      = parseFloat(document.getElementById('pvInverter').value);
+  const priceDay   = parseFloat(document.getElementById('elecPrice').value);
+  const priceNight = parseFloat(document.getElementById('elecPriceNight').value); // may be NaN
+
+  if (isNaN(pvInv) || isNaN(priceDay)) {
+    alert('Vul het ZP-omvormer vermogen en de elektriciteitsprijs in.');
+    return;
+  }
+  if (!_sheetConfigs) {
+    alert('Klik eerst op "Configuraties laden" om de productlijst te laden.');
+    return;
+  }
+
+  const priceKey = _getPriceKey();
+  const selectedConfigs = ['config1Select','config2Select','config3Select']
+    .map(id => document.getElementById(id).value)
+    .filter(v => v)
+    .map(type => {
+      const c = _sheetConfigs.find(x => x.type === type);
+      return c ? { type: c.type, omschrijving: c.omschrijving, batCap: c.batCap, batInv: c.batInv, eff: c.eff, price: c.prices[priceKey] } : null;
+    })
+    .filter(Boolean);
+
+  if (!selectedConfigs.length) { alert('Kies minstens één productconfiguratie.'); return; }
+
+  const reader = new FileReader();
+  reader.onload = e => processData(e.target.result, pvInv, selectedConfigs, priceDay, priceNight);
+  reader.readAsText(fileInput.files[0], 'UTF-8');
+}
+
+function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
+  const rows = parseCSV(csvText);
+
+  // ── Extract meter metadata ─────────────────────────────────────────────────
+  let eanCode = '', meterNr = '', meterType = '';
+  for (const row of rows) {
+    if (row['EAN-code'] && !eanCode) {
+      eanCode   = row['EAN-code'].replace(/^="?|"?=$/g, '').replace(/"/g, '').replace(/=/g, '');
+      meterNr   = row['Meter']     || '';
+      meterType = row['Metertype'] || '';
+      break;
+    }
+  }
+
+  // ── Aggregate per day ──────────────────────────────────────────────────────
+  const dayMap = {};
+  for (const row of rows) {
+    const dateStr = row['Van (datum)'];
+    if (!dateStr) continue;
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) continue;
+    const key = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    if (!dayMap[key]) dayMap[key] = { date: parseDate(dateStr), afname: 0, injectie: 0, afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0 };
+    const register = (row['Register'] || '').toLowerCase();
+    const vol = parsVolume(row['Volume']);
+    if (register.includes('afname'))   dayMap[key].afname   += vol;
+    if (register.includes('injectie')) dayMap[key].injectie += vol;
+    if (register === 'afname dag')      dayMap[key].afnamedag    += vol;
+    if (register === 'afname nacht')    dayMap[key].afnamenacht  += vol;
+    if (register === 'injectie dag')    dayMap[key].injectiedag  += vol;
+    if (register === 'injectie nacht')  dayMap[key].injectienacht += vol;
+  }
+
+  const allDays = Object.values(dayMap).sort((a, b) => a.date - b.date);
+  if (!allDays.length) { alert('Geen data gevonden in het CSV bestand.'); return; }
+
+  // ── Rolling year window ────────────────────────────────────────────────────
+  const lastDate    = allDays[allDays.length - 1].date;
+  const firstDate   = allDays[0].date;
+  const oneYearBack = new Date(lastDate);
+  oneYearBack.setFullYear(oneYearBack.getFullYear() - 1);
+  const windowStart = oneYearBack < firstDate ? firstDate : oneYearBack;
+  const isFullYear  = oneYearBack >= firstDate;
+  const windowDays  = allDays.filter(d => d.date >= windowStart && d.date <= lastDate);
+
+  // ── Totals ─────────────────────────────────────────────────────────────────
+  const totalAfname       = windowDays.reduce((s, d) => s + d.afname,       0);
+  const totalInjectie     = windowDays.reduce((s, d) => s + d.injectie,     0);
+  const totalAfnamedag    = windowDays.reduce((s, d) => s + d.afnamedag,    0);
+  const totalAfnamenacht  = windowDays.reduce((s, d) => s + d.afnamenacht,  0);
+  const totalInjectiedag  = windowDays.reduce((s, d) => s + d.injectiedag,  0);
+  const totalInjectienacht= windowDays.reduce((s, d) => s + d.injectienacht,0);
+  const daysInWindow      = windowDays.length;
+
+  // ── Effective price (dual tariff) ──────────────────────────────────────────
+  const dualTariff = !isNaN(priceNight) && priceNight > 0;
+  const effectivePrice = (dualTariff && totalAfname > 0)
+    ? (totalAfnamedag / totalAfname) * priceDay + (totalAfnamenacht / totalAfname) * priceNight
+    : priceDay;
+
+  // ── Per-config scenario calculation ───────────────────────────────────────
+  const scaleFactor = isFullYear ? 1 : (365 / daysInWindow);
+
+  function calcScenario(threshold, installPrice, batCap, eff) {
+    let qualifyingDays = 0, partialDays = 0, chargedFull = 0, chargedPartial = 0;
+    for (const d of windowDays) {
+      if (d.injectie >= threshold) {
+        qualifyingDays++;
+        chargedFull += batCap * eff;
+      } else if (d.injectie > 0) {
+        partialDays++;
+        chargedPartial += (d.injectie / threshold) * batCap * eff;
+      }
+    }
+    const annualChargedFull    = chargedFull    * scaleFactor;
+    const annualChargedPartial = chargedPartial * scaleFactor;
+    const annualCharged        = (chargedFull + chargedPartial) * scaleFactor;
+    const annualSaving         = annualCharged  * effectivePrice;
+    const annualSavingFull     = annualChargedFull    * effectivePrice;
+    const annualSavingPartial  = annualChargedPartial * effectivePrice;
+    const payback              = installPrice > 0 ? installPrice / annualSaving : Infinity;
+    const recoveryPctFull    = (chargedFull    / (totalAfname    || 1)) * 100 * scaleFactor;
+    const recoveryPctPartial = (chargedPartial / (totalAfname    || 1)) * 100 * scaleFactor;
+    const injPctFull         = (chargedFull    / eff / (totalInjectie || 1)) * 100 * scaleFactor;
+    const injPctPartial      = (chargedPartial / eff / (totalInjectie || 1)) * 100 * scaleFactor;
+    return {
+      qualifyingDays, partialDays, chargedFull, chargedPartial,
+      annualChargedFull, annualChargedPartial, annualCharged,
+      annualSavingFull, annualSavingPartial, annualSaving,
+      payback, recoveryPctFull, recoveryPctPartial,
+      injPctFull, injPctPartial, threshold
+    };
+  }
+
+  const configResults = selectedConfigs.map(cfg => {
+    const pvGtBat    = pvInv > cfg.batInv;
+    const thresholdWC  = pvGtBat ? cfg.batCap * (pvInv / cfg.batInv) : cfg.batCap;
+    const thresholdOpt = cfg.batCap;
+    const scenWC  = calcScenario(thresholdWC,  cfg.price, cfg.batCap, cfg.eff);
+    const scenOpt = pvGtBat ? calcScenario(thresholdOpt, cfg.price, cfg.batCap, cfg.eff) : null;
+    return { cfg, pvGtBat, thresholdWC, thresholdOpt, scenWC, scenOpt };
+  });
+
+  // ── Monthly map (simplified — no threshold columns) ────────────────────────
+  const monthMap = {};
+  for (const d of windowDays) {
+    const mk = `${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`;
+    if (!monthMap[mk]) monthMap[mk] = { injectie:0, afname:0, injectiedag:0, injectienacht:0, afnamedag:0, afnamenacht:0 };
+    monthMap[mk].injectie      += d.injectie;
+    monthMap[mk].afname        += d.afname;
+    monthMap[mk].injectiedag   += d.injectiedag;
+    monthMap[mk].injectienacht += d.injectienacht;
+    monthMap[mk].afnamedag     += d.afnamedag;
+    monthMap[mk].afnamenacht   += d.afnamenacht;
+  }
+
+  // ── Capacity analysis — simplified: only qualDays per capacity step ────────
+  const capRows = [];
+  let capMaxDays = null;
+  const CAP_STEP = 2.5;
+  for (let cap = CAP_STEP; cap <= 200; cap = Math.round((cap + CAP_STEP) * 10) / 10) {
+    let qualDays = 0;
+    for (const day of windowDays) { if (day.injectie >= cap) qualDays++; }
+    capRows.push({ cap, qualDays });
+    if (qualDays >= 100) capMaxDays = cap;
+    if (capMaxDays !== null && cap >= capMaxDays + 3 * CAP_STEP) break;
+  }
+  const capAnalysis = { rows: capRows, maxCap: capMaxDays };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  renderResults({
+    isFullYear, windowStart, lastDate, daysInWindow,
+    totalAfname, totalInjectie,
+    totalAfnamedag, totalAfnamenacht, totalInjectiedag, totalInjectienacht,
+    dualTariff, priceDay, priceNight, effectivePrice,
+    pvInv, configResults,
+    monthMap, eanCode, meterNr, meterType,
+    firstDate, allDays, capAnalysis
+  });
+}
+
+function renderResults(d) {
+  _saved = d; // persist for save/share
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Period alert
+  let periodHTML = '';
+  if (!d.isFullYear) {
+    periodHTML = `<div class="alert alert-warning">
+      ⚠️ <div><strong>Geen volledig jaar aan data beschikbaar.</strong><br>
+      De beschikbare periode is ${d.daysInWindow} dagen (${formatDate(d.windowStart)} – ${formatDate(d.lastDate)}).
+      Jaarlijkse besparingen zijn <em>geëxtrapoleerd</em> op basis van deze kortere periode.</div></div>`;
+  } else {
+    periodHTML = `<div class="alert alert-info">
+      ℹ️ <div>Berekening op basis van rollend jaar: ${formatDate(d.windowStart)} – ${formatDate(d.lastDate)} (${d.daysInWindow} dagen).</div></div>`;
+  }
+  document.getElementById('periodAlert').innerHTML = periodHTML;
+
+  // Scenario alert: summarise pvGtBat status per config
+  const anyPvGtBat = d.configResults.some(cr => cr.pvGtBat);
+  let scenAlert = '';
+  if (anyPvGtBat) {
+    const names = d.configResults
+      .map((cr, idx) => cr.pvGtBat ? `Config ${idx+1} (${cr.cfg.batInv} kW)` : null)
+      .filter(Boolean).join(', ');
+    scenAlert = `<div class="alert alert-warning">⚡ <div><strong>ZP-omvormer (${d.pvInv} kW) is sterker dan de batterijomvormer bij: ${names}.</strong><br>
+      Voor deze configuraties wordt zowel een <strong style="color:var(--warning)">worst-case</strong> als een <strong style="color:var(--primary)">optimistisch</strong> scenario getoond.</div></div>`;
+  } else {
+    scenAlert = `<div class="alert alert-success">✅ <div>ZP-omvormer (${d.pvInv} kW) ≤ batterijomvormer voor alle geselecteerde configuraties. Geen laadbeperking.</div></div>`;
+  }
+  document.getElementById('scenarioAlert').innerHTML = scenAlert;
+
+  document.getElementById('dataPeriod').innerHTML =
+    `<strong>Totale afname (periode):</strong> ${fmt2(d.totalAfname)} kWh &nbsp;|&nbsp; <strong>Totale injectie (periode):</strong> ${fmt2(d.totalInjectie)} kWh`;
+
+  // ── Summary card ───────────────────────────────────────────────────────────
+  const avgAfname   = d.totalAfname   / (d.daysInWindow || 1);
+  const avgInjectie = d.totalInjectie / (d.daysInWindow || 1);
+  const totalDaysCSV = d.allDays.length;
+  const periodLabel = d.isFullYear ? 'Volledig rollend jaar' : `Gedeeltelijke periode (${d.daysInWindow} dagen)`;
+
+  document.getElementById('summaryContent').innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-item"><span class="s-label">EAN-code</span>
+        <span class="s-value accent" style="font-size:0.92rem;word-break:break-all;">${d.eanCode || 'onbekend'}</span></div>
+      <div class="summary-item"><span class="s-label">Meternummer</span>
+        <span class="s-value">${d.meterNr || 'onbekend'}</span></div>
+      <div class="summary-item"><span class="s-label">Metertype</span>
+        <span class="s-value">${d.meterType || 'onbekend'}</span></div>
+      <hr class="summary-divider" />
+      <div class="summary-item"><span class="s-label">Volledige CSV periode</span>
+        <span class="s-value" style="font-size:0.92rem;">${formatDate(d.firstDate)} – ${formatDate(d.lastDate)}</span></div>
+      <div class="summary-item"><span class="s-label">Totaal dagen in CSV</span>
+        <span class="s-value">${totalDaysCSV} dagen</span></div>
+      <div class="summary-item"><span class="s-label">Berekeningsperiode</span>
+        <span class="s-value" style="font-size:0.88rem;">${periodLabel}</span></div>
+      <div class="summary-item"><span class="s-label">Van – tot (berekening)</span>
+        <span class="s-value" style="font-size:0.92rem;">${formatDate(d.windowStart)} – ${formatDate(d.lastDate)}</span></div>
+      <hr class="summary-divider" />
+      <div class="summary-item"><span class="s-label">Totale afname (periode)</span>
+        <span class="s-value orange">${fmt2(d.totalAfname)} kWh</span></div>
+      ${d.dualTariff ? `
+      <div class="summary-item"><span class="s-label">Afname dag</span>
+        <span class="s-value orange">${fmt2(d.totalAfnamedag)} kWh <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalAfname>0?d.totalAfnamedag/d.totalAfname*100:0)}%)</span></span></div>
+      <div class="summary-item"><span class="s-label">Afname nacht</span>
+        <span class="s-value orange">${fmt2(d.totalAfnamenacht)} kWh <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalAfname>0?d.totalAfnamenacht/d.totalAfname*100:0)}%)</span></span></div>` : ''}
+      <div class="summary-item"><span class="s-label">Totale injectie (periode)</span>
+        <span class="s-value green">${fmt2(d.totalInjectie)} kWh</span></div>
+      ${d.dualTariff ? `
+      <div class="summary-item"><span class="s-label">Injectie dag</span>
+        <span class="s-value green">${fmt2(d.totalInjectiedag)} kWh <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalInjectie>0?d.totalInjectiedag/d.totalInjectie*100:0)}%)</span></span></div>
+      <div class="summary-item"><span class="s-label">Injectie nacht</span>
+        <span class="s-value green">${fmt2(d.totalInjectienacht)} kWh <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalInjectie>0?d.totalInjectienacht/d.totalInjectie*100:0)}%)</span></span></div>` : ''}
+      <div class="summary-item"><span class="s-label">Gem. afname per dag</span>
+        <span class="s-value orange">${fmt2(avgAfname)} kWh/dag</span></div>
+      <div class="summary-item"><span class="s-label">Gem. injectie per dag</span>
+        <span class="s-value green">${fmt2(avgInjectie)} kWh/dag</span></div>
+      ${d.dualTariff ? `<hr class="summary-divider" />
+      <div class="summary-item" style="grid-column:1/-1;background:#eef4ff;border-color:var(--primary)">
+        <span class="s-label" style="color:var(--primary)">Tweevoudig tarief actief</span>
+        <span class="s-value" style="font-size:0.9rem;font-weight:400;">
+          Dag: <strong>${fmtEur(d.priceDay)}/kWh</strong> (${fmt2(d.totalAfname>0?d.totalAfnamedag/d.totalAfname*100:0)}% van afname) &nbsp;|&nbsp;
+          Nacht: <strong>${fmtEur(d.priceNight)}/kWh</strong> (${fmt2(d.totalAfname>0?d.totalAfnamenacht/d.totalAfname*100:0)}% van afname)<br>
+          <span style="color:var(--primary-dark);">→ Gewogen effectieve prijs: <strong>${fmtEur(d.effectivePrice)}/kWh</strong></span>
+        </span></div>` : ''}
+    </div>`;
+  document.getElementById('summaryCard').style.display = '';
+
+  // ── Scenario cards — grouped per config ────────────────────────────────────
+  const grid = document.getElementById('scenariosGrid');
+
+  function makeScenCard(title, badge, badgeClass, cssClass, scen, installPrice, extraInfo, mainColorOverride) {
+    const paybackText = !isFinite(scen.payback) || scen.payback <= 0 ? '—'
+      : scen.payback > 100 ? '> 100 jaar' : `${fmt2(scen.payback)} jaar`;
+    const mainColor = mainColorOverride || (cssClass === 'optimal' ? 'green' : 'blue');
+    const pctFull    = Math.min(scen.recoveryPctFull,    100);
+    const pctPartial = Math.min(scen.recoveryPctPartial, 100 - pctFull);
+    const injFull    = Math.min(scen.injPctFull,    100);
+    const injPartial = Math.min(scen.injPctPartial, 100 - injFull);
+    const priceLine  = d.dualTariff ? `<div style="font-size:0.8rem;color:var(--primary);margin-top:4px;">💱 Effectieve prijs: <strong>${fmtEur(d.effectivePrice)}/kWh</strong></div>` : '';
+    const barColor     = `var(--${mainColor === 'green' ? 'success' : mainColor === 'orange' ? 'warning' : 'primary'})`;
+    // Partial color: clearly distinct from full color per scenario type
+    // orange (worst-case) → red  |  blue (optimistic) → amber  |  green (optimal) → teal
+    const partialColor = mainColor === 'orange' ? 'var(--danger)'
+                       : mainColor === 'green'  ? '#00897b'
+                       : 'rgba(246,166,35,0.85)';
+    return `<div class="scenario-card ${cssClass}">
+      <span class="badge ${badgeClass}">${badge}</span>
+      <h3>${title}</h3>
+      <div class="scenario-sub">${extraInfo}${priceLine}</div>
+      <div class="stat-row"><span class="stat-label">Min. dagelijkse injectie nodig</span><span class="stat-value">${fmt2(scen.threshold)} kWh</span></div>
+      <div class="stat-row"><span class="stat-label">Dagen drempel volledig bereikt</span><span class="stat-value">${scen.qualifyingDays} d</span></div>
+      <div class="stat-row"><span class="stat-label">Dagen gedeeltelijk geladen</span><span class="stat-value" style="color:var(--warning)">${scen.partialDays} d</span></div>
+      <div class="stat-row"><span class="stat-label">Opgeslagen volle cycli (periode)</span><span class="stat-value">${fmt2(scen.chargedFull)} kWh</span></div>
+      <div class="stat-row"><span class="stat-label">Opgeslagen gedeeltelijk (periode)</span><span class="stat-value" style="color:var(--warning)">${fmt2(scen.chargedPartial)} kWh</span></div>
+      <div class="stat-row"><span class="stat-label">Jaarl. besparing volle cycli</span><span class="stat-value green">${fmtEur(scen.annualSavingFull)} / jaar</span></div>
+      <div class="stat-row"><span class="stat-label">Jaarl. besparing gedeeltelijk</span><span class="stat-value" style="color:var(--warning)">${fmtEur(scen.annualSavingPartial)} / jaar</span></div>
+      <div class="stat-row"><span class="stat-label">Totale jaarlijkse besparing</span><span class="stat-value green big">${fmtEur(scen.annualSaving)} / jaar</span></div>
+      <div class="stat-row"><span class="stat-label">Installatieprijs</span><span class="stat-value">${fmtEur(installPrice)}</span></div>
+      <div class="stat-row"><span class="stat-label">Terugverdientijd</span><span class="stat-value big" style="color:var(--warning)">${paybackText}</span></div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;">Recuperatie t.o.v. <strong>afname</strong></div>
+          <div class="bar-container">
+            <div class="bar-bg" style="flex:1;height:14px;position:relative;background:var(--border);border-radius:5px;overflow:hidden;">
+              <div style="width:${pctFull+pctPartial}%;position:absolute;top:0;height:100%;background:${barColor};border-radius:5px;"></div>
+              <div style="width:${pctPartial}%;position:absolute;top:0;height:100%;left:${pctFull}%;background:${partialColor};border-radius:0 5px 5px 0;"></div>
+            </div>
+            <span style="font-size:0.82rem;font-weight:600;min-width:56px;text-align:right">${fmt2(pctFull+pctPartial)}%</span>
+          </div>
+          <div class="bar-legend">
+            <span><span class="dot" style="background:${barColor}"></span>Volledig: ${fmt2(pctFull)}%</span>
+            <span><span class="dot" style="background:${partialColor}"></span>Partieel: ${fmt2(pctPartial)}%</span>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;">Recuperatie t.o.v. <strong>injectie</strong></div>
+          <div class="bar-container">
+            <div class="bar-bg" style="flex:1;height:14px;position:relative;background:var(--border);border-radius:5px;overflow:hidden;">
+              <div style="width:${injFull+injPartial}%;position:absolute;top:0;height:100%;background:${barColor};border-radius:5px;"></div>
+              <div style="width:${injPartial}%;position:absolute;top:0;height:100%;left:${injFull}%;background:${partialColor};border-radius:0 5px 5px 0;"></div>
+            </div>
+            <span style="font-size:0.82rem;font-weight:600;min-width:56px;text-align:right">${fmt2(injFull+injPartial)}%</span>
+          </div>
+          <div class="bar-legend">
+            <span><span class="dot" style="background:${barColor}"></span>Volledig: ${fmt2(injFull)}%</span>
+            <span><span class="dot" style="background:${partialColor}"></span>Partieel: ${fmt2(injPartial)}%</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Build grid HTML: one group header per config + 1-2 scenario cards
+  let gridHTML = '';
+  d.configResults.forEach((cr, idx) => {
+    const { cfg, pvGtBat, scenWC, scenOpt } = cr;
+    gridHTML += `<div style="grid-column:1/-1;">
+      <div class="config-group-header">
+        🔋 Configuratie ${idx+1}
+        <span class="cfg-sub">${cfg.type} — ${cfg.omschrijving}</span>
+        <span class="config-specs-badge">${fmt2(cfg.batCap)} kWh &nbsp;·&nbsp; ${fmt2(cfg.batInv)} kW omv. &nbsp;·&nbsp; ${Math.round(cfg.eff*100)}% eff &nbsp;·&nbsp; ${fmtEur(cfg.price)}</span>
+      </div>
+    </div>`;
+    const subWC = pvGtBat
+      ? `ZP (${d.pvInv} kW) > bat-omv. (${fmt2(cfg.batInv)} kW) — laaddrempel ×${fmt2(d.pvInv/cfg.batInv)}`
+      : `ZP (${d.pvInv} kW) ≤ bat-omv. (${fmt2(cfg.batInv)} kW) — geen laadbeperking`;
+    gridHTML += makeScenCard(
+      pvGtBat ? 'Worst Case' : 'Standaard',
+      pvGtBat ? '⚠️ Worst Case' : '✅ Standaard',
+      pvGtBat ? 'badge-orange' : 'badge-blue',
+      pvGtBat ? 'worst-case' : 'active',
+      scenWC, cfg.price, subWC, pvGtBat ? 'orange' : 'blue'
+    );
+    if (pvGtBat && scenOpt) {
+      gridHTML += makeScenCard(
+        'Optimistisch', '✨ Optimistisch', 'badge-blue', 'optimistic',
+        scenOpt, cfg.price,
+        `Zelfde installatie — aanname: batterij laadt volledig (drempel = ${fmt2(cfg.batCap)} kWh)`,
+        'blue'
+      );
+    }
+  });
+
+  // ── Recommendation: config with best payback (using optimistic if available) ──
+  const bestCandidates = d.configResults.map((cr, idx) => {
+    const scen = cr.scenOpt || cr.scenWC;
+    return { idx, cr, scen, payback: scen.payback };
+  }).filter(c => isFinite(c.payback) && c.payback > 0);
+
+  if (bestCandidates.length > 1) {
+    const best = bestCandidates.reduce((a, b) => a.payback < b.payback ? a : b);
+    const worst = bestCandidates.reduce((a, b) => a.payback > b.payback ? a : b);
+    gridHTML += `<div class="recommendation-card" style="grid-column:1/-1;">
+      <h3>⭐ Aanbevolen configuratie: Config ${best.idx+1} — ${best.cr.cfg.type}</h3>
+      <div style="font-size:0.88rem;color:#2d6a4f;margin-bottom:12px;">${best.cr.cfg.omschrijving} &nbsp;·&nbsp; ${fmt2(best.cr.cfg.batCap)} kWh &nbsp;·&nbsp; ${fmt2(best.cr.cfg.batInv)} kW &nbsp;·&nbsp; ${fmtEur(best.cr.cfg.price)}</div>
+      <div class="rec-row"><span>Jaarlijkse besparing</span><strong style="color:var(--success)">${fmtEur(best.scen.annualSaving)} / jaar</strong></div>
+      <div class="rec-row"><span>Terugverdientijd</span><strong>${best.payback > 100 ? '> 100 jaar' : fmt2(best.payback) + ' jaar'}</strong></div>
+      <div class="rec-row"><span>Recuperatie t.o.v. afname</span><strong>${fmt2(Math.min(best.scen.recoveryPctFull+best.scen.recoveryPctPartial,100))}%</strong></div>
+      <div class="rec-row"><span>Recuperatie t.o.v. injectie</span><strong>${fmt2(Math.min(best.scen.injPctFull+best.scen.injPctPartial,100))}%</strong></div>
+      <div style="margin-top:10px;font-size:0.82rem;color:#2d6a4f;">
+        Verschil in terugverdientijd t.o.v. minst voordelige: <strong>${fmt2(Math.abs(best.payback - worst.payback))} jaar</strong>
+      </div>
+    </div>`;
+  }
+
+  grid.innerHTML = gridHTML;
+
+  // ── Capacity analysis card ─────────────────────────────────────────────────
+  renderCapAnalysis(d.capAnalysis, d.isFullYear, d.daysInWindow);
+
+  // ── Monthly table ──────────────────────────────────────────────────────────
+  const months = Object.keys(d.monthMap).sort();
+  const maxInj = Math.max(...months.map(m => d.monthMap[m].injectie), 1);
+  let tableHTML = `<table class="data-table"><thead><tr>
+    <th>Maand</th>
+    <th>Afname (kWh)</th>
+    ${d.dualTariff ? '<th>Afname dag</th><th>Afname nacht</th>' : ''}
+    <th>Injectie (kWh)</th>
+    ${d.dualTariff ? '<th>Injectie dag</th><th>Injectie nacht</th>' : ''}
+    <th>Injectie visueel</th>
+  </tr></thead><tbody>`;
+
+  let totAfn=0, totInj2=0, totAfndag=0, totAfnnacht=0, totInjdag=0, totInjnacht=0;
+  for (const mk of months) {
+    const m = d.monthMap[mk];
+    const pct = (m.injectie / maxInj * 100).toFixed(1);
+    const [y, mo] = mk.split('-');
+    const label = new Date(+y, +mo-1, 1).toLocaleDateString('nl-BE', { month: 'long', year: 'numeric' });
+    totAfn+=m.afname; totInj2+=m.injectie;
+    totAfndag+=(m.afnamedag||0); totAfnnacht+=(m.afnamenacht||0);
+    totInjdag+=(m.injectiedag||0); totInjnacht+=(m.injectienacht||0);
+    tableHTML += `<tr>
+      <td>${label}</td><td>${fmt2(m.afname)}</td>
+      ${d.dualTariff ? `<td>${fmt2(m.afnamedag||0)}</td><td>${fmt2(m.afnamenacht||0)}</td>` : ''}
+      <td>${fmt2(m.injectie)}</td>
+      ${d.dualTariff ? `<td>${fmt2(m.injectiedag||0)}</td><td>${fmt2(m.injectienacht||0)}</td>` : ''}
+      <td><div class="bar-container"><div class="bar-bg" style="min-width:80px"><div class="bar-fill green" style="width:${pct}%"></div></div><span style="font-size:0.8rem">${fmt2(m.injectie)}</span></div></td>
+    </tr>`;
+  }
+  tableHTML += `<tr class="highlight">
+    <td><strong>Totaal</strong></td><td><strong>${fmt2(totAfn)}</strong></td>
+    ${d.dualTariff ? `<td><strong>${fmt2(totAfndag)}</strong></td><td><strong>${fmt2(totAfnnacht)}</strong></td>` : ''}
+    <td><strong>${fmt2(totInj2)}</strong></td>
+    ${d.dualTariff ? `<td><strong>${fmt2(totInjdag)}</strong></td><td><strong>${fmt2(totInjnacht)}</strong></td>` : ''}
+    <td></td>
+  </tr></tbody></table>`;
+  document.getElementById('monthlyTable').innerHTML = tableHTML;
+  document.getElementById('monthlyCard').style.display = '';
+  document.getElementById('saveCard').style.display = '';
+  document.getElementById('shareUrlRow').style.display = 'none';
+}
+function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow) {
+  const card    = document.getElementById('capAnalysisCard');
+  const content = document.getElementById('capAnalysisContent');
+  card.style.display = '';
+  const { rows, maxCap } = capAnalysis;
+
+  if (!rows.length || (maxCap === null && rows[0] && rows[0].qualDays < 100)) {
+    content.innerHTML = `<div class="alert alert-warning">⚠️ <div>Zelfs de kleinste capaciteit (2,5 kWh) heeft geen 100 dagen met volledige lading. Controleer uw data.</div></div>`;
+    return;
+  }
+
+  let html = '';
+  if (!isFullYear) {
+    html += `<div class="alert alert-info" style="margin-bottom:12px;">ℹ️ <div>Gebaseerd op ${daysInWindow} beschikbare dagen (geen volledig jaar).</div></div>`;
+  }
+  html += `<div class="alert alert-info" style="margin-bottom:12px;">
+    ℹ️ <div>Analyse bij <strong>gelijke omvormers</strong> (drempel = capaciteit, geen laadbeperking). Gebruik dit als referentie voor de maximaal zinvolle capaciteit.
+    <br><strong style="color:var(--success)">Groen</strong> = ≥ 100 volle laaddagen &nbsp;|&nbsp; <span style="color:var(--warning);font-weight:600">Oranje</span> = &lt; 100 dagen &nbsp;|&nbsp; <span style="background:var(--success);color:#fff;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:700;">MAX</span> = grootste capaciteit met ≥ 100 dagen</div>
+  </div>`;
+
+  html += `<div class="cap-table-wrap"><table class="cap-table">
+    <thead><tr><th>Capaciteit (kWh)</th><th style="text-align:center">Volle laaddagen (≥ drempel)</th></tr></thead><tbody>`;
+
+  for (const r of rows) {
+    const isMax    = r.cap === maxCap;
+    const isOk     = r.qualDays >= 100;
+    const rowClass = isMax ? 'cap-max' : (isOk ? 'cap-ok' : 'cap-fail');
+    const badge    = isMax ? '<span class="badge-max">MAX</span>' : '';
+    html += `<tr class="${rowClass}">
+      <td>${fmt2(r.cap)} kWh${badge}</td>
+      <td style="text-align:center;font-weight:${isMax?'700':'400'}">${r.qualDays}</td>
+    </tr>`;
+  }
+  html += `</tbody></table></div>`;
+
+  if (maxCap !== null) {
+    const maxRow = rows.find(r => r.cap === maxCap);
+    html += `<div class="alert alert-success" style="margin-top:14px;">
+      ✅ <div><strong>Aanbevolen maximale capaciteit: ${fmt2(maxCap)} kWh</strong><br>
+      ${maxRow.qualDays} volle laaddagen per (berekenings)jaar.</div></div>`;
+  }
+  content.innerHTML = html;
+}
+
+// ─── AUTO-LOAD FROM URL ────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Repopulate dropdowns when BTW/keuring changes
+  ['btwSelect','keuringSelect'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+      if (_sheetConfigs) _populateConfigSelects();
+    });
+  });
+  // Auto-load from URL ?data= param
+  const params = new URLSearchParams(window.location.search);
+  const data   = params.get('data');
+  if (data) {
+    try { _applyLoadedState(_b64ToState(data), true); }
+    catch(e) { console.error('Kon opgeslagen staat niet laden vanuit URL:', e); }
+  }
+});
+</script>
+</body>
 </html>
+
