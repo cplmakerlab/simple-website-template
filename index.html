@@ -441,6 +441,17 @@
       font-size: 0.8rem; font-weight: 500; color: var(--text);
       margin-left: auto;
     }
+    .btn-spec {
+      font-size: 0.82rem;
+      padding: 4px 10px;
+      border: 1px solid var(--primary);
+      background: #fff;
+      color: var(--primary);
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-spec:hover { background: rgba(44, 123, 229, 0.08); }
 
     /* ── Spinner ─────────────────────────────────────────────────────────── */
     .spinner { width: 16px; height: 16px; border: 2px solid var(--border);
@@ -1401,6 +1412,7 @@ function renderResults(d) {
         🔋 Configuratie ${idx+1}
         <span class="cfg-sub">${cfg.type} — ${cfg.omschrijving}</span>
         <span class="config-specs-badge">${fmt2(cfg.batCap)} kWh &nbsp;·&nbsp; ${fmt2(cfg.batInv)} kW omv. &nbsp;·&nbsp; ${Math.round(cfg.eff*100)}% eff &nbsp;·&nbsp; ${fmtEur(cfg.price)}</span>
+        <button class="btn-spec" onclick="window.open('producten.html?type=${encodeURIComponent(cfg.type)}', '_blank', 'noopener')">📖 Productspecs ↗</button>
       </div>
     </div>`;
     const subWC = pvGtBat
