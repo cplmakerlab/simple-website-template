@@ -913,11 +913,16 @@ function computePerYearStats(allDays, pvInv, selectedConfigs, lastDate, priceDay
       const pvGtBat     = pvInv > cfg.batInv;
       const thresholdWC = pvGtBat ? cfg.batCap * (pvInv / cfg.batInv) : cfg.batCap;
       const thresholdOpt= cfg.batCap;
-      function calc(threshold) {
+      function calc(threshold, useCap) {
         let qualifyingDays = 0, partialDays = 0, chargedFull = 0, chargedPartial = 0;
         for (const d of days) {
-          if (d.injectie >= threshold) { qualifyingDays++; chargedFull += cfg.batCap * cfg.eff; }
-          else if (d.injectie > 0)     { partialDays++;    chargedPartial += (d.injectie / threshold) * cfg.batCap * cfg.eff; }
+          let dayCharged = 0, isFull = false, isPartial = false;
+          if (d.injectie >= threshold) { isFull = true; dayCharged = cfg.batCap * cfg.eff; }
+          else if (d.injectie > 0)     { isPartial = true; dayCharged = (d.injectie / threshold) * cfg.batCap * cfg.eff; }
+          else { continue; }
+          const dayUsable = useCap ? Math.min(dayCharged, d.afname) : dayCharged;
+          if (isFull)    { qualifyingDays++; chargedFull    += dayUsable; }
+          else            { partialDays++;    chargedPartial += dayUsable; }
         }
         const annualSavingFull    = chargedFull    * effectivePrice;
         const annualSavingPartial = chargedPartial * effectivePrice;
@@ -934,7 +939,7 @@ function computePerYearStats(allDays, pvInv, selectedConfigs, lastDate, priceDay
           threshold,
         };
       }
-      return { scenWC: calc(thresholdWC), scenOpt: pvGtBat ? calc(thresholdOpt) : null };
+      return { scenWC: calc(thresholdWC, true), scenOpt: calc(thresholdOpt, false) };
     });
 
     perYear.push({ windowStart: winStart, windowEnd: winEnd, ...sums, effectivePrice, scenarios });
@@ -1061,16 +1066,22 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
   // ── Per-config scenario calculation ───────────────────────────────────────
   const scaleFactor = isFullYear ? 1 : (365 / daysInWindow);
 
-  function calcScenario(threshold, installPrice, batCap, eff) {
+  function calcScenario(threshold, installPrice, batCap, eff, useCap) {
     let qualifyingDays = 0, partialDays = 0, chargedFull = 0, chargedPartial = 0;
     for (const d of windowDays) {
+      let dayCharged = 0, isFull = false, isPartial = false;
       if (d.injectie >= threshold) {
-        qualifyingDays++;
-        chargedFull += batCap * eff;
+        isFull = true;
+        dayCharged = batCap * eff;
       } else if (d.injectie > 0) {
-        partialDays++;
-        chargedPartial += (d.injectie / threshold) * batCap * eff;
+        isPartial = true;
+        dayCharged = (d.injectie / threshold) * batCap * eff;
+      } else {
+        continue;
       }
+      const dayUsable = useCap ? Math.min(dayCharged, d.afname) : dayCharged;
+      if (isFull)    { qualifyingDays++; chargedFull    += dayUsable; }
+      else            { partialDays++;    chargedPartial += dayUsable; }
     }
     const annualChargedFull    = chargedFull    * scaleFactor;
     const annualChargedPartial = chargedPartial * scaleFactor;
@@ -1096,8 +1107,8 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
     const pvGtBat    = pvInv > cfg.batInv;
     const thresholdWC  = pvGtBat ? cfg.batCap * (pvInv / cfg.batInv) : cfg.batCap;
     const thresholdOpt = cfg.batCap;
-    const scenWC  = calcScenario(thresholdWC,  cfg.price, cfg.batCap, cfg.eff);
-    const scenOpt = pvGtBat ? calcScenario(thresholdOpt, cfg.price, cfg.batCap, cfg.eff) : null;
+    const scenWC  = calcScenario(thresholdWC,  cfg.price, cfg.batCap, cfg.eff, true);
+    const scenOpt = calcScenario(thresholdOpt, cfg.price, cfg.batCap, cfg.eff, false);
     return { cfg, pvGtBat, thresholdWC, thresholdOpt, scenWC, scenOpt };
   });
 
