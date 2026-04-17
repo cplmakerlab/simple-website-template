@@ -390,17 +390,6 @@
       margin-left: auto;
     }
 
-    /* ── Recommendation card ─────────────────────────────────────────────── */
-    .recommendation-card {
-      background: linear-gradient(135deg, #eafaf4 0%, #d1fae5 100%);
-      border: 2px solid var(--success);
-      border-radius: var(--radius); padding: 22px;
-    }
-    .recommendation-card h3 { color: var(--success); font-size: 1.1rem; margin-bottom: 12px; }
-    .rec-row { display: flex; justify-content: space-between; align-items: baseline;
-      padding: 6px 0; border-bottom: 1px solid #b2e8d5; font-size: 0.93rem; }
-    .rec-row:last-child { border-bottom: none; }
-
     /* ── Spinner ─────────────────────────────────────────────────────────── */
     .spinner { width: 16px; height: 16px; border: 2px solid var(--border);
       border-top-color: var(--primary); border-radius: 50%;
@@ -1143,28 +1132,6 @@ function renderResults(d) {
       );
     }
   });
-
-  // ── Recommendation: config with best payback (using optimistic if available) ──
-  const bestCandidates = d.configResults.map((cr, idx) => {
-    const scen = cr.scenOpt || cr.scenWC;
-    return { idx, cr, scen, payback: scen.payback };
-  }).filter(c => isFinite(c.payback) && c.payback > 0);
-
-  if (bestCandidates.length > 1) {
-    const best = bestCandidates.reduce((a, b) => a.payback < b.payback ? a : b);
-    const worst = bestCandidates.reduce((a, b) => a.payback > b.payback ? a : b);
-    gridHTML += `<div class="recommendation-card" style="grid-column:1/-1;">
-      <h3>⭐ Aanbevolen configuratie: Config ${best.idx+1} — ${best.cr.cfg.type}</h3>
-      <div style="font-size:0.88rem;color:#2d6a4f;margin-bottom:12px;">${best.cr.cfg.omschrijving} &nbsp;·&nbsp; ${fmt2(best.cr.cfg.batCap)} kWh &nbsp;·&nbsp; ${fmt2(best.cr.cfg.batInv)} kW &nbsp;·&nbsp; ${fmtEur(best.cr.cfg.price)}</div>
-      <div class="rec-row"><span>Jaarlijkse besparing</span><strong style="color:var(--success)">${fmtEur(best.scen.annualSaving)} / jaar</strong></div>
-      <div class="rec-row"><span>Terugverdientijd</span><strong>${best.payback > 100 ? '> 100 jaar' : fmt2(best.payback) + ' jaar'}</strong></div>
-      <div class="rec-row"><span>Recuperatie t.o.v. afname</span><strong>${fmt2(Math.min(best.scen.recoveryPctFull+best.scen.recoveryPctPartial,100))}%</strong></div>
-      <div class="rec-row"><span>Recuperatie t.o.v. injectie</span><strong>${fmt2(Math.min(best.scen.injPctFull+best.scen.injPctPartial,100))}%</strong></div>
-      <div style="margin-top:10px;font-size:0.82rem;color:#2d6a4f;">
-        Verschil in terugverdientijd t.o.v. minst voordelige: <strong>${fmt2(Math.abs(best.payback - worst.payback))} jaar</strong>
-      </div>
-    </div>`;
-  }
 
   grid.innerHTML = gridHTML;
 
