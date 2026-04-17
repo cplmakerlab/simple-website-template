@@ -10,27 +10,32 @@ The default branch is `gh-pages`; the site is published directly from it via Git
 
 ## File layout — what's live vs. dead
 
-- **`index.html`** (~1280 lines) — the entire app: embedded CSS in `<style>`, the form/results markup, and all JS in a single `<script>` block at the bottom. Edit this file for any feature work.
+- **`index.html`** (~1560 lines) — the entire app: embedded CSS in `<style>`, the form/results markup, and all JS in a single `<script>` block at the bottom. Edit this file for any feature work.
 - **`background.jpg`, `logo.jpg`** — assets referenced by the dead template, not by the calculator. Safe to leave alone.
 - **`style.css`, `script.js`** — **dead code from the upstream template** (jQuery hash-based menu navigation). The calculator does not load them. Don't add app logic here; either edit `index.html` directly or extract into a new file and `<link>`/`<script src>` it from `index.html`.
+- **`docs/superpowers/specs/`, `docs/superpowers/plans/`** — design specs and implementation plans for past feature work, kept for traceability. Read the spec when touching a feature it covers; the plan documents the exact edits already made.
 
 ## How to work on it
 
 - **Run locally:** open `index.html` directly in a browser, or `python3 -m http.server` from the repo root and visit `http://localhost:8000`. A local server is needed if you want the URL `?data=...` share-link flow to behave like production.
-- **Deploy:** push to `gh-pages`. GitHub Pages serves the file as-is; allow ~1 min for the CDN to refresh.
+- **Deploy:** push to `gh-pages`. GitHub Pages serves the file as-is; allow ~1 min for the CDN to refresh. The `gh` CLI is configured for the `Blox-It` GitHub account; `git push origin gh-pages` works directly without further auth setup.
 - **No tests exist.** Verify changes by loading the page, uploading a real Fluvius CSV, and walking the full flow (load configs → calculate → check results, share link, JSON save/load).
 
 ## Architecture (the parts that span multiple sections)
 
 **Data pipeline** (all inside `index.html`):
 1. `parseCSV` — Fluvius export is **semicolon-separated**, dates are `dd-mm-yyyy`, decimals use `,` (handled by `parsVolume`).
-2. `processData` aggregates per-day from rows keyed by `EAN-code` / `Register` (`afname`/`injectie`, optional `dag`/`nacht` split for dual-tariff users).
+2. `processData` aggregates per-day from rows keyed by `EAN-code` / `Register` (`afname`/`injectie`, optional `dag`/`nacht` split for dual-tariff users). Each per-day record has `afname`, `injectie`, `afnamedag`, `afnamenacht`, `injectiedag`, `injectienacht` (in kWh).
 3. A **rolling 365-day window** ending on the last CSV date is the canonical period. If less than a year of data, results are **extrapolated** via `scaleFactor = 365 / daysInWindow` and `isFullYear = false` triggers warning UI.
-4. Per-config scenarios: when `pvInverter > battery inverter`, the daily injection threshold to fully charge is scaled up by `pvInv / batInv` ("worst case"), and a second "optimistic" scenario is also computed at the unscaled threshold. Otherwise only one scenario is shown.
-5. Capacity analysis (`capAnalysis`) sweeps 2.5→200 kWh in 2.5 kWh steps and reports the largest capacity that still has ≥100 fully-charged days/year — used as the "max sensible capacity" recommendation.
+4. **Multi-year averaging:** when ≥ 2 complete 365-day blocks of data exist, `computePerYearStats` slices `allDays` into N year-blocks counting backward from `lastDate` and `averageStats` produces an avg-across-N-years counterpart for every numeric field. The renderer shows a `· gem. N j: …` companion (via the `renderWithAvg` helper) and a `▼` marker on progress bars at the avg position. All gated on `numYears >= 2`; the < 2-year UI is byte-identical to the single-year case.
+5. **Per-config scenarios — always two cards.** For every config the renderer emits both Worst Case (`scenWC`) and Optimistisch (`scenOpt`):
+   - **Worst Case** uses the `useCap=true` path in `calcScenario` / inner `calc`: each day's stored energy is capped at that day's `d.afname` (`Math.min(dayCharged, d.afname)`) so battery savings can never exceed actual grid consumption that day. When `pvInverter > batteryInverter`, the daily-injection threshold is also scaled up by `pvInv / batInv` (battery can't fully charge in a single day at low irradiance).
+   - **Optimistisch** uses `useCap=false` and the unscaled threshold — the ideal-world ceiling.
+   - The truth lies between the two; the salesperson presents the spread.
+6. Capacity analysis (`capAnalysis`) sweeps 2.5→200 kWh in 2.5 kWh steps and reports the largest capacity that still has ≥100 fully-charged days/year — used as the "max sensible capacity" recommendation. The MAX flag is always driven by Year 1 (afgelopen jaar), not the multi-year average.
 
-**Product config source** — `loadConfigs()` fetches a Google Sheet as CSV from a hard-coded URL (`SHEET_CSV_URL` near line 712, gid `425908603`). Each row defines a product (`type`, capacity, inverter kW, efficiency, and four price columns keyed by `BTW%_keuring`: `6_no`, `6_yes`, `21_no`, `21_yes`). If the sheet schema changes (column names or price keys), `_parseSheetConfigs` and `_getPriceKey` must be updated together.
+**Product config source** — `loadConfigs()` fetches a Google Sheet as CSV from a hard-coded URL (`SHEET_CSV_URL` around line 769, gid `425908603`). Each row defines a product (`type`, capacity, inverter kW, efficiency, and four price columns keyed by `BTW%_keuring`: `6_no`, `6_yes`, `21_no`, `21_yes`). If the sheet schema changes (column names or price keys), `_parseSheetConfigs` and `_getPriceKey` must be updated together.
 
-**Save / share state** — `_serializeState` produces a versioned (`v: 2`) JSON of inputs + computed results (NOT the raw CSV). `copyShareLink` base64-encodes it into `?data=...`; `downloadSave` writes it as a JSON file. `_applyLoadedState` restores it on page load via the `DOMContentLoaded` handler. **When you change the shape of `_saved`/`renderResults` input**, bump the version and handle the old version in `_applyLoadedState`, or shared links and downloaded JSONs from before will silently break.
+**Save / share state** — `_serializeState` produces a versioned (`v: 4`) JSON of inputs + computed results (NOT the raw CSV). `copyShareLink` base64-encodes it into `?data=...`; `downloadSave` writes it as a JSON file. `_applyLoadedState` accepts `v: 1, 2, 3, 4` and degrades older versions gracefully (e.g. v3 saves where `scenOpt` is null for `!pvGtBat` configs render only the WC card; v2 saves render with `numYears = 1` and no avg UI). **When you change the shape of `_saved`/`renderResults` input**, bump the version and handle the old version in `_applyLoadedState`, or shared links and downloaded JSONs from before will silently break.
 
-**Rendering** — `renderResults` is the single render entry point used by both fresh calculations and restored saved state; keep it pure with respect to `d` so both paths produce identical UI.
+**Rendering** — `renderResults` is the single render entry point used by both fresh calculations and restored saved state; keep it pure with respect to `d` so both paths produce identical UI. The scenario card (`makeScenCard`) shows four headline rows + a closed-by-default `<details class="scen-details">` disclosure containing the 7 breakdown rows + two recovery progress bars at the bottom (each with a `▼` avg marker when `numYears >= 2`).
