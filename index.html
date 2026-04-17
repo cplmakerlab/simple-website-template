@@ -273,6 +273,34 @@
       pointer-events: none;
     }
 
+    /* ── Scenario card Details disclosure ──────────────────────────────────── */
+    details.scen-details {
+      margin: 8px 0 4px 0;
+    }
+    details.scen-details summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 10px 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+    }
+    details.scen-details summary::-webkit-details-marker { display: none; }
+    details.scen-details summary .chev {
+      transition: transform 0.2s;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    details.scen-details[open] summary .chev { transform: rotate(180deg); }
+    details.scen-details[open] summary { border-bottom-color: transparent; }
+    details.scen-details > .stat-row:first-of-type { padding-top: 10px; }
+
     @media (max-width: 600px) {
       h1 { font-size: 1.3rem; }
       .scenarios-grid { grid-template-columns: 1fr; }
@@ -1284,20 +1312,29 @@ function renderResults(d) {
     const avgSavingLine = showAvg
       ? `<div class="muted-inline" style="display:block;margin-left:0;margin-top:2px;">gem. ${N} j: ${feur(scenAvg.annualSaving)}</div>`
       : '';
+    const totalCharged = scen.chargedFull + scen.chargedPartial;
+    const avgTotalCharged = showAvg ? scenAvg.chargedFull + scenAvg.chargedPartial : null;
+    const avgChargedLine = showAvg
+      ? `<div class="muted-inline" style="display:block;margin-left:0;margin-top:2px;">gem. ${N} j: ${fkw(avgTotalCharged)}</div>`
+      : '';
     return `<div class="scenario-card ${cssClass}">
       <span class="badge ${badgeClass}">${badge}</span>
       <h3>${title}</h3>
       <div class="scenario-sub">${extraInfo}${priceLine}</div>
-      <div class="stat-row"><span class="stat-label">Min. dagelijkse injectie nodig</span><span class="stat-value">${fmt2(scen.threshold)} kWh</span></div>
-      <div class="stat-row"><span class="stat-label">Dagen drempel volledig bereikt</span><span class="stat-value">${renderWithAvg(scen.qualifyingDays, showAvg ? scenAvg.qualifyingDays : null, fday, N)}</span></div>
-      <div class="stat-row"><span class="stat-label">Dagen gedeeltelijk geladen</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.partialDays, showAvg ? scenAvg.partialDays : null, fday, N)}</span></div>
-      <div class="stat-row"><span class="stat-label">Opgeslagen volle cycli (periode)</span><span class="stat-value">${renderWithAvg(scen.chargedFull, showAvg ? scenAvg.chargedFull : null, fkw, N)}</span></div>
-      <div class="stat-row"><span class="stat-label">Opgeslagen gedeeltelijk (periode)</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.chargedPartial, showAvg ? scenAvg.chargedPartial : null, fkw, N)}</span></div>
-      <div class="stat-row"><span class="stat-label">Jaarl. besparing volle cycli</span><span class="stat-value green">${renderWithAvg(scen.annualSavingFull, showAvg ? scenAvg.annualSavingFull : null, feur, N)}</span></div>
-      <div class="stat-row"><span class="stat-label">Jaarl. besparing gedeeltelijk</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.annualSavingPartial, showAvg ? scenAvg.annualSavingPartial : null, feur, N)}</span></div>
+      <div class="stat-row"><span class="stat-label">Totale opgeslagen energie</span><span class="stat-value green big" style="display:flex;flex-direction:column;align-items:flex-end;">${fkw(totalCharged)}${avgChargedLine}</span></div>
       <div class="stat-row"><span class="stat-label">Totale jaarlijkse besparing</span><span class="stat-value green big" style="display:flex;flex-direction:column;align-items:flex-end;">${feur(scen.annualSaving)}${avgSavingLine}</span></div>
       <div class="stat-row"><span class="stat-label">Installatieprijs</span><span class="stat-value">${fmtEur(installPrice)}</span></div>
       <div class="stat-row"><span class="stat-label">Terugverdientijd</span><span class="stat-value big" style="color:var(--warning);display:flex;flex-direction:column;align-items:flex-end;">${paybackText}${avgPaybackLine}</span></div>
+      <details class="scen-details">
+        <summary>Details <span class="chev">▾</span></summary>
+        <div class="stat-row"><span class="stat-label">Min. dagelijkse injectie nodig</span><span class="stat-value">${fmt2(scen.threshold)} kWh</span></div>
+        <div class="stat-row"><span class="stat-label">Dagen drempel volledig bereikt</span><span class="stat-value">${renderWithAvg(scen.qualifyingDays, showAvg ? scenAvg.qualifyingDays : null, fday, N)}</span></div>
+        <div class="stat-row"><span class="stat-label">Dagen gedeeltelijk geladen</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.partialDays, showAvg ? scenAvg.partialDays : null, fday, N)}</span></div>
+        <div class="stat-row"><span class="stat-label">Opgeslagen volle cycli (periode)</span><span class="stat-value">${renderWithAvg(scen.chargedFull, showAvg ? scenAvg.chargedFull : null, fkw, N)}</span></div>
+        <div class="stat-row"><span class="stat-label">Opgeslagen gedeeltelijk (periode)</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.chargedPartial, showAvg ? scenAvg.chargedPartial : null, fkw, N)}</span></div>
+        <div class="stat-row"><span class="stat-label">Jaarl. besparing volle cycli</span><span class="stat-value green">${renderWithAvg(scen.annualSavingFull, showAvg ? scenAvg.annualSavingFull : null, feur, N)}</span></div>
+        <div class="stat-row"><span class="stat-label">Jaarl. besparing gedeeltelijk</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.annualSavingPartial, showAvg ? scenAvg.annualSavingPartial : null, feur, N)}</span></div>
+      </details>
       ${(() => {
         const avgRecPct = showAvg ? Math.min(100, scenAvg.recoveryPctFull + scenAvg.recoveryPctPartial) : null;
         const avgInjPct = showAvg ? Math.min(100, scenAvg.injPctFull      + scenAvg.injPctPartial)      : null;
