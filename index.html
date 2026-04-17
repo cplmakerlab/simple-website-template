@@ -1271,7 +1271,7 @@ function renderResults(d) {
                        : 'rgba(246,166,35,0.85)';
     const N = d.numYears;
     const showAvg = N >= 2 && scenAvg;
-    const fkw  = n => fmt2(n) + ' kWh';
+    // fkw is in renderResults's outer scope (Task 5 summary card); reuse it via closure.
     const fday = n => Math.round(n) + ' d';
     const feur = n => fmtEur(n) + ' / jaar';
     function avgPaybackText(p) {
