@@ -1254,7 +1254,7 @@ function renderResults(d) {
   // ── Scenario cards — grouped per config ────────────────────────────────────
   const grid = document.getElementById('scenariosGrid');
 
-  function makeScenCard(title, badge, badgeClass, cssClass, scen, installPrice, extraInfo, mainColorOverride) {
+  function makeScenCard(title, badge, badgeClass, cssClass, scen, installPrice, extraInfo, mainColorOverride, scenAvg) {
     const paybackText = !isFinite(scen.payback) || scen.payback <= 0 ? '—'
       : scen.payback > 100 ? '> 100 jaar' : `${fmt2(scen.payback)} jaar`;
     const mainColor = mainColorOverride || (cssClass === 'optimal' ? 'green' : 'blue');
@@ -1269,20 +1269,35 @@ function renderResults(d) {
     const partialColor = mainColor === 'orange' ? 'var(--danger)'
                        : mainColor === 'green'  ? '#00897b'
                        : 'rgba(246,166,35,0.85)';
+    const N = d.numYears;
+    const showAvg = N >= 2 && scenAvg;
+    const fkw  = n => fmt2(n) + ' kWh';
+    const fday = n => Math.round(n) + ' d';
+    const feur = n => fmtEur(n) + ' / jaar';
+    function avgPaybackText(p) {
+      if (!isFinite(p) || p <= 0) return '—';
+      return p > 100 ? '> 100 jaar' : `${fmt2(p)} jaar`;
+    }
+    const avgPaybackLine = showAvg
+      ? `<div class="muted-inline" style="display:block;margin-left:0;margin-top:2px;">gem. ${N} j: ${avgPaybackText(scenAvg.payback)}</div>`
+      : '';
+    const avgSavingLine = showAvg
+      ? `<div class="muted-inline" style="display:block;margin-left:0;margin-top:2px;">gem. ${N} j: ${feur(scenAvg.annualSaving)}</div>`
+      : '';
     return `<div class="scenario-card ${cssClass}">
       <span class="badge ${badgeClass}">${badge}</span>
       <h3>${title}</h3>
       <div class="scenario-sub">${extraInfo}${priceLine}</div>
       <div class="stat-row"><span class="stat-label">Min. dagelijkse injectie nodig</span><span class="stat-value">${fmt2(scen.threshold)} kWh</span></div>
-      <div class="stat-row"><span class="stat-label">Dagen drempel volledig bereikt</span><span class="stat-value">${scen.qualifyingDays} d</span></div>
-      <div class="stat-row"><span class="stat-label">Dagen gedeeltelijk geladen</span><span class="stat-value" style="color:var(--warning)">${scen.partialDays} d</span></div>
-      <div class="stat-row"><span class="stat-label">Opgeslagen volle cycli (periode)</span><span class="stat-value">${fmt2(scen.chargedFull)} kWh</span></div>
-      <div class="stat-row"><span class="stat-label">Opgeslagen gedeeltelijk (periode)</span><span class="stat-value" style="color:var(--warning)">${fmt2(scen.chargedPartial)} kWh</span></div>
-      <div class="stat-row"><span class="stat-label">Jaarl. besparing volle cycli</span><span class="stat-value green">${fmtEur(scen.annualSavingFull)} / jaar</span></div>
-      <div class="stat-row"><span class="stat-label">Jaarl. besparing gedeeltelijk</span><span class="stat-value" style="color:var(--warning)">${fmtEur(scen.annualSavingPartial)} / jaar</span></div>
-      <div class="stat-row"><span class="stat-label">Totale jaarlijkse besparing</span><span class="stat-value green big">${fmtEur(scen.annualSaving)} / jaar</span></div>
+      <div class="stat-row"><span class="stat-label">Dagen drempel volledig bereikt</span><span class="stat-value">${renderWithAvg(scen.qualifyingDays, showAvg ? scenAvg.qualifyingDays : null, fday, N)}</span></div>
+      <div class="stat-row"><span class="stat-label">Dagen gedeeltelijk geladen</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.partialDays, showAvg ? scenAvg.partialDays : null, fday, N)}</span></div>
+      <div class="stat-row"><span class="stat-label">Opgeslagen volle cycli (periode)</span><span class="stat-value">${renderWithAvg(scen.chargedFull, showAvg ? scenAvg.chargedFull : null, fkw, N)}</span></div>
+      <div class="stat-row"><span class="stat-label">Opgeslagen gedeeltelijk (periode)</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.chargedPartial, showAvg ? scenAvg.chargedPartial : null, fkw, N)}</span></div>
+      <div class="stat-row"><span class="stat-label">Jaarl. besparing volle cycli</span><span class="stat-value green">${renderWithAvg(scen.annualSavingFull, showAvg ? scenAvg.annualSavingFull : null, feur, N)}</span></div>
+      <div class="stat-row"><span class="stat-label">Jaarl. besparing gedeeltelijk</span><span class="stat-value" style="color:var(--warning)">${renderWithAvg(scen.annualSavingPartial, showAvg ? scenAvg.annualSavingPartial : null, feur, N)}</span></div>
+      <div class="stat-row"><span class="stat-label">Totale jaarlijkse besparing</span><span class="stat-value green big" style="display:flex;flex-direction:column;align-items:flex-end;">${feur(scen.annualSaving)}${avgSavingLine}</span></div>
       <div class="stat-row"><span class="stat-label">Installatieprijs</span><span class="stat-value">${fmtEur(installPrice)}</span></div>
-      <div class="stat-row"><span class="stat-label">Terugverdientijd</span><span class="stat-value big" style="color:var(--warning)">${paybackText}</span></div>
+      <div class="stat-row"><span class="stat-label">Terugverdientijd</span><span class="stat-value big" style="color:var(--warning);display:flex;flex-direction:column;align-items:flex-end;">${paybackText}${avgPaybackLine}</span></div>
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
         <div>
           <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;">Recuperatie t.o.v. <strong>afname</strong></div>
@@ -1335,14 +1350,16 @@ function renderResults(d) {
       pvGtBat ? '⚠️ Worst Case' : '✅ Standaard',
       pvGtBat ? 'badge-orange' : 'badge-blue',
       pvGtBat ? 'worst-case' : 'active',
-      scenWC, cfg.price, subWC, pvGtBat ? 'orange' : 'blue'
+      scenWC, cfg.price, subWC, pvGtBat ? 'orange' : 'blue',
+      cr.scenWCAvg
     );
     if (pvGtBat && scenOpt) {
       gridHTML += makeScenCard(
         'Optimistisch', '✨ Optimistisch', 'badge-blue', 'optimistic',
         scenOpt, cfg.price,
         `Zelfde installatie — aanname: batterij laadt volledig (drempel = ${fmt2(cfg.batCap)} kWh)`,
-        'blue'
+        'blue',
+        cr.scenOptAvg
       );
     }
   });
