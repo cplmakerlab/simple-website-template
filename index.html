@@ -1216,17 +1216,14 @@ function renderResults(d) {
   }
   document.getElementById('periodAlert').innerHTML = periodHTML;
 
-  // Scenario alert: summarise pvGtBat status per config
+  // Scenario alert: always-shown explanation + optional inverter-mismatch warning
+  let scenAlert = `<div class="alert alert-info">ℹ️ <div>Voor elke configuratie tonen we twee scenario's: <strong>Worst Case</strong> (realistisch — met cap op dagelijkse afname) en <strong>Optimistisch</strong> (ideaal — geen beperking). De waarheid ligt ertussen.</div></div>`;
   const anyPvGtBat = d.configResults.some(cr => cr.pvGtBat);
-  let scenAlert = '';
   if (anyPvGtBat) {
     const names = d.configResults
-      .map((cr, idx) => cr.pvGtBat ? `Config ${idx+1} (${cr.cfg.batInv} kW)` : null)
+      .map((cr, idx) => cr.pvGtBat ? `Config ${idx+1} (${fmt2(cr.cfg.batInv)} kW)` : null)
       .filter(Boolean).join(', ');
-    scenAlert = `<div class="alert alert-warning">⚡ <div><strong>ZP-omvormer (${d.pvInv} kW) is sterker dan de batterijomvormer bij: ${names}.</strong><br>
-      Voor deze configuraties wordt zowel een <strong style="color:var(--warning)">worst-case</strong> als een <strong style="color:var(--primary)">optimistisch</strong> scenario getoond.</div></div>`;
-  } else {
-    scenAlert = `<div class="alert alert-success">✅ <div>ZP-omvormer (${d.pvInv} kW) ≤ batterijomvormer voor alle geselecteerde configuraties. Geen laadbeperking.</div></div>`;
+    scenAlert += `<div class="alert alert-warning">⚠️ <div>ZP-omvormer (${d.pvInv} kW) is sterker dan de batterijomvormer bij: ${names}. Bij Worst Case wordt de drempel daarom hoger gezet voor deze configuraties.</div></div>`;
   }
   document.getElementById('scenarioAlert').innerHTML = scenAlert;
 
@@ -1395,7 +1392,7 @@ function renderResults(d) {
     </div>`;
   }
 
-  // Build grid HTML: one group header per config + 1-2 scenario cards
+  // Build grid HTML: one group header per config + always two scenario cards (WC + Opt)
   let gridHTML = '';
   d.configResults.forEach((cr, idx) => {
     const { cfg, pvGtBat, scenWC, scenOpt } = cr;
@@ -1407,22 +1404,20 @@ function renderResults(d) {
       </div>
     </div>`;
     const subWC = pvGtBat
-      ? `ZP (${d.pvInv} kW) > bat-omv. (${fmt2(cfg.batInv)} kW) — laaddrempel ×${fmt2(d.pvInv/cfg.batInv)}`
-      : `ZP (${d.pvInv} kW) ≤ bat-omv. (${fmt2(cfg.batInv)} kW) — geen laadbeperking`;
+      ? `ZP (${d.pvInv} kW) > bat-omv. (${fmt2(cfg.batInv)} kW) — laaddrempel ×${fmt2(d.pvInv/cfg.batInv)}. Verbruikscap toegepast (besparing begrensd door dagelijkse afname).`
+      : `Verbruikscap toegepast — besparing begrensd door dagelijkse afname.`;
     gridHTML += makeScenCard(
-      pvGtBat ? 'Worst Case' : 'Standaard',
-      pvGtBat ? '⚠️ Worst Case' : '✅ Standaard',
-      pvGtBat ? 'badge-orange' : 'badge-blue',
-      pvGtBat ? 'worst-case' : 'active',
-      scenWC, cfg.price, subWC, pvGtBat ? 'orange' : 'blue',
+      'Worst Case', '⚠️ Worst Case', 'badge-orange', 'worst-case',
+      scenWC, cfg.price, subWC, 'orange',
       cr.scenWCAvg
     );
-    if (pvGtBat && scenOpt) {
+    if (scenOpt) {
+      const subOpt = pvGtBat
+        ? `Zelfde installatie — aanname: batterij laadt volledig (drempel = ${fmt2(cfg.batCap)} kWh) en wordt elke dag volledig verbruikt.`
+        : `Aanname: batterij laadt volledig en wordt elke dag volledig verbruikt.`;
       gridHTML += makeScenCard(
         'Optimistisch', '✨ Optimistisch', 'badge-blue', 'optimistic',
-        scenOpt, cfg.price,
-        `Zelfde installatie — aanname: batterij laadt volledig (drempel = ${fmt2(cfg.batCap)} kWh)`,
-        'blue',
+        scenOpt, cfg.price, subOpt, 'blue',
         cr.scenOptAvg
       );
     }
