@@ -1200,6 +1200,9 @@ function renderResults(d) {
   const avgInjectie = d.totalInjectie / (d.daysInWindow || 1);
   const totalDaysCSV = d.allDays.length;
   const periodLabel = d.isFullYear ? 'Volledig rollend jaar' : `Gedeeltelijke periode (${d.daysInWindow} dagen)`;
+  const a   = d.avgTotals; // shorthand; null when numYears < 2
+  const fkw = n => fmt2(n) + ' kWh';
+  const fkwd= n => fmt2(n) + ' kWh/dag';
 
   document.getElementById('summaryContent').innerHTML = `
     <div class="summary-grid">
@@ -1220,23 +1223,23 @@ function renderResults(d) {
         <span class="s-value" style="font-size:0.92rem;">${formatDate(d.windowStart)} – ${formatDate(d.lastDate)}</span></div>
       <hr class="summary-divider" />
       <div class="summary-item"><span class="s-label">Totale afname (periode)</span>
-        <span class="s-value orange">${fmt2(d.totalAfname)} kWh</span></div>
+        <span class="s-value orange">${renderWithAvg(d.totalAfname, a && a.totalAfname, fkw, d.numYears)}</span></div>
       ${d.dualTariff ? `
       <div class="summary-item"><span class="s-label">Afname dag</span>
-        <span class="s-value orange">${fmt2(d.totalAfnamedag)} kWh <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalAfname>0?d.totalAfnamedag/d.totalAfname*100:0)}%)</span></span></div>
+        <span class="s-value orange">${renderWithAvg(d.totalAfnamedag, a && a.totalAfnamedag, fkw, d.numYears)} <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalAfname>0?d.totalAfnamedag/d.totalAfname*100:0)}%)</span></span></div>
       <div class="summary-item"><span class="s-label">Afname nacht</span>
-        <span class="s-value orange">${fmt2(d.totalAfnamenacht)} kWh <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalAfname>0?d.totalAfnamenacht/d.totalAfname*100:0)}%)</span></span></div>` : ''}
+        <span class="s-value orange">${renderWithAvg(d.totalAfnamenacht, a && a.totalAfnamenacht, fkw, d.numYears)} <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalAfname>0?d.totalAfnamenacht/d.totalAfname*100:0)}%)</span></span></div>` : ''}
       <div class="summary-item"><span class="s-label">Totale injectie (periode)</span>
-        <span class="s-value green">${fmt2(d.totalInjectie)} kWh</span></div>
+        <span class="s-value green">${renderWithAvg(d.totalInjectie, a && a.totalInjectie, fkw, d.numYears)}</span></div>
       ${d.dualTariff ? `
       <div class="summary-item"><span class="s-label">Injectie dag</span>
-        <span class="s-value green">${fmt2(d.totalInjectiedag)} kWh <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalInjectie>0?d.totalInjectiedag/d.totalInjectie*100:0)}%)</span></span></div>
+        <span class="s-value green">${renderWithAvg(d.totalInjectiedag, a && a.totalInjectiedag, fkw, d.numYears)} <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalInjectie>0?d.totalInjectiedag/d.totalInjectie*100:0)}%)</span></span></div>
       <div class="summary-item"><span class="s-label">Injectie nacht</span>
-        <span class="s-value green">${fmt2(d.totalInjectienacht)} kWh <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalInjectie>0?d.totalInjectienacht/d.totalInjectie*100:0)}%)</span></span></div>` : ''}
+        <span class="s-value green">${renderWithAvg(d.totalInjectienacht, a && a.totalInjectienacht, fkw, d.numYears)} <span style="font-size:0.8rem;font-weight:400;color:var(--muted)">(${fmt2(d.totalInjectie>0?d.totalInjectienacht/d.totalInjectie*100:0)}%)</span></span></div>` : ''}
       <div class="summary-item"><span class="s-label">Gem. afname per dag</span>
-        <span class="s-value orange">${fmt2(avgAfname)} kWh/dag</span></div>
+        <span class="s-value orange">${renderWithAvg(avgAfname, a && a.avgAfnamePerDay, fkwd, d.numYears)}</span></div>
       <div class="summary-item"><span class="s-label">Gem. injectie per dag</span>
-        <span class="s-value green">${fmt2(avgInjectie)} kWh/dag</span></div>
+        <span class="s-value green">${renderWithAvg(avgInjectie, a && a.avgInjectiePerDay, fkwd, d.numYears)}</span></div>
       ${d.dualTariff ? `<hr class="summary-divider" />
       <div class="summary-item" style="grid-column:1/-1;background:#eef4ff;border-color:var(--primary)">
         <span class="s-label" style="color:var(--primary)">Tweevoudig tarief actief</span>
