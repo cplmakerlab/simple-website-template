@@ -1384,7 +1384,7 @@ function renderResults(d) {
   grid.innerHTML = gridHTML;
 
   // ── Capacity analysis card ─────────────────────────────────────────────────
-  renderCapAnalysis(d.capAnalysis, d.isFullYear, d.daysInWindow);
+  renderCapAnalysis(d.capAnalysis, d.isFullYear, d.daysInWindow, d.numYears);
 
   // ── Monthly table ──────────────────────────────────────────────────────────
   const months = Object.keys(d.monthMap).sort();
@@ -1427,11 +1427,12 @@ function renderResults(d) {
   document.getElementById('saveCard').style.display = '';
   document.getElementById('shareUrlRow').style.display = 'none';
 }
-function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow) {
+function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow, numYears) {
   const card    = document.getElementById('capAnalysisCard');
   const content = document.getElementById('capAnalysisContent');
   card.style.display = '';
   const { rows, maxCap } = capAnalysis;
+  const showAvg = numYears >= 2;
 
   if (!rows.length || (maxCap === null && rows[0] && rows[0].qualDays < 100)) {
     content.innerHTML = `<div class="alert alert-warning">⚠️ <div>Zelfs de kleinste capaciteit (2,5 kWh) heeft geen 100 dagen met volledige lading. Controleer uw data.</div></div>`;
@@ -1444,20 +1445,22 @@ function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow) {
   }
   html += `<div class="alert alert-info" style="margin-bottom:12px;">
     ℹ️ <div>Analyse bij <strong>gelijke omvormers</strong> (drempel = capaciteit, geen laadbeperking). Gebruik dit als referentie voor de maximaal zinvolle capaciteit.
-    <br><strong style="color:var(--success)">Groen</strong> = ≥ 100 volle laaddagen &nbsp;|&nbsp; <span style="color:var(--warning);font-weight:600">Oranje</span> = &lt; 100 dagen &nbsp;|&nbsp; <span style="background:var(--success);color:#fff;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:700;">MAX</span> = grootste capaciteit met ≥ 100 dagen</div>
+    <br><strong style="color:var(--success)">Groen</strong> = ≥ 100 volle laaddagen &nbsp;|&nbsp; <span style="color:var(--warning);font-weight:600">Oranje</span> = &lt; 100 dagen &nbsp;|&nbsp; <span style="background:var(--success);color:#fff;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:700;">MAX</span> = grootste capaciteit met ≥ 100 dagen${showAvg ? ' (gebaseerd op afgelopen jaar)' : ''}</div>
   </div>`;
 
   html += `<div class="cap-table-wrap"><table class="cap-table">
-    <thead><tr><th>Capaciteit (kWh)</th><th style="text-align:center">Volle laaddagen (≥ drempel)</th></tr></thead><tbody>`;
+    <thead><tr><th>Capaciteit (kWh)</th><th style="text-align:center">Volle laaddagen (afgelopen jaar)</th>${showAvg ? `<th style="text-align:center">Gem. ${numYears} j</th>` : ''}</tr></thead><tbody>`;
 
   for (const r of rows) {
     const isMax    = r.cap === maxCap;
     const isOk     = r.qualDays >= 100;
     const rowClass = isMax ? 'cap-max' : (isOk ? 'cap-ok' : 'cap-fail');
     const badge    = isMax ? '<span class="badge-max">MAX</span>' : '';
+    const avgCell  = showAvg ? `<td style="text-align:center;color:var(--muted);font-weight:${isMax?'700':'400'}">${r.avgQualDays != null ? fmt2(r.avgQualDays) : '—'}</td>` : '';
     html += `<tr class="${rowClass}">
       <td>${fmt2(r.cap)} kWh${badge}</td>
       <td style="text-align:center;font-weight:${isMax?'700':'400'}">${r.qualDays}</td>
+      ${avgCell}
     </tr>`;
   }
   html += `</tbody></table></div>`;
