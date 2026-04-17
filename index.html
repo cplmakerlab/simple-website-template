@@ -245,9 +245,33 @@
       font-size: 0.75rem;
       color: var(--muted);
       margin-top: 5px;
+      flex-wrap: wrap;
     }
     .bar-legend span { display: flex; align-items: center; gap: 4px; }
     .bar-legend .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    /* ── Multi-year average UI ─────────────────────────────────────────────── */
+    .muted-inline {
+      font-weight: 400;
+      font-size: 0.85em;
+      color: var(--muted);
+      margin-left: 6px;
+    }
+    .bar-with-marker {
+      flex: 1;
+      position: relative;
+    }
+    .bar-marker {
+      position: absolute;
+      top: -7px;
+      width: 0;
+      height: 0;
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 6px solid var(--muted);
+      transform: translateX(-5px);
+      pointer-events: none;
+    }
 
     @media (max-width: 600px) {
       h1 { font-size: 1.3rem; }
@@ -568,6 +592,15 @@ function formatDate(d) {
 
 function fmt2(n) { return n.toFixed(2); }
 function fmtEur(n) { return '€\u00a0' + n.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+// Render a value with an optional "· gem. N j: <avg>" companion.
+// formatter: function (number) -> string. numYears: integer. avgValue: number | null | undefined.
+// When numYears < 2 or avgValue is null/undefined/NaN, returns just formatter(currentValue).
+function renderWithAvg(currentValue, avgValue, formatter, numYears) {
+  const cur = formatter(currentValue);
+  if (!numYears || numYears < 2 || avgValue == null || (typeof avgValue === 'number' && isNaN(avgValue))) return cur;
+  return cur + `<span class="muted-inline">· gem. ${numYears} j: ${formatter(avgValue)}</span>`;
+}
 
 // ─── SAVE / LOAD STATE ────────────────────────────────────────────────────────
 let _saved = null; // last renderResults argument, set at render time
