@@ -601,7 +601,7 @@ function _serializeState() {
       monthMap: d.monthMap,
       eanCode: d.eanCode, meterNr: d.meterNr, meterType: d.meterType,
       capAnalysis: d.capAnalysis,
-      numYears:   d.numYears   || 1,
+      numYears:   d.numYears != null ? d.numYears : 1,
       yearsStart: d.yearsStart ? d.yearsStart.toISOString().slice(0,10) : null,
       avgTotals:  d.avgTotals  || null,
     }
