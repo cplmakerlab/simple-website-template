@@ -111,7 +111,7 @@ When `N === 1`, table is unchanged.
 
 All edits in `index.html`. New helpers (placed near the existing `processData` for proximity to where they're used):
 
-- `computePerYearStats(allDays, configs, lastDate, priceDay, priceNight) → { N, perYear: [yearStats × N], yearsStart: Date }`
+- `computePerYearStats(allDays, pvInv, configs, lastDate, priceDay, priceNight) → { numYears, perYear: [yearStats × numYears], yearsStart: Date }`
   - Slices `allDays` into N year-blocks counting backward from `lastDate`.
   - For each block, runs the same aggregation `processData` does today (re-use code by extracting the inner aggregation into a helper if cleaner, but a localized reimplementation is acceptable if extraction would touch too much surrounding code).
 - `averageStats(perYearStats) → avgStats`

@@ -893,7 +893,7 @@ function averageStats(perYear, selectedConfigs) {
 
   const scenarios = selectedConfigs.map((cfg, i) => {
     function avgScen(scenKey) {
-      const arr = perYear.map(y => y.scenarios[i][scenKey]).filter(Boolean);
+      const arr = perYear.map(y => y.scenarios[i][scenKey]).filter(sc => sc !== null);
       if (!arr.length) return null;
       const m = key => arr.reduce((s, sc) => s + sc[key], 0) / arr.length;
       const avgChargedFull    = m('chargedFull');
@@ -1052,18 +1052,21 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
   const yearsStart= py.yearsStart;
   const avgTotals = numYears >= 2 ? averageStats(py.perYear, selectedConfigs) : null;
 
+  // Pre-filter allDays into per-year blocks once, so the loops below don't
+  // re-scan the full allDays array per cap-step / per month.
+  const yearDays = py.perYear.map(yr =>
+    allDays.filter(d => d.date >= yr.windowStart && d.date <= yr.windowEnd)
+  );
+
   // Per-month avg injection across the same calendar month over all N years.
   if (numYears >= 2) {
     for (const mk of Object.keys(monthMap)) {
       const [, mo] = mk.split('-');
       const moNum = +mo;
-      // Sum injection across all N year-blocks for this calendar month.
       let total = 0;
-      for (const yr of py.perYear) {
-        for (const day of allDays) {
-          if (day.date >= yr.windowStart && day.date <= yr.windowEnd && (day.date.getMonth() + 1) === moNum) {
-            total += day.injectie;
-          }
+      for (const days of yearDays) {
+        for (const day of days) {
+          if ((day.date.getMonth() + 1) === moNum) total += day.injectie;
         }
       }
       monthMap[mk].avgInjectie = total / numYears;
@@ -1080,11 +1083,9 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
     let avgQualDays = null;
     if (numYears >= 2) {
       let totalQual = 0;
-      for (const yr of py.perYear) {
+      for (const days of yearDays) {
         let yrQual = 0;
-        for (const day of allDays) {
-          if (day.date >= yr.windowStart && day.date <= yr.windowEnd && day.injectie >= cap) yrQual++;
-        }
+        for (const day of days) { if (day.injectie >= cap) yrQual++; }
         totalQual += yrQual;
       }
       avgQualDays = totalQual / numYears;
@@ -1096,12 +1097,12 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
   const capAnalysis = { rows: capRows, maxCap: capMaxDays };
 
   // Attach avg scenarios to each configResult (parallel to scenWC / scenOpt).
-  if (avgTotals) {
-    configResults.forEach((cr, i) => {
-      cr.scenWCAvg  = avgTotals.scenarios[i].scenWCAvg;
-      cr.scenOptAvg = avgTotals.scenarios[i].scenOptAvg;
-    });
-  }
+  // Always present as null when there's no multi-year data, mirroring the
+  // monthMap[mk].avgInjectie and capAnalysis.rows[i].avgQualDays pattern.
+  configResults.forEach((cr, i) => {
+    cr.scenWCAvg  = avgTotals ? avgTotals.scenarios[i].scenWCAvg  : null;
+    cr.scenOptAvg = avgTotals ? avgTotals.scenarios[i].scenOptAvg : null;
+  });
 
   // ── Render ─────────────────────────────────────────────────────────────────
   renderResults({
