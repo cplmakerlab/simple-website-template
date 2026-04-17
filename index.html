@@ -916,13 +916,13 @@ function computePerYearStats(allDays, pvInv, selectedConfigs, lastDate, priceDay
       function calc(threshold, useCap) {
         let qualifyingDays = 0, partialDays = 0, chargedFull = 0, chargedPartial = 0;
         for (const d of days) {
-          let dayCharged = 0, isFull = false, isPartial = false;
+          let dayCharged = 0, isFull = false;
           if (d.injectie >= threshold) { isFull = true; dayCharged = cfg.batCap * cfg.eff; }
-          else if (d.injectie > 0)     { isPartial = true; dayCharged = (d.injectie / threshold) * cfg.batCap * cfg.eff; }
+          else if (d.injectie > 0)     { dayCharged = (d.injectie / threshold) * cfg.batCap * cfg.eff; }
           else { continue; }
           const dayUsable = useCap ? Math.min(dayCharged, d.afname) : dayCharged;
-          if (isFull)    { qualifyingDays++; chargedFull    += dayUsable; }
-          else            { partialDays++;    chargedPartial += dayUsable; }
+          if (isFull) { qualifyingDays++; chargedFull    += dayUsable; }
+          else        { partialDays++;    chargedPartial += dayUsable; }
         }
         const annualSavingFull    = chargedFull    * effectivePrice;
         const annualSavingPartial = chargedPartial * effectivePrice;
@@ -1069,19 +1069,18 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
   function calcScenario(threshold, installPrice, batCap, eff, useCap) {
     let qualifyingDays = 0, partialDays = 0, chargedFull = 0, chargedPartial = 0;
     for (const d of windowDays) {
-      let dayCharged = 0, isFull = false, isPartial = false;
+      let dayCharged = 0, isFull = false;
       if (d.injectie >= threshold) {
         isFull = true;
         dayCharged = batCap * eff;
       } else if (d.injectie > 0) {
-        isPartial = true;
         dayCharged = (d.injectie / threshold) * batCap * eff;
       } else {
         continue;
       }
       const dayUsable = useCap ? Math.min(dayCharged, d.afname) : dayCharged;
-      if (isFull)    { qualifyingDays++; chargedFull    += dayUsable; }
-      else            { partialDays++;    chargedPartial += dayUsable; }
+      if (isFull) { qualifyingDays++; chargedFull    += dayUsable; }
+      else        { partialDays++;    chargedPartial += dayUsable; }
     }
     const annualChargedFull    = chargedFull    * scaleFactor;
     const annualChargedPartial = chargedPartial * scaleFactor;
