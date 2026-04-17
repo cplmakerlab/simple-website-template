@@ -1298,36 +1298,53 @@ function renderResults(d) {
       <div class="stat-row"><span class="stat-label">Totale jaarlijkse besparing</span><span class="stat-value green big" style="display:flex;flex-direction:column;align-items:flex-end;">${feur(scen.annualSaving)}${avgSavingLine}</span></div>
       <div class="stat-row"><span class="stat-label">Installatieprijs</span><span class="stat-value">${fmtEur(installPrice)}</span></div>
       <div class="stat-row"><span class="stat-label">Terugverdientijd</span><span class="stat-value big" style="color:var(--warning);display:flex;flex-direction:column;align-items:flex-end;">${paybackText}${avgPaybackLine}</span></div>
+      ${(() => {
+        const avgRecPct = showAvg ? Math.min(100, scenAvg.recoveryPctFull + scenAvg.recoveryPctPartial) : null;
+        const avgInjPct = showAvg ? Math.min(100, scenAvg.injPctFull      + scenAvg.injPctPartial)      : null;
+        const recMarker = avgRecPct == null ? '' : `<div class="bar-marker" style="left:${avgRecPct}%" title="gem. ${N} j: ${fmt2(avgRecPct)}%"></div>`;
+        const injMarker = avgInjPct == null ? '' : `<div class="bar-marker" style="left:${avgInjPct}%" title="gem. ${N} j: ${fmt2(avgInjPct)}%"></div>`;
+        const recAvgLegend = avgRecPct == null ? '' : `<span class="muted-inline" style="margin-left:0;">▼ gem. ${N} j: ${fmt2(avgRecPct)}%</span>`;
+        const injAvgLegend = avgInjPct == null ? '' : `<span class="muted-inline" style="margin-left:0;">▼ gem. ${N} j: ${fmt2(avgInjPct)}%</span>`;
+        return `
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
         <div>
           <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;">Recuperatie t.o.v. <strong>afname</strong></div>
           <div class="bar-container">
-            <div class="bar-bg" style="flex:1;height:14px;position:relative;background:var(--border);border-radius:5px;overflow:hidden;">
-              <div style="width:${pctFull+pctPartial}%;position:absolute;top:0;height:100%;background:${barColor};border-radius:5px;"></div>
-              <div style="width:${pctPartial}%;position:absolute;top:0;height:100%;left:${pctFull}%;background:${partialColor};border-radius:0 5px 5px 0;"></div>
+            <div class="bar-with-marker">
+              <div class="bar-bg" style="height:14px;position:relative;background:var(--border);border-radius:5px;overflow:hidden;">
+                <div style="width:${pctFull+pctPartial}%;position:absolute;top:0;height:100%;background:${barColor};border-radius:5px;"></div>
+                <div style="width:${pctPartial}%;position:absolute;top:0;height:100%;left:${pctFull}%;background:${partialColor};border-radius:0 5px 5px 0;"></div>
+              </div>
+              ${recMarker}
             </div>
             <span style="font-size:0.82rem;font-weight:600;min-width:56px;text-align:right">${fmt2(pctFull+pctPartial)}%</span>
           </div>
           <div class="bar-legend">
             <span><span class="dot" style="background:${barColor}"></span>Volledig: ${fmt2(pctFull)}%</span>
             <span><span class="dot" style="background:${partialColor}"></span>Partieel: ${fmt2(pctPartial)}%</span>
+            ${recAvgLegend}
           </div>
         </div>
         <div>
           <div style="font-size:0.8rem;color:var(--muted);margin-bottom:5px;">Recuperatie t.o.v. <strong>injectie</strong></div>
           <div class="bar-container">
-            <div class="bar-bg" style="flex:1;height:14px;position:relative;background:var(--border);border-radius:5px;overflow:hidden;">
-              <div style="width:${injFull+injPartial}%;position:absolute;top:0;height:100%;background:${barColor};border-radius:5px;"></div>
-              <div style="width:${injPartial}%;position:absolute;top:0;height:100%;left:${injFull}%;background:${partialColor};border-radius:0 5px 5px 0;"></div>
+            <div class="bar-with-marker">
+              <div class="bar-bg" style="height:14px;position:relative;background:var(--border);border-radius:5px;overflow:hidden;">
+                <div style="width:${injFull+injPartial}%;position:absolute;top:0;height:100%;background:${barColor};border-radius:5px;"></div>
+                <div style="width:${injPartial}%;position:absolute;top:0;height:100%;left:${injFull}%;background:${partialColor};border-radius:0 5px 5px 0;"></div>
+              </div>
+              ${injMarker}
             </div>
             <span style="font-size:0.82rem;font-weight:600;min-width:56px;text-align:right">${fmt2(injFull+injPartial)}%</span>
           </div>
           <div class="bar-legend">
             <span><span class="dot" style="background:${barColor}"></span>Volledig: ${fmt2(injFull)}%</span>
             <span><span class="dot" style="background:${partialColor}"></span>Partieel: ${fmt2(injPartial)}%</span>
+            ${injAvgLegend}
           </div>
         </div>
-      </div>
+      </div>`;
+      })()}
     </div>`;
   }
 
