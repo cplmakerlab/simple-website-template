@@ -1170,8 +1170,11 @@ function renderResults(d) {
       De beschikbare periode is ${d.daysInWindow} dagen (${formatDate(d.windowStart)} – ${formatDate(d.lastDate)}).
       Jaarlijkse besparingen zijn <em>geëxtrapoleerd</em> op basis van deze kortere periode.</div></div>`;
   } else {
+    const avgLine = (d.numYears >= 2 && d.yearsStart)
+      ? `<br><span style="font-size:0.88rem;">Gemiddelde berekend over <strong>${d.numYears} volledige jaren</strong> (${formatDate(d.yearsStart)} – ${formatDate(d.lastDate)}).</span>`
+      : '';
     periodHTML = `<div class="alert alert-info">
-      ℹ️ <div>Berekening op basis van rollend jaar: ${formatDate(d.windowStart)} – ${formatDate(d.lastDate)} (${d.daysInWindow} dagen).</div></div>`;
+      ℹ️ <div>Berekening op basis van rollend jaar: ${formatDate(d.windowStart)} – ${formatDate(d.lastDate)} (${d.daysInWindow} dagen).${avgLine}</div></div>`;
   }
   document.getElementById('periodAlert').innerHTML = periodHTML;
 
