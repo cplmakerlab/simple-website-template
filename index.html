@@ -637,7 +637,7 @@ function _serializeState() {
   if (!_saved) return null;
   const d = _saved;
   return {
-    v: 3,
+    v: 4,
     form: {
       pvInv:    d.pvInv,
       priceDay: d.priceDay,
@@ -736,13 +736,13 @@ function loadFromJSONFile(e) {
 }
 
 function _applyLoadedState(state, showBanner) {
-  if (!state || (state.v !== 1 && state.v !== 2 && state.v !== 3)) { alert('Onbekend of verouderd bestandsformaat.'); return; }
+  if (!state || (state.v !== 1 && state.v !== 2 && state.v !== 3 && state.v !== 4)) { alert('Onbekend of verouderd bestandsformaat.'); return; }
   const f = state.form || {};
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val != null ? val : ''; };
   set('pvInverter',    f.pvInv);
   set('elecPrice',     f.priceDay);
   set('elecPriceNight',f.priceNight);
-  if ((state.v === 2 || state.v === 3) && f.selectedConfigTypes && f.selectedConfigTypes.some(t => t)) {
+  if ((state.v === 2 || state.v === 3 || state.v === 4) && f.selectedConfigTypes && f.selectedConfigTypes.some(t => t)) {
     loadConfigs().then(() => _populateConfigSelects(f.selectedConfigTypes)).catch(() => {});
   }
   const r = _restoreState(state.r);
