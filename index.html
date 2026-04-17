@@ -808,6 +808,128 @@ function calculate() {
   reader.readAsText(fileInput.files[0], 'UTF-8');
 }
 
+// ─── MULTI-YEAR HELPERS ────────────────────────────────────────────────────────
+// Slice allDays into N complete 365-day blocks counting backward from lastDate.
+// Returns { numYears, yearsStart, perYear } where perYear[0] is the most recent year.
+// numYears = floor((lastDate - firstDate + 1) / 365). When numYears < 1, returns
+// { numYears: 0, yearsStart: null, perYear: [] } and callers should fall back to
+// existing single-window behavior.
+function computePerYearStats(allDays, pvInv, selectedConfigs, lastDate, priceDay, priceNight) {
+  if (!allDays.length) return { numYears: 0, yearsStart: null, perYear: [] };
+  const firstDate = allDays[0].date;
+  const spanDays  = Math.floor((lastDate - firstDate) / 86400000) + 1;
+  const numYears  = Math.floor(spanDays / 365);
+  if (numYears < 1) return { numYears: 0, yearsStart: null, perYear: [] };
+
+  const dualTariff = !isNaN(priceNight) && priceNight > 0;
+  const perYear = [];
+  for (let k = 1; k <= numYears; k++) {
+    const winEnd   = new Date(lastDate); winEnd.setDate(winEnd.getDate() - 365 * (k - 1));
+    const winStart = new Date(lastDate); winStart.setDate(winStart.getDate() - 365 * k + 1);
+    const days = allDays.filter(d => d.date >= winStart && d.date <= winEnd);
+
+    const sums = days.reduce((s, d) => ({
+      afname:        s.afname        + d.afname,
+      injectie:      s.injectie      + d.injectie,
+      afnamedag:     s.afnamedag     + d.afnamedag,
+      afnamenacht:   s.afnamenacht   + d.afnamenacht,
+      injectiedag:   s.injectiedag   + d.injectiedag,
+      injectienacht: s.injectienacht + d.injectienacht,
+    }), { afname:0, injectie:0, afnamedag:0, afnamenacht:0, injectiedag:0, injectienacht:0 });
+
+    const effectivePrice = (dualTariff && sums.afname > 0)
+      ? (sums.afnamedag / sums.afname) * priceDay + (sums.afnamenacht / sums.afname) * priceNight
+      : priceDay;
+
+    const scenarios = selectedConfigs.map(cfg => {
+      const pvGtBat     = pvInv > cfg.batInv;
+      const thresholdWC = pvGtBat ? cfg.batCap * (pvInv / cfg.batInv) : cfg.batCap;
+      const thresholdOpt= cfg.batCap;
+      function calc(threshold) {
+        let qualifyingDays = 0, partialDays = 0, chargedFull = 0, chargedPartial = 0;
+        for (const d of days) {
+          if (d.injectie >= threshold) { qualifyingDays++; chargedFull += cfg.batCap * cfg.eff; }
+          else if (d.injectie > 0)     { partialDays++;    chargedPartial += (d.injectie / threshold) * cfg.batCap * cfg.eff; }
+        }
+        const annualSavingFull    = chargedFull    * effectivePrice;
+        const annualSavingPartial = chargedPartial * effectivePrice;
+        const annualSaving        = annualSavingFull + annualSavingPartial;
+        const payback             = cfg.price > 0 ? cfg.price / annualSaving : Infinity;
+        const recoveryPctFull     = (chargedFull    / (sums.afname    || 1)) * 100;
+        const recoveryPctPartial  = (chargedPartial / (sums.afname    || 1)) * 100;
+        const injPctFull          = (chargedFull    / cfg.eff / (sums.injectie || 1)) * 100;
+        const injPctPartial       = (chargedPartial / cfg.eff / (sums.injectie || 1)) * 100;
+        return {
+          qualifyingDays, partialDays, chargedFull, chargedPartial,
+          annualSavingFull, annualSavingPartial, annualSaving, payback,
+          recoveryPctFull, recoveryPctPartial, injPctFull, injPctPartial,
+          threshold,
+        };
+      }
+      return { scenWC: calc(thresholdWC), scenOpt: pvGtBat ? calc(thresholdOpt) : null };
+    });
+
+    perYear.push({ windowStart: winStart, windowEnd: winEnd, ...sums, effectivePrice, scenarios });
+  }
+
+  const yearsStart = perYear[perYear.length - 1].windowStart;
+  return { numYears, yearsStart, perYear };
+}
+
+// Average across all per-year stats. For derived metrics (payback, recovery%),
+// compute FROM averages (avgPayback = installPrice / avgAnnualSaving), not
+// the mean of yearly derivatives. Returns null when perYear.length < 1.
+function averageStats(perYear, selectedConfigs) {
+  if (!perYear.length) return null;
+  const N = perYear.length;
+  const mean = key => perYear.reduce((s, y) => s + y[key], 0) / N;
+  const totalAfname        = mean('afname');
+  const totalInjectie      = mean('injectie');
+  const totalAfnamedag     = mean('afnamedag');
+  const totalAfnamenacht   = mean('afnamenacht');
+  const totalInjectiedag   = mean('injectiedag');
+  const totalInjectienacht = mean('injectienacht');
+  const effectivePrice     = mean('effectivePrice');
+
+  const scenarios = selectedConfigs.map((cfg, i) => {
+    function avgScen(scenKey) {
+      const arr = perYear.map(y => y.scenarios[i][scenKey]).filter(Boolean);
+      if (!arr.length) return null;
+      const m = key => arr.reduce((s, sc) => s + sc[key], 0) / arr.length;
+      const avgChargedFull    = m('chargedFull');
+      const avgChargedPartial = m('chargedPartial');
+      const avgAnnualSavingFull    = m('annualSavingFull');
+      const avgAnnualSavingPartial = m('annualSavingPartial');
+      const avgAnnualSaving        = m('annualSaving');
+      return {
+        qualifyingDays: m('qualifyingDays'),
+        partialDays:    m('partialDays'),
+        chargedFull:    avgChargedFull,
+        chargedPartial: avgChargedPartial,
+        annualSavingFull:    avgAnnualSavingFull,
+        annualSavingPartial: avgAnnualSavingPartial,
+        annualSaving:        avgAnnualSaving,
+        payback:             cfg.price > 0 && avgAnnualSaving > 0 ? cfg.price / avgAnnualSaving : Infinity,
+        recoveryPctFull:     (avgChargedFull    / (totalAfname    || 1)) * 100,
+        recoveryPctPartial:  (avgChargedPartial / (totalAfname    || 1)) * 100,
+        injPctFull:          (avgChargedFull    / cfg.eff / (totalInjectie || 1)) * 100,
+        injPctPartial:       (avgChargedPartial / cfg.eff / (totalInjectie || 1)) * 100,
+        threshold:           arr[0].threshold,
+      };
+    }
+    return { scenWCAvg: avgScen('scenWC'), scenOptAvg: avgScen('scenOpt') };
+  });
+
+  return {
+    totalAfname, totalInjectie,
+    totalAfnamedag, totalAfnamenacht, totalInjectiedag, totalInjectienacht,
+    effectivePrice,
+    avgAfnamePerDay:   totalAfname   / 365,
+    avgInjectiePerDay: totalInjectie / 365,
+    scenarios,
+  };
+}
+
 function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
   const rows = parseCSV(csvText);
 
@@ -915,7 +1037,7 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
   const monthMap = {};
   for (const d of windowDays) {
     const mk = `${d.date.getFullYear()}-${String(d.date.getMonth()+1).padStart(2,'0')}`;
-    if (!monthMap[mk]) monthMap[mk] = { injectie:0, afname:0, injectiedag:0, injectienacht:0, afnamedag:0, afnamenacht:0 };
+    if (!monthMap[mk]) monthMap[mk] = { injectie:0, afname:0, injectiedag:0, injectienacht:0, afnamedag:0, afnamenacht:0, avgInjectie: null };
     monthMap[mk].injectie      += d.injectie;
     monthMap[mk].afname        += d.afname;
     monthMap[mk].injectiedag   += d.injectiedag;
@@ -924,18 +1046,62 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
     monthMap[mk].afnamenacht   += d.afnamenacht;
   }
 
-  // ── Capacity analysis — simplified: only qualDays per capacity step ────────
+  // ── Multi-year per-year stats + averages (gated on N >= 2 in renderer) ─────
+  const py = computePerYearStats(allDays, pvInv, selectedConfigs, lastDate, priceDay, priceNight);
+  const numYears  = py.numYears;
+  const yearsStart= py.yearsStart;
+  const avgTotals = numYears >= 2 ? averageStats(py.perYear, selectedConfigs) : null;
+
+  // Per-month avg injection across the same calendar month over all N years.
+  if (numYears >= 2) {
+    for (const mk of Object.keys(monthMap)) {
+      const [, mo] = mk.split('-');
+      const moNum = +mo;
+      // Sum injection across all N year-blocks for this calendar month.
+      let total = 0;
+      for (const yr of py.perYear) {
+        for (const day of allDays) {
+          if (day.date >= yr.windowStart && day.date <= yr.windowEnd && (day.date.getMonth() + 1) === moNum) {
+            total += day.injectie;
+          }
+        }
+      }
+      monthMap[mk].avgInjectie = total / numYears;
+    }
+  }
+
+  // ── Capacity analysis — qualDays per capacity step (current year + multi-year avg) ──
   const capRows = [];
   let capMaxDays = null;
   const CAP_STEP = 2.5;
   for (let cap = CAP_STEP; cap <= 200; cap = Math.round((cap + CAP_STEP) * 10) / 10) {
     let qualDays = 0;
     for (const day of windowDays) { if (day.injectie >= cap) qualDays++; }
-    capRows.push({ cap, qualDays });
+    let avgQualDays = null;
+    if (numYears >= 2) {
+      let totalQual = 0;
+      for (const yr of py.perYear) {
+        let yrQual = 0;
+        for (const day of allDays) {
+          if (day.date >= yr.windowStart && day.date <= yr.windowEnd && day.injectie >= cap) yrQual++;
+        }
+        totalQual += yrQual;
+      }
+      avgQualDays = totalQual / numYears;
+    }
+    capRows.push({ cap, qualDays, avgQualDays });
     if (qualDays >= 100) capMaxDays = cap;
     if (capMaxDays !== null && cap >= capMaxDays + 3 * CAP_STEP) break;
   }
   const capAnalysis = { rows: capRows, maxCap: capMaxDays };
+
+  // Attach avg scenarios to each configResult (parallel to scenWC / scenOpt).
+  if (avgTotals) {
+    configResults.forEach((cr, i) => {
+      cr.scenWCAvg  = avgTotals.scenarios[i].scenWCAvg;
+      cr.scenOptAvg = avgTotals.scenarios[i].scenOptAvg;
+    });
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
   renderResults({
@@ -945,7 +1111,8 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
     dualTariff, priceDay, priceNight, effectivePrice,
     pvInv, configResults,
     monthMap, eanCode, meterNr, meterType,
-    firstDate, allDays, capAnalysis
+    firstDate, allDays, capAnalysis,
+    numYears, yearsStart, avgTotals,
   });
 }
 
