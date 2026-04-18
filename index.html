@@ -504,11 +504,76 @@
       color: var(--primary);
       padding: 6px 0;
     }
+    /* ─── Project banner (only shown in ?project=<id> mode) ─────────────── */
+    .project-banner {
+      background: linear-gradient(135deg, #eef4ff 0%, #dbeafe 100%);
+      border: 1px solid var(--primary);
+      border-radius: var(--radius);
+      padding: 14px 20px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .project-banner .pb-name { font-weight: 700; color: var(--primary-dark); font-size: 1.05rem; }
+    .project-banner .pb-customer { color: var(--text); }
+    .project-banner .pb-back {
+      margin-left: auto;
+      font-size: 0.9rem;
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .project-banner .pb-back:hover { text-decoration: underline; }
+    .status-chip {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .status-popover {
+      position: absolute;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      padding: 4px 0;
+      z-index: 50;
+      min-width: 220px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+    .status-popover .status-option {
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-popover .status-option:hover { background: var(--bg); }
+    .status-popover .status-dot { width: 10px; height: 10px; border-radius: 50%; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7"></script>
   <script src="assets/js/csv.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+  <script src="assets/js/firebase-init.js"></script>
 </head>
 <body>
+
+<div id="projectBanner" class="project-banner" style="display:none;">
+  <span class="pb-name" id="pbName">…</span>
+  <span class="pb-customer">👤 <span id="pbCustomer">…</span></span>
+  <span id="pbStatusChip"></span>
+  <a class="pb-back" href="dashboard.html">← Terug naar dashboard</a>
+</div>
 
 <h1>⚡ SmartPeak - Batterij ROI Calculator</h1>
 <p class="subtitle">Bereken de terugverdientijd van uw batterijinstallatie op basis van uw verbruikshistoriek.</p>
@@ -1907,6 +1972,133 @@ window.addEventListener('DOMContentLoaded', () => {
     catch(e) { console.error('Kon opgeslagen staat niet laden vanuit URL:', e); }
   }
 });
+// ─── PROJECT MODE (?project=<id>) ────────────────────────────────────────────
+let _projectId   = null;
+let _projectDoc  = null;
+
+(function bootstrapProjectMode() {
+  const params = new URLSearchParams(window.location.search);
+  const pid = params.get('project');
+  if (!pid) return; // Not project mode — bare or ?data=<b64>, leave everything as-is.
+  _projectId = pid;
+  // Wait for Firebase + auth before doing anything.
+  onAuthStateChanged(async (user) => {
+    if (!user || !isWhitelisted(user)) {
+      // Redirect to dashboard. Keep the project ID in the URL so dashboard can return to it
+      // after sign-in (Phase 2 could implement that; for Phase 1 we just send them to dashboard).
+      window.location.href = `dashboard.html`;
+      return;
+    }
+    try {
+      await loadProjectIntoUI(pid);
+    } catch (e) {
+      console.error('Project load error:', e);
+      alert('Kon project niet laden: ' + (e && e.message ? e.message : e));
+      window.location.href = 'dashboard.html';
+    }
+  });
+})();
+
+async function loadProjectIntoUI(id) {
+  const proj = await getProject(id);
+  if (!proj || proj.deletedAt) {
+    alert('Project niet gevonden of verwijderd.');
+    window.location.href = 'dashboard.html';
+    return;
+  }
+  _projectDoc = proj;
+
+  // Render banner
+  document.getElementById('pbName').textContent     = proj.projectName || '(zonder naam)';
+  document.getElementById('pbCustomer').textContent = proj.customerName || '—';
+  renderProjectStatusChip();
+  document.getElementById('projectBanner').style.display = '';
+
+  // If we have CSV + calc data, reuse the v:5 share-link restore path.
+  if (proj.csvUpload && proj.lastCalcRun) {
+    const restored = buildSavedFromProject(proj);
+    _applyLoadedState(restored, /*showBanner*/ false);
+  } else if (proj.csvUpload && !proj.lastCalcRun) {
+    // CSV present but never calculated — TODO Task 9 will handle the "ready to calc" UI here.
+    // For now: leave the form untouched; user clicks Bereken to compute.
+  } else {
+    // No CSV at all — TODO Task 9 will show the "upload CSV first" state here.
+  }
+}
+
+function renderProjectStatusChip() {
+  const meta = getStatusMeta(_projectDoc.status);
+  const el = document.getElementById('pbStatusChip');
+  el.innerHTML = `<span class="status-chip" id="pbChip" data-status="${meta.key}" style="background:${meta.color};">${meta.label}</span>`;
+  document.getElementById('pbChip').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openProjectStatusPopover();
+  });
+}
+
+let _openPbPopover = null;
+function closeProjectStatusPopover() {
+  if (_openPbPopover) { _openPbPopover.remove(); _openPbPopover = null; }
+}
+function openProjectStatusPopover() {
+  closeProjectStatusPopover();
+  const chip = document.getElementById('pbChip');
+  const pop = document.createElement('div');
+  pop.className = 'status-popover';
+  pop.innerHTML = PROJECT_STATUSES.map(s => `
+    <div class="status-option" data-status="${s.key}">
+      <span class="status-dot" style="background:${s.color}"></span>
+      <span>${s.label}</span>
+      ${s.key === _projectDoc.status ? '<span style="margin-left:auto;color:var(--muted);">✓</span>' : ''}
+    </div>
+  `).join('');
+  document.body.appendChild(pop);
+  const rect = chip.getBoundingClientRect();
+  pop.style.left = `${rect.left + window.scrollX}px`;
+  pop.style.top  = `${rect.bottom + window.scrollY + 4}px`;
+  _openPbPopover = pop;
+  pop.querySelectorAll('.status-option').forEach(opt => {
+    opt.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const newStatus = opt.dataset.status;
+      closeProjectStatusPopover();
+      if (newStatus === _projectDoc.status) return;
+      try {
+        await updateProjectStatus(_projectId, newStatus);
+        _projectDoc.status = newStatus;
+        renderProjectStatusChip();
+      } catch (err) {
+        alert('Kon status niet wijzigen: ' + (err && err.message ? err.message : err));
+      }
+    });
+  });
+  setTimeout(() => { document.addEventListener('click', closeProjectStatusPopover, { once: true }); }, 0);
+}
+
+// Build a v:5-shaped state object from a project document so we can feed it through
+// the existing _applyLoadedState restore-path (which already understands dailyCompact).
+function buildSavedFromProject(proj) {
+  const r = (proj.lastCalcRun && proj.lastCalcRun.results) ? { ...proj.lastCalcRun.results } : {};
+  // Splice csvUpload.dailyCompact into the r object so _restoreState can hydrate r.allDays.
+  r.dailyCompact = proj.csvUpload ? proj.csvUpload.dailyCompact : null;
+  // Re-attach meter metadata if present in csvUpload (results may also carry it; csv wins).
+  if (proj.csvUpload) {
+    r.eanCode   = proj.csvUpload.eanCode   || r.eanCode;
+    r.meterNr   = proj.csvUpload.meterNr   || r.meterNr;
+    r.meterType = proj.csvUpload.meterType || r.meterType;
+  }
+  return {
+    v: 5,
+    form: (proj.lastCalcRun && proj.lastCalcRun.inputs) ? {
+      pvInv: proj.lastCalcRun.inputs.pvInv,
+      priceDay: proj.lastCalcRun.inputs.priceDay,
+      priceNight: proj.lastCalcRun.inputs.priceNight,
+      selectedConfigTypes: proj.lastCalcRun.inputs.selectedConfigTypes,
+    } : {},
+    r,
+  };
+}
+
 </script>
 </body>
 </html>
