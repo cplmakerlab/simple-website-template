@@ -585,7 +585,7 @@
 <p class="subtitle">Bereken de terugverdientijd van uw batterijinstallatie op basis van uw verbruikshistoriek.</p>
 
 <!-- INPUT CARD -->
-<div class="card">
+<div class="card" id="csvUploadCard">
   <h2><span class="icon">📂</span> Verbruikshistoriek uploaden</h2>
   <div class="form-group">
     <label>CSV Bestand (Fluvius verbruikshistoriek)</label>
@@ -1263,9 +1263,6 @@ async function loadConfigs() {
 
 // ─── MAIN CALC ─────────────────────────────────────────────────────────────────
 function calculate() {
-  const fileInput = document.getElementById('csvFile');
-  if (!fileInput.files.length) { alert('Laad eerst een CSV bestand op.'); return; }
-
   const pvInv      = parseFloat(document.getElementById('pvInverter').value);
   const priceDay   = parseFloat(document.getElementById('elecPrice').value);
   const priceNight = parseFloat(document.getElementById('elecPriceNight').value); // may be NaN
@@ -1291,6 +1288,20 @@ function calculate() {
 
   if (!selectedConfigs.length) { alert('Kies minstens één productconfiguratie.'); return; }
 
+  // ── Project-mode path: use the project's stored CSV instead of a file upload ──
+  if (_projectId && _projectDoc && _projectDoc.csvUpload) {
+    const cu = _projectDoc.csvUpload;
+    const allDays = _buildAllDaysFromDailyCompact(cu.dailyCompact);
+    processData(
+      { allDays, eanCode: cu.eanCode || '', meterNr: cu.meterNr || '', meterType: cu.meterType || '' },
+      pvInv, selectedConfigs, priceDay, priceNight
+    );
+    return;
+  }
+
+  // ── Normal path: read CSV from the file input ──
+  const fileInput = document.getElementById('csvFile');
+  if (!fileInput.files.length) { alert('Laad eerst een CSV bestand op.'); return; }
   const reader = new FileReader();
   reader.onload = e => processData(e.target.result, pvInv, selectedConfigs, priceDay, priceNight);
   reader.readAsText(fileInput.files[0], 'UTF-8');
@@ -1423,10 +1434,11 @@ function averageStats(perYear, selectedConfigs) {
   };
 }
 
-function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
+// Extract allDays + meter metadata from raw Fluvius CSV text.
+// Returns { allDays, eanCode, meterNr, meterType }.
+function _csvToAllDaysAndMeta(csvText) {
   const rows = parseCSV(csvText);
 
-  // ── Extract meter metadata ─────────────────────────────────────────────────
   let eanCode = '', meterNr = '', meterType = '';
   for (const row of rows) {
     if (row['EAN-code'] && !eanCode) {
@@ -1437,7 +1449,6 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
     }
   }
 
-  // ── Aggregate per day ──────────────────────────────────────────────────────
   const dayMap = {};
   for (const row of rows) {
     const dateStr = row['Van (datum)'];
@@ -1457,6 +1468,33 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
   }
 
   const allDays = Object.values(dayMap).sort((a, b) => a.date - b.date);
+  return { allDays, eanCode, meterNr, meterType };
+}
+
+// Rebuild allDays array from a project's dailyCompact (Firestore-stored per-day data).
+// Mirrors the restore-path in _restoreState.
+function _buildAllDaysFromDailyCompact(dc) {
+  const start = new Date(dc.startDate + 'T00:00:00');
+  return dc.afname.map((af, i) => {
+    const date = new Date(start); date.setDate(date.getDate() + i);
+    return {
+      date,
+      afname: af,
+      injectie: dc.injectie[i],
+      afnamedag: dc.afnamedag[i],
+      afnamenacht: dc.afnamenacht[i],
+      injectiedag: dc.injectiedag[i],
+      injectienacht: dc.injectienacht[i],
+    };
+  });
+}
+
+// Accepts either a raw CSV string OR a pre-built { allDays, eanCode, meterNr, meterType } object
+// (used by project-mode which loads data from Firestore instead of a file upload).
+function processData(input, pvInv, selectedConfigs, priceDay, priceNight) {
+  const { allDays, eanCode, meterNr, meterType } =
+    (typeof input === 'string') ? _csvToAllDaysAndMeta(input) : input;
+
   if (!allDays.length) { alert('Geen data gevonden in het CSV bestand.'); return; }
 
   // ── Rolling year window ────────────────────────────────────────────────────
@@ -2045,6 +2083,11 @@ async function loadProjectIntoUI(id) {
     return;
   }
   _projectDoc = proj;
+
+  // Hide the regular CSV-upload card — in project-mode the CSV lives in Firestore and is
+  // managed via the project banner's "📁 CSV" button (plus the missing-CSV prompt).
+  const csvCard = document.getElementById('csvUploadCard');
+  if (csvCard) csvCard.style.display = 'none';
 
   // Render banner
   document.getElementById('pbName').textContent     = proj.projectName || '(zonder naam)';
