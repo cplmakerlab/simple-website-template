@@ -607,9 +607,9 @@
   <div class="card" id="energyChartCard" style="display:none;margin-top:0;">
     <h2><span class="icon">📊</span> Afname &amp; Injectie over tijd</h2>
     <div class="chart-level-toggle" role="tablist">
-      <button type="button" id="btnLevelYear"  role="tab">Jaar</button>
-      <button type="button" id="btnLevelMonth" role="tab" class="active">Maand</button>
-      <button type="button" id="btnLevelDay"   role="tab">Dag</button>
+      <button type="button" id="btnLevelYear"  role="tab" aria-selected="false">Jaar</button>
+      <button type="button" id="btnLevelMonth" role="tab" class="active" aria-selected="true">Maand</button>
+      <button type="button" id="btnLevelDay"   role="tab" aria-selected="false">Dag</button>
     </div>
     <div class="chart-day-nav" id="chartDayNav" style="display:none;">
       <button type="button" id="btnDayPrev" aria-label="Vorige maand">◀</button>
@@ -906,12 +906,15 @@ function renderEnergyChart(d) {
 function _wireChartHandlers() {
   if (_chartHandlersWired) return;
   _chartHandlersWired = true;
-  document.getElementById('btnLevelYear' ).addEventListener('click', () => { if (!window._lastD) return; _chartState.level = 'year';  _setActiveLevel('year');  renderEnergyChart(window._lastD); });
-  document.getElementById('btnLevelMonth').addEventListener('click', () => { if (!window._lastD) return; _chartState.level = 'month'; _setActiveLevel('month'); renderEnergyChart(window._lastD); });
-  document.getElementById('btnLevelDay'  ).addEventListener('click', () => { if (!window._lastD) return; _chartState.level = 'day';   _setActiveLevel('day');   renderEnergyChart(window._lastD); });
-  document.getElementById('btnDayPrev'   ).addEventListener('click', () => { if (!window._lastD) return; _chartState.dayMonthIdx--; renderEnergyChart(window._lastD); });
-  document.getElementById('btnDayNext'   ).addEventListener('click', () => { if (!window._lastD) return; _chartState.dayMonthIdx++; renderEnergyChart(window._lastD); });
+  document.getElementById('btnLevelYear' ).addEventListener('click', () => { if (!_saved) return; _chartState.level = 'year';  _setActiveLevel('year');  renderEnergyChart(_saved); });
+  document.getElementById('btnLevelMonth').addEventListener('click', () => { if (!_saved) return; _chartState.level = 'month'; _setActiveLevel('month'); renderEnergyChart(_saved); });
+  document.getElementById('btnLevelDay'  ).addEventListener('click', () => { if (!_saved) return; _chartState.level = 'day';   _setActiveLevel('day');   renderEnergyChart(_saved); });
+  document.getElementById('btnDayPrev'   ).addEventListener('click', () => { if (!_saved) return; _chartState.dayMonthIdx--; renderEnergyChart(_saved); });
+  document.getElementById('btnDayNext'   ).addEventListener('click', () => { if (!_saved) return; _chartState.dayMonthIdx++; renderEnergyChart(_saved); });
 }
+
+// Wire chart handlers once on page load (safe: this script runs after the DOM is parsed).
+_wireChartHandlers();
 
 function _serializeState() {
   if (!_saved) return null;
@@ -1470,13 +1473,15 @@ function processData(csvText, pvInv, selectedConfigs, priceDay, priceNight) {
     dualTariff, priceDay, priceNight, effectivePrice,
     pvInv, configResults,
     monthMap, eanCode, meterNr, meterType,
-    firstDate, allDays, capAnalysis,
+    firstDate, allDays, windowDays, capAnalysis,
     numYears, yearsStart, avgTotals,
   });
 }
 
 function renderResults(d) {
-  _saved = d; // persist for save/share
+  _saved = d; // persist for save/share — also read by chart event handlers
+  _chartState = { level: 'month', dayMonthIdx: -1 }; // reset to default view on each render
+  _setActiveLevel('month');
   document.getElementById('results').style.display = 'block';
   document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
@@ -1769,6 +1774,9 @@ function renderResults(d) {
   document.getElementById('monthlyCard').style.display = '';
   document.getElementById('saveCard').style.display = '';
   document.getElementById('shareUrlRow').style.display = 'none';
+
+  // ── Render the energy chart ───────────────────────────────────────────────
+  renderEnergyChart(d);
 }
 function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow, numYears) {
   const card    = document.getElementById('capAnalysisCard');
