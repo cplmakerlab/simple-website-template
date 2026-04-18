@@ -920,7 +920,7 @@ function _serializeState() {
   if (!_saved) return null;
   const d = _saved;
   return {
-    v: 4,
+    v: 5,
     form: {
       pvInv:    d.pvInv,
       priceDay: d.priceDay,
@@ -948,6 +948,13 @@ function _serializeState() {
       numYears:   d.numYears != null ? d.numYears : 1,
       yearsStart: d.yearsStart ? d.yearsStart.toISOString().slice(0,10) : null,
       avgTotals:  d.avgTotals  || null,
+      dailyCompact: Array.isArray(d.allDays) ? {
+        startDate:     d.allDays[0].date.toISOString().slice(0, 10),
+        afnamedag:     d.allDays.map(x => x.afnamedag),
+        afnamenacht:   d.allDays.map(x => x.afnamenacht),
+        injectiedag:   d.allDays.map(x => x.injectiedag),
+        injectienacht: d.allDays.map(x => x.injectienacht),
+      } : null,
     }
   };
 }
@@ -962,7 +969,25 @@ function _restoreState(r) {
   r.windowStart = new Date(r.windowStart + 'T00:00:00');
   r.lastDate    = new Date(r.lastDate    + 'T00:00:00');
   r.firstDate   = new Date(r.firstDate   + 'T00:00:00');
-  r.allDays     = { length: r.totalDaysCSV };
+  if (r.dailyCompact) {
+    const dc = r.dailyCompact;
+    const start = new Date(dc.startDate + 'T00:00:00');
+    r.allDays = dc.afnamedag.map((ad, i) => {
+      const date = new Date(start); date.setDate(date.getDate() + i);
+      const an  = dc.afnamenacht[i];
+      const id  = dc.injectiedag[i];
+      const inn = dc.injectienacht[i];
+      return {
+        date,
+        afnamedag: ad, afnamenacht: an, injectiedag: id, injectienacht: inn,
+        afname: ad + an, injectie: id + inn,
+      };
+    });
+    r.windowDays = r.allDays.filter(d => d.date >= r.windowStart && d.date <= r.lastDate);
+  } else {
+    // v1-v4 save: per-day data not available. Chart falls back to monthMap-derived views.
+    r.allDays = { length: r.totalDaysCSV };
+  }
   if (r.priceNight == null) r.priceNight = NaN;
   // Multi-year fields: present in v3, absent in v2/v1.
   if (r.numYears == null)   r.numYears   = 1;
@@ -1019,13 +1044,13 @@ function loadFromJSONFile(e) {
 }
 
 function _applyLoadedState(state, showBanner) {
-  if (!state || (state.v !== 1 && state.v !== 2 && state.v !== 3 && state.v !== 4)) { alert('Onbekend of verouderd bestandsformaat.'); return; }
+  if (!state || (state.v !== 1 && state.v !== 2 && state.v !== 3 && state.v !== 4 && state.v !== 5)) { alert('Onbekend of verouderd bestandsformaat.'); return; }
   const f = state.form || {};
   const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val != null ? val : ''; };
   set('pvInverter',    f.pvInv);
   set('elecPrice',     f.priceDay);
   set('elecPriceNight',f.priceNight);
-  if ((state.v === 2 || state.v === 3 || state.v === 4) && f.selectedConfigTypes && f.selectedConfigTypes.some(t => t)) {
+  if ((state.v === 2 || state.v === 3 || state.v === 4 || state.v === 5) && f.selectedConfigTypes && f.selectedConfigTypes.some(t => t)) {
     loadConfigs().then(() => _populateConfigSelects(f.selectedConfigTypes)).catch(() => {});
   }
   const r = _restoreState(state.r);
