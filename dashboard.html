@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartPeak — Projecten</title>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+  <script src="assets/js/csv.js"></script>
+  <script src="assets/js/firebase-init.js"></script>
+  <style>
+    :root {
+      --primary: #2c7be5;
+      --primary-dark: #1a5fba;
+      --success: #00b478;
+      --warning: #f6a623;
+      --danger: #e54545;
+      --bg: #f0f4fb;
+      --card: #ffffff;
+      --border: #dce3f0;
+      --text: #1e2a3a;
+      --muted: #6b7a99;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+    h1 { font-size: 1.7rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 4px; }
+    h2 { font-size: 1.2rem; font-weight: 600; color: var(--primary-dark); margin-bottom: 12px; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 16px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(44, 123, 229, 0.06);
+    }
+    .center-card {
+      max-width: 480px;
+      margin: 80px auto;
+      text-align: center;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 0;
+      background: var(--primary);
+      color: #fff;
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn:hover { background: var(--primary-dark); }
+    .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+    .btn-secondary:hover { background: #eef4ff; }
+    .btn-danger { background: var(--danger); }
+    .btn-danger:hover { background: #b02a2a; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .topbar .right { display: flex; align-items: center; gap: 12px; color: var(--muted); }
+
+    .toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+
+    .alert {
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.92rem;
+      margin-bottom: 16px;
+    }
+    .alert-warning { background: #fff8ec; border: 1px solid #f6a623; color: #7a5000; }
+    .alert-info    { background: #eef4ff; border: 1px solid #2c7be5; color: #1a3a6e; }
+    .alert-error   { background: #fde8e8; border: 1px solid #e54545; color: #7a1010; }
+
+    .hide { display: none !important; }
+
+    /* placeholders — Task 5 fills these in */
+    #projectList { color: var(--muted); font-style: italic; }
+  </style>
+</head>
+<body>
+
+<!-- State 1: not logged in -->
+<div class="card center-card" id="stateLoggedOut">
+  <h1>⚡ SmartPeak — Projecten</h1>
+  <p class="subtitle">Alleen voor Bloxit medewerkers.</p>
+  <button type="button" class="btn" id="btnSignIn">Log in met Google</button>
+  <p id="signInError" class="alert alert-error hide" style="margin-top:16px;"></p>
+</div>
+
+<!-- State 2: logged in but not whitelisted -->
+<div class="card center-card hide" id="stateNotWhitelisted">
+  <h1>⚠️ Geen toegang</h1>
+  <p class="subtitle">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
+  <button type="button" class="btn btn-secondary" id="btnSignOutNW">Uitlog</button>
+</div>
+
+<!-- State 3: logged in + whitelisted -->
+<div class="hide" id="stateAuthorized">
+  <div class="topbar">
+    <h1>⚡ SmartPeak — Projecten</h1>
+    <div class="right">
+      <span>Hallo, <strong id="userDisplayName">…</strong></span>
+      <button type="button" class="btn btn-secondary" id="btnSignOut">Uitlog</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <button type="button" class="btn" id="btnNewProject">+ Nieuw project</button>
+      <label style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:0.9rem;">
+        <input type="checkbox" id="toggleShowDeleted" /> Toon verwijderde projecten
+      </label>
+    </div>
+    <div id="projectList">Project-lijst komt in Task 5.</div>
+  </div>
+</div>
+
+<script>
+// ─── ENTRY POINT ─────────────────────────────────────────────────────────────
+function showState(which) {
+  ['stateLoggedOut', 'stateNotWhitelisted', 'stateAuthorized'].forEach(id => {
+    document.getElementById(id).classList.toggle('hide', id !== which);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Wire sign-in button
+  document.getElementById('btnSignIn').addEventListener('click', async () => {
+    const errEl = document.getElementById('signInError');
+    errEl.classList.add('hide');
+    try {
+      await signInWithGoogle();
+      // onAuthStateChanged will pick up the new user and switch state.
+    } catch (e) {
+      errEl.textContent = 'Aanmelden mislukt: ' + (e && e.message ? e.message : e);
+      errEl.classList.remove('hide');
+    }
+  });
+  document.getElementById('btnSignOut').addEventListener('click', () => signOut());
+  document.getElementById('btnSignOutNW').addEventListener('click', () => signOut());
+
+  // Listen for auth state changes
+  onAuthStateChanged(user => {
+    if (!user) {
+      showState('stateLoggedOut');
+      return;
+    }
+    if (!isWhitelisted(user)) {
+      document.getElementById('notWhitelistedEmail').textContent = user.email || '(onbekend)';
+      showState('stateNotWhitelisted');
+      return;
+    }
+    document.getElementById('userDisplayName').textContent = user.displayName || user.email;
+    showState('stateAuthorized');
+    // Task 5 will hook in: fetch and render the project list here.
+  });
+});
+</script>
+
+</body>
+</html>
