@@ -604,6 +604,23 @@
     <div class="data-period" id="dataPeriod"></div>
   </div>
 
+  <div class="card" id="energyChartCard" style="display:none;margin-top:0;">
+    <h2><span class="icon">📊</span> Afname &amp; Injectie over tijd</h2>
+    <div class="chart-level-toggle" role="tablist">
+      <button type="button" id="btnLevelYear"  role="tab">Jaar</button>
+      <button type="button" id="btnLevelMonth" role="tab" class="active">Maand</button>
+      <button type="button" id="btnLevelDay"   role="tab">Dag</button>
+    </div>
+    <div class="chart-day-nav" id="chartDayNav" style="display:none;">
+      <button type="button" id="btnDayPrev" aria-label="Vorige maand">◀</button>
+      <span class="chart-day-nav-label" id="chartDayNavLabel">—</span>
+      <button type="button" id="btnDayNext" aria-label="Volgende maand">▶</button>
+    </div>
+    <div class="chart-canvas-wrap">
+      <canvas id="energyChartCanvas"></canvas>
+    </div>
+  </div>
+
   <div class="card" id="summaryCard" style="margin-top:0;">
     <h2><span class="icon">🔍</span> Overzicht meetpunt</h2>
     <div id="summaryContent"></div>
@@ -617,8 +634,10 @@
   </div>
 
   <div class="card" id="monthlyCard" style="margin-top:0;">
-    <h2><span class="icon">📅</span> Maandoverzicht injectie vs. batterijbenutting</h2>
-    <div class="chart-wrap" id="monthlyTable"></div>
+    <details id="monthlyTableDetails">
+      <summary>📅 Toon maandoverzicht (tabel)</summary>
+      <div class="chart-wrap" id="monthlyTable"></div>
+    </details>
   </div>
 
   <!-- SAVE / SHARE CARD -->
