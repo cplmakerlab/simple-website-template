@@ -716,7 +716,9 @@ function _buildYearBuckets(allDays) {
   const byYear = {};
   for (const d of allDays) {
     const y = d.date.getFullYear();
-    if (!byYear[y]) byYear[y] = { afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0, dayCount: 0 };
+    if (!byYear[y]) byYear[y] = { afname: 0, injectie: 0, afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0, dayCount: 0 };
+    byYear[y].afname        += d.afname;
+    byYear[y].injectie      += d.injectie;
     byYear[y].afnamedag     += d.afnamedag;
     byYear[y].afnamenacht   += d.afnamenacht;
     byYear[y].injectiedag   += d.injectiedag;
@@ -730,7 +732,7 @@ function _buildYearBuckets(allDays) {
   return Object.entries(byYear)
     .filter(([y, v]) => isComplete(parseInt(y, 10), v.dayCount))
     .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
-    .map(([y, v]) => ({ label: y, afnamedag: v.afnamedag, afnamenacht: v.afnamenacht, injectiedag: v.injectiedag, injectienacht: v.injectienacht }));
+    .map(([y, v]) => ({ label: y, afname: v.afname, injectie: v.injectie, afnamedag: v.afnamedag, afnamenacht: v.afnamenacht, injectiedag: v.injectiedag, injectienacht: v.injectienacht }));
 }
 
 function _buildMonthBuckets(windowDays) {
@@ -738,7 +740,9 @@ function _buildMonthBuckets(windowDays) {
   const byMonth = {};
   for (const d of windowDays) {
     const mk = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}`;
-    if (!byMonth[mk]) byMonth[mk] = { afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0 };
+    if (!byMonth[mk]) byMonth[mk] = { afname: 0, injectie: 0, afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0 };
+    byMonth[mk].afname        += d.afname;
+    byMonth[mk].injectie      += d.injectie;
     byMonth[mk].afnamedag     += d.afnamedag;
     byMonth[mk].afnamenacht   += d.afnamenacht;
     byMonth[mk].injectiedag   += d.injectiedag;
@@ -759,6 +763,8 @@ function _buildDayBuckets(allDays, monthKey) {
     })
     .map(d => ({
       label: String(d.date.getDate()),
+      afname: d.afname,
+      injectie: d.injectie,
       afnamedag: d.afnamedag,
       afnamenacht: d.afnamenacht,
       injectiedag: d.injectiedag,
@@ -801,8 +807,8 @@ function _updateDayNavLabel(monthKey, idx, total) {
 
 function _buildChartConfig(buckets, dualTariff) {
   const labels = buckets.map(b => b.label);
-  const avgAfname   = buckets.length ? buckets.reduce((s, b) => s + b.afnamedag   + b.afnamenacht,   0) / buckets.length : 0;
-  const avgInjectie = buckets.length ? buckets.reduce((s, b) => s + b.injectiedag + b.injectienacht, 0) / buckets.length : 0;
+  const avgAfname   = buckets.length ? buckets.reduce((s, b) => s + b.afname,   0) / buckets.length : 0;
+  const avgInjectie = buckets.length ? buckets.reduce((s, b) => s + b.injectie, 0) / buckets.length : 0;
 
   const datasets = [];
   if (dualTariff) {
@@ -811,8 +817,8 @@ function _buildChartConfig(buckets, dualTariff) {
     datasets.push({ type: 'bar', label: 'Injectie dag',    data: buckets.map(b => -b.injectiedag),  backgroundColor: '#00b478', stack: 'injectie', order: 2 });
     datasets.push({ type: 'bar', label: 'Injectie nacht',  data: buckets.map(b => -b.injectienacht),backgroundColor: '#007a52', stack: 'injectie', order: 2 });
   } else {
-    datasets.push({ type: 'bar', label: 'Afname',   data: buckets.map(b =>  (b.afnamedag   + b.afnamenacht)),   backgroundColor: '#e54545', stack: 'afname',   order: 2 });
-    datasets.push({ type: 'bar', label: 'Injectie', data: buckets.map(b => -(b.injectiedag + b.injectienacht)), backgroundColor: '#00b478', stack: 'injectie', order: 2 });
+    datasets.push({ type: 'bar', label: 'Afname',   data: buckets.map(b =>  b.afname),   backgroundColor: '#e54545', stack: 'afname',   order: 2 });
+    datasets.push({ type: 'bar', label: 'Injectie', data: buckets.map(b => -b.injectie), backgroundColor: '#00b478', stack: 'injectie', order: 2 });
   }
   datasets.push({ type: 'line', label: 'Ø afname',   data: Array(labels.length).fill(avgAfname),    borderColor: '#7a1010', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
   datasets.push({ type: 'line', label: 'Ø injectie', data: Array(labels.length).fill(-avgInjectie), borderColor: '#004d33', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
