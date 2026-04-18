@@ -122,6 +122,31 @@
       white-space: nowrap;
     }
     .status-chip.readonly { cursor: default; }
+    .status-chip.editable:hover { filter: brightness(1.08); }
+    .status-popover {
+      position: absolute;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      padding: 4px 0;
+      z-index: 50;
+      min-width: 220px;
+      max-height: 360px;
+      overflow-y: auto;
+    }
+    .status-popover .status-option {
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-popover .status-option:hover { background: var(--bg); }
+    .status-popover .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
 
     .row-actions {
       display: flex;
@@ -359,9 +384,54 @@ function shortName(email) {
   return email.split('@')[0];
 }
 
-function statusChipHTML(statusKey) {
+function statusChipHTML(statusKey, projectId) {
   const meta = getStatusMeta(statusKey);
-  return `<span class="status-chip readonly" data-status="${meta.key}" style="background:${meta.color};">${meta.label}</span>`;
+  return `<span class="status-chip editable" data-status="${meta.key}" data-project-id="${projectId}" style="background:${meta.color};">${meta.label}</span>`;
+}
+
+let _openPopover = null;
+function closeStatusPopover() {
+  if (_openPopover) { _openPopover.remove(); _openPopover = null; }
+}
+
+function openStatusPopover(chip) {
+  closeStatusPopover();
+  const projectId = chip.dataset.projectId;
+  const currentKey = chip.dataset.status;
+  const pop = document.createElement('div');
+  pop.className = 'status-popover';
+  pop.innerHTML = PROJECT_STATUSES.map(s => `
+    <div class="status-option" data-status="${s.key}">
+      <span class="status-dot" style="background:${s.color}"></span>
+      <span>${s.label}</span>
+      ${s.key === currentKey ? '<span style="margin-left:auto;color:var(--muted);">✓</span>' : ''}
+    </div>
+  `).join('');
+  document.body.appendChild(pop);
+  const rect = chip.getBoundingClientRect();
+  pop.style.left = `${rect.left + window.scrollX}px`;
+  pop.style.top  = `${rect.bottom + window.scrollY + 4}px`;
+  _openPopover = pop;
+
+  pop.querySelectorAll('.status-option').forEach(opt => {
+    opt.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const newStatus = opt.dataset.status;
+      closeStatusPopover();
+      if (newStatus === currentKey) return;
+      try {
+        await updateProjectStatus(projectId, newStatus);
+        await refreshProjectList();
+      } catch (err) {
+        alert('Kon status niet wijzigen: ' + (err && err.message ? err.message : err));
+      }
+    });
+  });
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', closeStatusPopover, { once: true });
+  }, 0);
 }
 
 function rowHTML(p, isDeleted) {
@@ -374,7 +444,7 @@ function rowHTML(p, isDeleted) {
     <tr class="${isDeleted ? 'deleted-row' : ''}">
       <td><a href="index.html?project=${p.id}" style="color:var(--primary);text-decoration:none;font-weight:600;">${escapeHtml(p.projectName || '')}</a></td>
       <td>${escapeHtml(p.customerName || '')}</td>
-      <td>${statusChipHTML(p.status)}</td>
+      <td>${statusChipHTML(p.status, p.id)}</td>
       <td>${updated}</td>
       <td>${by}</td>
       <td class="row-actions">
@@ -415,7 +485,36 @@ async function refreshProjectList() {
     el.querySelectorAll('.openBtn').forEach(btn => {
       btn.addEventListener('click', () => { window.location.href = `index.html?project=${btn.dataset.id}`; });
     });
-    // delete/restore wired in Task 7
+    // Wire status-chip popovers
+    el.querySelectorAll('.status-chip.editable').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openStatusPopover(chip);
+      });
+    });
+    // Wire delete buttons
+    el.querySelectorAll('.deleteBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Project verwijderen? Het wordt soft-deleted en blijft herstelbaar via "Toon verwijderde projecten".')) return;
+        try {
+          await softDeleteProject(btn.dataset.id);
+          await refreshProjectList();
+        } catch (err) {
+          alert('Kon niet verwijderen: ' + (err && err.message ? err.message : err));
+        }
+      });
+    });
+    // Wire restore buttons
+    el.querySelectorAll('.restoreBtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          await restoreProject(btn.dataset.id);
+          await refreshProjectList();
+        } catch (err) {
+          alert('Kon niet herstellen: ' + (err && err.message ? err.message : err));
+        }
+      });
+    });
   } catch (e) {
     el.innerHTML = `<div class="alert alert-error">Kon projecten niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
   }
