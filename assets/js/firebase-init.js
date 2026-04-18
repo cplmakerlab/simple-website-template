@@ -5,13 +5,21 @@
 // Firebase Console → Project Settings → Your apps → web app. The config is public by design
 // (security rules enforce access — see Firestore rules in the spec).
 
-const FIREBASE_CONFIG = FIREBASE_CONFIG_PLACEHOLDER;
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBogV2vRpxD-Pw2XK5vJMOl-nEUywTgToE",
+  authDomain: "smartpeak-roi.firebaseapp.com",
+  projectId: "smartpeak-roi",
+  storageBucket: "smartpeak-roi.firebasestorage.app",
+  messagingSenderId: "1097741372897",
+  appId: "1:1097741372897:web:b666db1329de5e03a296a0",
+  measurementId: "G-CXYBY5503V"
+};
 
 // Whitelist of emails allowed to access projects. Must match the Firestore security rules
 // in Firebase Console exactly. Replace RUBEN_EMAIL_PLACEHOLDER with Ruben's actual email.
 const WHITELISTED_EMAILS = [
   'kevin@bloxit.be',
-  'RUBEN_EMAIL_PLACEHOLDER',
+  'ledsrepair@gmail.com',
 ];
 
 // ─── STATUS ENUM ─────────────────────────────────────────────────────────────
