@@ -780,6 +780,48 @@ function _availableMonthKeys(allDays) {
   return [...set].sort();
 }
 
+// monthMap-based fallbacks for restored v1-v4 saves (no per-day data available).
+function _buildYearBucketsFromMonthMap(monthMap) {
+  if (!monthMap) return [];
+  const byYear = {};
+  for (const mk of Object.keys(monthMap)) {
+    const y = mk.slice(0, 4);
+    const m = monthMap[mk];
+    if (!byYear[y]) byYear[y] = { afname: 0, injectie: 0, afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0, monthCount: 0 };
+    byYear[y].afname        += (m.afname || 0);
+    byYear[y].injectie      += (m.injectie || 0);
+    byYear[y].afnamedag     += (m.afnamedag || 0);
+    byYear[y].afnamenacht   += (m.afnamenacht || 0);
+    byYear[y].injectiedag   += (m.injectiedag || 0);
+    byYear[y].injectienacht += (m.injectienacht || 0);
+    byYear[y].monthCount    += 1;
+  }
+  // Only return years with all 12 months represented (matches spec's "complete year" semantics).
+  return Object.entries(byYear)
+    .filter(([y, v]) => v.monthCount === 12)
+    .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
+    .map(([y, v]) => ({ label: y, afname: v.afname, injectie: v.injectie, afnamedag: v.afnamedag, afnamenacht: v.afnamenacht, injectiedag: v.injectiedag, injectienacht: v.injectienacht }));
+}
+
+function _buildMonthBucketsFromMonthMap(monthMap) {
+  if (!monthMap) return [];
+  const MONTH_NL = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  return Object.keys(monthMap).sort().map(mk => {
+    const [y, m] = mk.split('-');
+    const v = monthMap[mk];
+    return {
+      label: `${MONTH_NL[parseInt(m, 10) - 1]} '${y.slice(2)}`,
+      monthKey: mk,
+      afname:        v.afname        || 0,
+      injectie:      v.injectie      || 0,
+      afnamedag:     v.afnamedag     || 0,
+      afnamenacht:   v.afnamenacht   || 0,
+      injectiedag:   v.injectiedag   || 0,
+      injectienacht: v.injectienacht || 0,
+    };
+  });
+}
+
 // ─── ENERGY CHART STATE ────────────────────────────────────────────────────
 let _energyChartInstance = null;
 let _chartState = { level: 'month', dayMonthIdx: -1 };
@@ -870,7 +912,9 @@ function renderEnergyChart(d) {
   // Jaar-knop disable rule: require at least 1 complete calendar year in the data.
   const btnYear = document.getElementById('btnLevelYear');
   const btnDay  = document.getElementById('btnLevelDay');
-  const yearBuckets = hasRealAllDays ? _buildYearBuckets(d.allDays) : [];
+  const yearBuckets = hasRealAllDays
+    ? _buildYearBuckets(d.allDays)
+    : _buildYearBucketsFromMonthMap(d.monthMap);
   if (yearBuckets.length === 0) {
     btnYear.disabled = true;
     btnYear.title = 'Onvoldoende data: minstens 1 volledig kalenderjaar nodig';
@@ -893,8 +937,13 @@ function renderEnergyChart(d) {
   if (_chartState.level === 'year') {
     buckets = yearBuckets;
   } else if (_chartState.level === 'month') {
-    const wd = Array.isArray(d.windowDays) ? d.windowDays : (hasRealAllDays ? d.allDays.filter(x => x.date >= d.windowStart && x.date <= d.lastDate) : []);
-    buckets = _buildMonthBuckets(wd);
+    if (hasRealAllDays) {
+      const wd = Array.isArray(d.windowDays) ? d.windowDays : d.allDays.filter(x => x.date >= d.windowStart && x.date <= d.lastDate);
+      buckets = _buildMonthBuckets(wd);
+    } else {
+      // v1-v4 restored save: per-day data unavailable, fall back to monthMap-derived buckets.
+      buckets = _buildMonthBucketsFromMonthMap(d.monthMap);
+    }
   } else /* day */ {
     const months = _availableMonthKeys(d.allDays);
     if (_chartState.dayMonthIdx < 0 || _chartState.dayMonthIdx >= months.length) {
@@ -1013,6 +1062,9 @@ function copyShareLink() {
   const b64  = _stateToB64(state);
   const url  = location.origin + location.pathname + '?data=' + b64;
   history.replaceState(null, '', '?data=' + b64);
+  if (url.length > 30000) {
+    showToast('⚠️ Deellink is erg lang (>30 KB). Sommige chat-apps knippen lange links af — gebruik liever "Download save" voor lange datasets.');
+  }
   const urlRow   = document.getElementById('shareUrlRow');
   const urlInput = document.getElementById('shareUrlInput');
   urlInput.value = url;
