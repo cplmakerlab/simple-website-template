@@ -572,7 +572,13 @@
   <span class="pb-name" id="pbName">…</span>
   <span class="pb-customer">👤 <span id="pbCustomer">…</span></span>
   <span id="pbStatusChip"></span>
+  <button type="button" class="btn btn-secondary" id="pbCsvBtn" style="font-size:0.85rem;padding:4px 10px;">📁 CSV</button>
+  <input type="file" id="pbCsvFile" accept=".csv" style="display:none;" />
   <a class="pb-back" href="dashboard.html">← Terug naar dashboard</a>
+</div>
+
+<div id="projectMissingCsv" class="card alert alert-warning" style="display:none;">
+  📁 <div>Dit project heeft nog geen CSV. <button type="button" class="btn" id="missingCsvBtn">CSV uploaden</button></div>
 </div>
 
 <h1>⚡ SmartPeak - Batterij ROI Calculator</h1>
@@ -2019,11 +2025,54 @@ async function loadProjectIntoUI(id) {
     const restored = buildSavedFromProject(proj);
     _applyLoadedState(restored, /*showBanner*/ false);
   } else if (proj.csvUpload && !proj.lastCalcRun) {
-    // CSV present but never calculated — TODO Task 9 will handle the "ready to calc" UI here.
-    // For now: leave the form untouched; user clicks Bereken to compute.
+    // CSV present but never calculated — load the form values (if any) but don't auto-render results.
+    // User clicks Bereken when ready.
   } else {
-    // No CSV at all — TODO Task 9 will show the "upload CSV first" state here.
+    // No CSV at all — show the upload prompt.
+    document.getElementById('projectMissingCsv').style.display = '';
   }
+  wireProjectCsvUpload();
+}
+
+function wireProjectCsvUpload() {
+  const fileInput = document.getElementById('pbCsvFile');
+  const headerBtn = document.getElementById('pbCsvBtn');
+  const missingBtn = document.getElementById('missingCsvBtn');
+
+  function triggerFilePicker(replace) {
+    fileInput.dataset.replace = replace ? '1' : '0';
+    fileInput.value = '';
+    fileInput.click();
+  }
+
+  headerBtn.addEventListener('click', () => triggerFilePicker(/*replace*/ true));
+  if (missingBtn) missingBtn.addEventListener('click', () => triggerFilePicker(/*replace*/ false));
+
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const isReplace = fileInput.dataset.replace === '1' && _projectDoc.csvUpload;
+    if (isReplace && !confirm('Vorige CSV en berekening blijven bewaard tot je opnieuw rekent. Doorgaan?')) return;
+    try {
+      const text = await file.text();
+      const csvData = extractCsvForStorage(text);
+      await setProjectCsv(_projectId, csvData);
+      // Refetch project + re-render
+      _projectDoc = await getProject(_projectId);
+      document.getElementById('projectMissingCsv').style.display = 'none';
+      // Hydrate the saved state with the new CSV but keep the (possibly stale) lastCalcRun.
+      if (_projectDoc.lastCalcRun) {
+        const restored = buildSavedFromProject(_projectDoc);
+        _applyLoadedState(restored, /*showBanner*/ false);
+      } else {
+        // No prior calc — reset UI to fresh form state.
+        // Future: pre-populate eanCode etc. For Phase 1 we simply tell the user to recompute.
+        alert('CSV opgeslagen. Vul de form in en klik op Bereken om te rekenen.');
+      }
+    } catch (err) {
+      alert('CSV upload mislukt: ' + (err && err.message ? err.message : err));
+    }
+  });
 }
 
 function renderProjectStatusChip() {
