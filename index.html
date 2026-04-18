@@ -458,7 +458,54 @@
       border-top-color: var(--primary); border-radius: 50%;
       animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .chart-level-toggle {
+      display: flex;
+      gap: 0;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      width: fit-content;
+    }
+    .chart-level-toggle button {
+      padding: 6px 14px;
+      border: 0;
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+    }
+    .chart-level-toggle button.active { background: var(--primary); color: #fff; }
+    .chart-level-toggle button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .chart-day-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .chart-day-nav button {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .chart-day-nav button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .chart-day-nav .chart-day-nav-label { font-weight: 600; min-width: 150px; text-align: center; }
+
+    .chart-canvas-wrap { height: 320px; position: relative; }
+
+    #monthlyTableDetails summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--primary);
+      padding: 6px 0;
+    }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7"></script>
 </head>
 <body>
 
