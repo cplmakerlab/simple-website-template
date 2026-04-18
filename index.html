@@ -950,6 +950,8 @@ function _serializeState() {
       avgTotals:  d.avgTotals  || null,
       dailyCompact: Array.isArray(d.allDays) ? {
         startDate:     d.allDays[0].date.toISOString().slice(0, 10),
+        afname:        d.allDays.map(x => x.afname),
+        injectie:      d.allDays.map(x => x.injectie),
         afnamedag:     d.allDays.map(x => x.afnamedag),
         afnamenacht:   d.allDays.map(x => x.afnamenacht),
         injectiedag:   d.allDays.map(x => x.injectiedag),
@@ -972,15 +974,18 @@ function _restoreState(r) {
   if (r.dailyCompact) {
     const dc = r.dailyCompact;
     const start = new Date(dc.startDate + 'T00:00:00');
-    r.allDays = dc.afnamedag.map((ad, i) => {
+    // Use dc.afname / dc.injectie as canonical day totals (correct for both single- and dual-tariff data).
+    // For single-tariff data, dc.afnamedag / nacht are all 0 — that's expected.
+    r.allDays = dc.afname.map((af, i) => {
       const date = new Date(start); date.setDate(date.getDate() + i);
-      const an  = dc.afnamenacht[i];
-      const id  = dc.injectiedag[i];
-      const inn = dc.injectienacht[i];
       return {
         date,
-        afnamedag: ad, afnamenacht: an, injectiedag: id, injectienacht: inn,
-        afname: ad + an, injectie: id + inn,
+        afname: af,
+        injectie: dc.injectie[i],
+        afnamedag: dc.afnamedag[i],
+        afnamenacht: dc.afnamenacht[i],
+        injectiedag: dc.injectiedag[i],
+        injectienacht: dc.injectienacht[i],
       };
     });
     r.windowDays = r.allDays.filter(d => d.date >= r.windowStart && d.date <= r.lastDate);
