@@ -774,6 +774,145 @@ function _availableMonthKeys(allDays) {
   return [...set].sort();
 }
 
+// ─── ENERGY CHART STATE ────────────────────────────────────────────────────
+let _energyChartInstance = null;
+let _chartState = { level: 'month', dayMonthIdx: -1 };
+let _chartHandlersWired = false;
+
+const MONTH_NL_FULL = ['Januari','Februari','Maart','April','Mei','Juni','Juli','Augustus','September','Oktober','November','December'];
+
+function _setActiveLevel(level) {
+  ['Year','Month','Day'].forEach(L => {
+    const btn = document.getElementById('btnLevel' + L);
+    if (!btn) return;
+    const isActive = L.toLowerCase() === level;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', String(isActive));
+  });
+  document.getElementById('chartDayNav').style.display = level === 'day' ? '' : 'none';
+}
+
+function _updateDayNavLabel(monthKey, idx, total) {
+  const [y, m] = monthKey.split('-');
+  document.getElementById('chartDayNavLabel').textContent = `${MONTH_NL_FULL[parseInt(m, 10) - 1]} ${y}`;
+  document.getElementById('btnDayPrev').disabled = idx <= 0;
+  document.getElementById('btnDayNext').disabled = idx >= total - 1;
+}
+
+function _buildChartConfig(buckets, dualTariff) {
+  const labels = buckets.map(b => b.label);
+  const avgAfname   = buckets.length ? buckets.reduce((s, b) => s + b.afnamedag   + b.afnamenacht,   0) / buckets.length : 0;
+  const avgInjectie = buckets.length ? buckets.reduce((s, b) => s + b.injectiedag + b.injectienacht, 0) / buckets.length : 0;
+
+  const datasets = [];
+  if (dualTariff) {
+    datasets.push({ type: 'bar', label: 'Afname dag',      data: buckets.map(b =>  b.afnamedag),    backgroundColor: '#e54545', stack: 'afname',   order: 2 });
+    datasets.push({ type: 'bar', label: 'Afname nacht',    data: buckets.map(b =>  b.afnamenacht),  backgroundColor: '#b02a2a', stack: 'afname',   order: 2 });
+    datasets.push({ type: 'bar', label: 'Injectie dag',    data: buckets.map(b => -b.injectiedag),  backgroundColor: '#00b478', stack: 'injectie', order: 2 });
+    datasets.push({ type: 'bar', label: 'Injectie nacht',  data: buckets.map(b => -b.injectienacht),backgroundColor: '#007a52', stack: 'injectie', order: 2 });
+  } else {
+    datasets.push({ type: 'bar', label: 'Afname',   data: buckets.map(b =>  (b.afnamedag   + b.afnamenacht)),   backgroundColor: '#e54545', stack: 'afname',   order: 2 });
+    datasets.push({ type: 'bar', label: 'Injectie', data: buckets.map(b => -(b.injectiedag + b.injectienacht)), backgroundColor: '#00b478', stack: 'injectie', order: 2 });
+  }
+  datasets.push({ type: 'line', label: 'Ø afname',   data: Array(labels.length).fill(avgAfname),    borderColor: '#7a1010', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
+  datasets.push({ type: 'line', label: 'Ø injectie', data: Array(labels.length).fill(-avgInjectie), borderColor: '#004d33', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
+
+  return {
+    type: 'bar',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true },
+        y: {
+          stacked: true,
+          ticks: {
+            callback: v => Math.abs(v).toLocaleString('nl-BE', { maximumFractionDigits: 0 }) + ' kWh',
+          },
+        },
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${Math.abs(ctx.parsed.y).toLocaleString('nl-BE', { maximumFractionDigits: 2 })} kWh`,
+          },
+        },
+        legend: { position: 'bottom' },
+      },
+    },
+  };
+}
+
+function renderEnergyChart(d) {
+  const card = document.getElementById('energyChartCard');
+  if (!card) return;
+  const canvas = document.getElementById('energyChartCanvas');
+
+  if (typeof Chart === 'undefined') {
+    card.innerHTML = '<h2><span class="icon">📊</span> Afname &amp; Injectie over tijd</h2><div class="alert alert-warning">⚠️ <div>Grafiek niet beschikbaar — Chart.js kon niet laden.</div></div>';
+    card.style.display = '';
+    return;
+  }
+  if (_energyChartInstance) {
+    _energyChartInstance.destroy();
+    _energyChartInstance = null;
+  }
+
+  const hasRealAllDays = Array.isArray(d.allDays);
+
+  // Jaar-knop disable rule: require at least 1 complete calendar year in the data.
+  const btnYear = document.getElementById('btnLevelYear');
+  const btnDay  = document.getElementById('btnLevelDay');
+  const yearBuckets = hasRealAllDays ? _buildYearBuckets(d.allDays) : [];
+  if (yearBuckets.length === 0) {
+    btnYear.disabled = true;
+    btnYear.title = 'Onvoldoende data: minstens 1 volledig kalenderjaar nodig';
+    if (_chartState.level === 'year') { _chartState.level = 'month'; _setActiveLevel('month'); }
+  } else {
+    btnYear.disabled = false;
+    btnYear.title = '';
+  }
+  // Dag-knop disable rule: require per-day data (real allDays array).
+  if (!hasRealAllDays) {
+    btnDay.disabled = true;
+    btnDay.title = 'Dagniveau alleen beschikbaar bij nieuwere save-bestanden — upload de CSV opnieuw';
+    if (_chartState.level === 'day') { _chartState.level = 'month'; _setActiveLevel('month'); }
+  } else {
+    btnDay.disabled = false;
+    btnDay.title = '';
+  }
+
+  let buckets;
+  if (_chartState.level === 'year') {
+    buckets = yearBuckets;
+  } else if (_chartState.level === 'month') {
+    const wd = Array.isArray(d.windowDays) ? d.windowDays : (hasRealAllDays ? d.allDays.filter(x => x.date >= d.windowStart && x.date <= d.lastDate) : []);
+    buckets = _buildMonthBuckets(wd);
+  } else /* day */ {
+    const months = _availableMonthKeys(d.allDays);
+    if (_chartState.dayMonthIdx < 0 || _chartState.dayMonthIdx >= months.length) {
+      _chartState.dayMonthIdx = months.length - 1;
+    }
+    buckets = _buildDayBuckets(d.allDays, months[_chartState.dayMonthIdx]);
+    _updateDayNavLabel(months[_chartState.dayMonthIdx], _chartState.dayMonthIdx, months.length);
+  }
+
+  const cfg = _buildChartConfig(buckets, d.dualTariff);
+  _energyChartInstance = new Chart(canvas.getContext('2d'), cfg);
+  card.style.display = '';
+}
+
+function _wireChartHandlers() {
+  if (_chartHandlersWired) return;
+  _chartHandlersWired = true;
+  document.getElementById('btnLevelYear' ).addEventListener('click', () => { if (!window._lastD) return; _chartState.level = 'year';  _setActiveLevel('year');  renderEnergyChart(window._lastD); });
+  document.getElementById('btnLevelMonth').addEventListener('click', () => { if (!window._lastD) return; _chartState.level = 'month'; _setActiveLevel('month'); renderEnergyChart(window._lastD); });
+  document.getElementById('btnLevelDay'  ).addEventListener('click', () => { if (!window._lastD) return; _chartState.level = 'day';   _setActiveLevel('day');   renderEnergyChart(window._lastD); });
+  document.getElementById('btnDayPrev'   ).addEventListener('click', () => { if (!window._lastD) return; _chartState.dayMonthIdx--; renderEnergyChart(window._lastD); });
+  document.getElementById('btnDayNext'   ).addEventListener('click', () => { if (!window._lastD) return; _chartState.dayMonthIdx++; renderEnergyChart(window._lastD); });
+}
+
 function _serializeState() {
   if (!_saved) return null;
   const d = _saved;
