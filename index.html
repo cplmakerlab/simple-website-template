@@ -506,6 +506,7 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7"></script>
+  <script src="assets/js/csv.js"></script>
 </head>
 <body>
 
@@ -666,30 +667,7 @@
 
 <script>
 // ─── CSV PARSER ────────────────────────────────────────────────────────────────
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const header = lines[0].split(';').map(h => h.trim());
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(';');
-    if (cols.length < 9) continue;
-    const obj = {};
-    header.forEach((h, idx) => { obj[h] = (cols[idx] || '').trim(); });
-    rows.push(obj);
-  }
-  return rows;
-}
-
-function parseDate(str) {
-  // dd-mm-yyyy
-  const [d, m, y] = str.split('-');
-  return new Date(+y, +m - 1, +d);
-}
-
-function parsVolume(str) {
-  if (!str || str === '') return 0;
-  return parseFloat(str.replace(',', '.')) || 0;
-}
+// CSV helpers (parseCSV, parseDate, parsVolume) zijn verhuisd naar assets/js/csv.js.
 
 function formatDate(d) {
   return d.toLocaleDateString('nl-BE', { day: '2-digit', month: '2-digit', year: 'numeric' });
