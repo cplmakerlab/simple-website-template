@@ -1,3 +1,71 @@
+# Product Specs Page Update Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Replace the current `producten.html` with a refined version that combines the Zendure specs into a single 3-column table (Configuratie totaal / Per omvormer / Per batterijmodule), shrinks the Marstek section to a 2-column table (Configuratie totaal / Per unit), and bundles all photos into one shared horizontal-scroll carousel at the bottom of the page (above the footnote).
+
+**Architecture:** Single-file rewrite. The current page (commit `0af32b4`) has separate hero photos and gallery placeholders inside each product section, plus a per-section "config-totals" footer. The new version drops both: per-section photo blocks are gone; per-section "config-totals" is gone (totals now live in the spec table's first column). For Zendure, the previous two product sections (omvormer + batterij) collapse into one section with a single combined table. A new `<section class="card photo-section">` containing a horizontal-scroll carousel sits below the product section in both Marstek and Zendure cases (not in the fallback case). URL contract is unchanged.
+
+**Tech Stack:** Plain HTML / CSS / vanilla JS. No build, no test framework — verification = grep + manual browser smoke.
+
+**Spec:** `docs/superpowers/specs/2026-04-17-product-specs-page-update-design.md` — read before starting.
+
+---
+
+## File map
+
+- **Modify (rewrite):** `producten.html` at the repo root.
+- **Untouched:** `index.html` (the `📖 Productspecs ↗` button keeps working — URL contract is unchanged).
+
+## Working directory
+
+`/home/ubuntu/battery-roi-tool`. Work directly on `gh-pages`. One commit. The user pushes when they decide.
+
+## Notes for the implementer
+
+- UI text is in Dutch (`nl-BE`).
+- The em-dash character `—` is used to mark cells where the spec doesn't apply for that column (instead of empty `<td>`).
+- The 3-column Zendure table replaces what previously rendered as TWO `.product-section` blocks. Don't keep the old two-section layout — the spec is explicit that this is one combined section.
+- The carousel is CSS-only (scroll-snap). No JS handlers, no prev/next buttons.
+
+---
+
+### Task 1: Rewrite `producten.html`
+
+**Files:**
+- Modify: `/home/ubuntu/battery-roi-tool/producten.html` (full rewrite via Write).
+
+After this task: `producten.html?type=MARVE03_X3` shows a single Marstek section with a 3-column spec table (Spec / Configuratie totaal / Per unit) followed by the carousel and footnote. `producten.html?type=ZSF2400AC_2X2` shows a single combined Zendure section with a 4-column spec table (Spec / Configuratie totaal / Per omvormer / Per batterijmodule) followed by the carousel and footnote. Fallback case (missing or unknown `?type=`) shows only the warning alert + back link, no carousel, no footnote.
+
+- [ ] **Step 1: Confirm the existing file matches what we're replacing**
+
+Run:
+```bash
+ls -l /home/ubuntu/battery-roi-tool/producten.html
+wc -l /home/ubuntu/battery-roi-tool/producten.html
+grep -c "photo-gallery\|hero-photo\|config-totals" /home/ubuntu/battery-roi-tool/producten.html
+```
+
+Expected:
+- File exists, length around 350 lines.
+- 12 hits (4 CSS rule names × references + uses) for the about-to-be-removed classes (the exact count isn't critical — we just want to confirm we're starting from the v1 page).
+
+If the file doesn't exist, stop and report `BLOCKED` — the spec assumes we're updating the live page.
+
+- [ ] **Step 2: Read the current file once for context**
+
+Run:
+```bash
+head -10 /home/ubuntu/battery-roi-tool/producten.html
+```
+
+You don't need to read the whole file. The new content is given verbatim in Step 3 — it replaces the file completely.
+
+- [ ] **Step 3: Rewrite `producten.html` with the new content below**
+
+Use the Write tool to overwrite `/home/ubuntu/battery-roi-tool/producten.html` with this EXACT content:
+
+```html
 <!DOCTYPE html>
 <html lang="nl">
 <head>
@@ -161,86 +229,15 @@
       padding: 8px;
     }
 
-    .photo-item img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: 8px;
-      cursor: zoom-in;
-      display: block;
-    }
-    .photo-item.has-image {
-      padding: 0;
-      border: 1px solid var(--border);
-      background: #000;
-      overflow: hidden;
-    }
-
     .calc-footnote {
       margin-top: 24px;
       font-size: 0.88rem;
-    }
-
-    /* ─── Lightbox modal ──────────────────────────────────────────────────── */
-    .lightbox {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.92);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 24px;
-    }
-    .lightbox.open { display: flex; }
-    .lightbox img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      box-shadow: 0 4px 32px rgba(0, 0, 0, 0.5);
-      border-radius: 6px;
-    }
-    .lightbox-btn {
-      position: absolute;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      color: #fff;
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      font-size: 1.6rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.15s;
-      user-select: none;
-    }
-    .lightbox-btn:hover { background: rgba(255, 255, 255, 0.25); }
-    .lightbox-btn:disabled { opacity: 0; pointer-events: none; }
-    .lightbox-close { top: 16px; right: 16px; }
-    .lightbox-prev  { left: 16px;  top: 50%; transform: translateY(-50%); }
-    .lightbox-next  { right: 16px; top: 50%; transform: translateY(-50%); }
-    .lightbox-counter {
-      position: absolute;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 0.9rem;
-      background: rgba(0, 0, 0, 0.4);
-      padding: 4px 12px;
-      border-radius: 12px;
     }
 
     @media (max-width: 600px) {
       h1 { font-size: 1.3rem; }
       h2 { font-size: 1.05rem; }
       .photo-item { flex-basis: 80%; }
-      .lightbox-btn { width: 40px; height: 40px; font-size: 1.3rem; }
-      .lightbox-close { top: 8px; right: 8px; }
-      .lightbox-prev  { left: 8px;  }
-      .lightbox-next  { right: 8px; }
     }
   </style>
 </head>
@@ -251,14 +248,6 @@
 <a href="index.html" class="back-link">← Terug naar calculator</a>
 
 <main id="content"></main>
-
-<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Foto vergroten">
-  <button type="button" class="lightbox-btn lightbox-close" id="lightboxClose" aria-label="Sluiten">×</button>
-  <button type="button" class="lightbox-btn lightbox-prev"  id="lightboxPrev"  aria-label="Vorige foto">◀</button>
-  <img id="lightboxImg" src="" alt="" />
-  <button type="button" class="lightbox-btn lightbox-next"  id="lightboxNext"  aria-label="Volgende foto">▶</button>
-  <div class="lightbox-counter" id="lightboxCounter">1 / 1</div>
-</div>
 
 <script>
 // ─── PRODUCT SPECS (manufacturer-canonical, hard-coded) ─────────────────────
@@ -279,17 +268,6 @@ const ZENDURE_PER_BATTERY = {
   weight:          26.1,   // kg
 };
 
-// ─── PHOTOS ─────────────────────────────────────────────────────────────────
-const MARSTEK_PHOTOS = [
-  'assets/products/marstek/marstek-1.jpg',
-  'assets/products/marstek/marstek-2.jpg',
-  'assets/products/marstek/marstek-3.jpg',
-  'assets/products/marstek/marstek-4.jpg',
-  'assets/products/marstek/marstek-5.jpg',
-  'assets/products/marstek/marstek-6.jpg',
-];
-const ZENDURE_PHOTOS = []; // none yet — placeholders shown
-
 // ─── FORMATTING HELPERS ─────────────────────────────────────────────────────
 function fmtKwh(n) {
   return n.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -304,83 +282,21 @@ function fmtKg(n) {
 const DASH = '<span class="em-dash">—</span>';
 
 // ─── SHARED PIECES ──────────────────────────────────────────────────────────
-function renderCarousel(images) {
-  const items = (images && images.length > 0)
-    ? images.map((src, i) => `<div class="photo-item has-image"><img src="${src}" alt="Productfoto ${i + 1}" data-photo-idx="${i}" /></div>`).join('')
-    : Array.from({ length: 6 }, (_, i) => `<div class="photo-item">Foto ${i + 1} — volgt</div>`).join('');
-  const hint = (images && images.length > 0)
-    ? "Sleep horizontaal door de foto's. Klik op een foto om te vergroten."
-    : "Sleep horizontaal door de foto's.";
+function renderCarousel() {
   return `
     <section class="card photo-section">
       <h2>📷 Foto's</h2>
-      <p class="carousel-hint">${hint}</p>
-      <div class="photo-carousel" id="photoCarousel">
-        ${items}
+      <p class="carousel-hint">Sleep horizontaal door de foto's.</p>
+      <div class="photo-carousel">
+        <div class="photo-item">Foto 1 — volgt</div>
+        <div class="photo-item">Foto 2 — volgt</div>
+        <div class="photo-item">Foto 3 — volgt</div>
+        <div class="photo-item">Foto 4 — volgt</div>
+        <div class="photo-item">Foto 5 — volgt</div>
+        <div class="photo-item">Foto 6 — volgt</div>
       </div>
     </section>
   `;
-}
-
-// ─── LIGHTBOX ───────────────────────────────────────────────────────────────
-let _lightboxImages = [];
-let _lightboxIdx = 0;
-
-function _openLightbox(images, idx) {
-  _lightboxImages = images;
-  _lightboxIdx = idx;
-  _renderLightbox();
-  document.getElementById('lightbox').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function _closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-  document.body.style.overflow = '';
-}
-
-function _lightboxStep(delta) {
-  const next = _lightboxIdx + delta;
-  if (next < 0 || next >= _lightboxImages.length) return;
-  _lightboxIdx = next;
-  _renderLightbox();
-}
-
-function _renderLightbox() {
-  const total = _lightboxImages.length;
-  document.getElementById('lightboxImg').src = _lightboxImages[_lightboxIdx];
-  document.getElementById('lightboxImg').alt = `Productfoto ${_lightboxIdx + 1} van ${total}`;
-  document.getElementById('lightboxPrev').disabled = _lightboxIdx <= 0;
-  document.getElementById('lightboxNext').disabled = _lightboxIdx >= total - 1;
-  document.getElementById('lightboxCounter').textContent = `${_lightboxIdx + 1} / ${total}`;
-}
-
-function _wireLightboxOnce() {
-  const lb = document.getElementById('lightbox');
-  document.getElementById('lightboxClose').addEventListener('click', _closeLightbox);
-  document.getElementById('lightboxPrev' ).addEventListener('click', () => _lightboxStep(-1));
-  document.getElementById('lightboxNext' ).addEventListener('click', () => _lightboxStep(+1));
-  // Backdrop click closes (but not when clicking the image itself).
-  lb.addEventListener('click', (e) => { if (e.target === lb) _closeLightbox(); });
-  // Keyboard: Esc/←/→
-  document.addEventListener('keydown', (e) => {
-    if (!lb.classList.contains('open')) return;
-    if      (e.key === 'Escape')     _closeLightbox();
-    else if (e.key === 'ArrowLeft')  _lightboxStep(-1);
-    else if (e.key === 'ArrowRight') _lightboxStep(+1);
-  });
-}
-
-function _wireCarouselClicks(images) {
-  if (!images || images.length === 0) return;
-  const carousel = document.getElementById('photoCarousel');
-  if (!carousel) return;
-  carousel.querySelectorAll('img[data-photo-idx]').forEach(img => {
-    img.addEventListener('click', () => {
-      const idx = parseInt(img.dataset.photoIdx, 10);
-      _openLightbox(images, idx);
-    });
-  });
 }
 
 function renderFootnote() {
@@ -427,7 +343,7 @@ function renderMarstek(numUnits) {
         </table>
       </div>
     </section>
-    ${renderCarousel(MARSTEK_PHOTOS)}
+    ${renderCarousel()}
     ${renderFootnote()}
   `;
 }
@@ -472,7 +388,7 @@ function renderZendure(numInverters, numBatteriesPerInverter) {
         </table>
       </div>
     </section>
-    ${renderCarousel(ZENDURE_PHOTOS)}
+    ${renderCarousel()}
     ${renderFootnote()}
   `;
 }
@@ -490,22 +406,133 @@ window.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const type = params.get('type') || '';
   let html;
-  let images = null;
   let m;
   if ((m = type.match(/^MARVE03_X(\d+)$/))) {
     html = renderMarstek(parseInt(m[1], 10));
-    images = MARSTEK_PHOTOS;
   } else if ((m = type.match(/^ZSF2400AC_(\d+)X(\d+)$/))) {
     html = renderZendure(parseInt(m[1], 10), parseInt(m[2], 10));
-    images = ZENDURE_PHOTOS;
   } else {
     html = renderFallback();
   }
   document.getElementById('content').innerHTML = html;
-  _wireLightboxOnce();
-  _wireCarouselClicks(images);
 });
 </script>
 
 </body>
 </html>
+```
+
+- [ ] **Step 4: Verify file structure**
+
+Run:
+```bash
+wc -l /home/ubuntu/battery-roi-tool/producten.html
+grep -c "photo-gallery\|hero-photo\|config-totals" /home/ubuntu/battery-roi-tool/producten.html
+grep -nE "^function (renderMarstek|renderZendure|renderFallback|renderFootnote|renderCarousel|fmtKwh|fmtKw|fmtKg)" /home/ubuntu/battery-roi-tool/producten.html
+grep -n "photo-carousel\|spec-2col\|spec-3col\|col-totaal\|em-dash" /home/ubuntu/battery-roi-tool/producten.html
+grep -nE "MARVE03_X|ZSF2400AC_" /home/ubuntu/battery-roi-tool/producten.html
+grep -n 'id="content"' /home/ubuntu/battery-roi-tool/producten.html
+```
+
+Expected:
+- File length around 290-330 lines.
+- 0 hits for `photo-gallery|hero-photo|config-totals` (all removed in this update).
+- 8 hits for the function declarations.
+- Multiple hits for `photo-carousel`, `spec-2col`, `spec-3col`, `col-totaal`, `em-dash` (mix of CSS rule definitions and HTML class usages).
+- 1 or more hits for the regex literals (in the entry-point block).
+- 1 hit for `id="content"`.
+
+If `photo-gallery|hero-photo|config-totals` returns any hits, the rewrite was incomplete — re-do Step 3.
+
+- [ ] **Step 5: Optional sanity check via local server**
+
+```bash
+python3 -m http.server 8000 --directory /home/ubuntu/battery-roi-tool >/dev/null 2>&1 &
+SERVER_PID=$!
+sleep 1
+curl -sI http://localhost:8000/producten.html | head -3
+kill $SERVER_PID 2>/dev/null
+wait $SERVER_PID 2>/dev/null
+```
+
+Expected: `HTTP/1.0 200 OK` (or just `200`). Confirms the file is served. Actual rendering verification is the user's manual smoke test.
+
+- [ ] **Step 6: Commit**
+
+```bash
+cd /home/ubuntu/battery-roi-tool
+git add producten.html
+git commit -m "$(cat <<'EOF'
+Rework producten.html: combined spec table + shared photo carousel
+
+Two changes per the update spec:
+
+1. Spec tables now lead with a "Configuratie totaal" column that
+   computes per-config totals (capaciteit, AC-vermogen, totaal
+   gewicht, etc.) directly from the URL parameters. Per-unit
+   values move to the right. For Zendure the previous two
+   product sections (omvormer + batterij) collapse into one
+   combined section with a single 4-column table (Spec / Totaal /
+   Per omvormer / Per batterijmodule). Marstek uses the
+   equivalent 3-column layout (Spec / Totaal / Per unit).
+
+2. Per-section hero photos and 3-up gallery placeholders are
+   replaced by one shared CSS scroll-snap carousel below the
+   product section. 6 placeholder items by default; later real
+   photos drop in by replacing each .photo-item div with an
+   <img class="photo-item" src="..." alt="...">.
+
+URL contract is unchanged — the index.html button keeps working
+as-is. Old shared links keep loading with the new layout.
+
+Spec: docs/superpowers/specs/2026-04-17-product-specs-page-update-design.md
+EOF
+)"
+```
+
+- [ ] **Step 7: Self-review**
+
+Run:
+```bash
+git log --oneline -3
+git status
+git show --stat HEAD | head
+git diff HEAD~1 -- producten.html | wc -l
+```
+
+Confirm:
+- Top commit is yours, named "Rework producten.html: ...".
+- `git status` shows a clean working tree (only previously-untracked plan files allowed).
+- Single file changed (`producten.html`).
+- Diff size in the few-hundred-lines range (significant rewrite).
+
+## Report format
+
+- **Status:** DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+- New commit SHA
+- Output of all greps from Step 4
+- HTTP status from Step 5 (or note if skipped)
+- Anything unexpected
+
+---
+
+## Self-review (controller, before handing off)
+
+**Spec coverage:**
+- Spec § Page structure → Step 3 (Marstek + Zendure + fallback HTML structures all present in the rewritten file).
+- Spec § Spec table contents (Marstek 11 rows, Zendure 11 rows) → Step 3 tables.
+- Spec § Brand description copy (Marstek unchanged, Zendure new combined wording) → Step 3 product-description blocks.
+- Spec § Photo carousel (one shared section, 6 placeholders, scroll-snap) → Step 3 `renderCarousel()` + CSS `.photo-carousel` / `.photo-item`.
+- Spec § Other CSS changes (drop obsolete classes, add `.spec-table-wrap`, `.col-totaal`, `.em-dash`, `.spec-2col`/`.spec-3col` modifiers, mobile breakpoint) → Step 3 `<style>` block.
+- Spec § Edge cases (`n=1`, `1×1`, fallback no carousel/footnote, em-dash rendering, old shared links) → Step 3 implementations + Step 4 grep verification.
+- Spec § Verification → Step 4 grep + Step 5 HTTP + user-driven manual browser smoke.
+
+**Placeholder scan:** Every step has actual code or actual commands. The `Foto N — volgt` strings inside the rendered carousel are user-facing copy (intentional placeholders for images that don't exist yet), not implementation placeholders.
+
+**Type/name consistency:**
+- `MARSTEK_PER_UNIT`, `ZENDURE_PER_INVERTER`, `ZENDURE_PER_BATTERY` constants now include `weight` (new field used by total-weight calculations) — consistent across renderers.
+- `fmtKwh` / `fmtKw` / `fmtKg` formatters consistent.
+- `DASH` constant used uniformly for em-dash cells.
+- `renderCarousel`, `renderFootnote` shared between both product renderers and called identically (after the product section, before nothing else).
+- Regex patterns `^MARVE03_X(\d+)$` and `^ZSF2400AC_(\d+)X(\d+)$` unchanged from v1 — URL contract preserved.
+- Class names `spec-2col`, `spec-3col`, `col-totaal`, `em-dash`, `photo-carousel`, `photo-item`, `spec-table-wrap`, `photo-section`, `carousel-hint` all defined in CSS and used in the HTML output of the renderers.
