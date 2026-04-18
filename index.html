@@ -1914,7 +1914,39 @@ function renderResults(d) {
 
   // ── Render the energy chart ───────────────────────────────────────────────
   renderEnergyChart(d);
+
+  // ── Auto-save to Firestore if we're in project-mode ───────────────────────
+  if (_projectId && _projectDoc) {
+    saveProjectCalcRun(d).catch(err => {
+      console.error('Auto-save failed:', err);
+      showToast('⚠️ Niet opgeslagen — controleer netwerk');
+    });
+  }
 }
+
+async function saveProjectCalcRun(d) {
+  // Build the inputs object from the form (avoid pulling them off d directly — d is the full
+  // computed object, inputs are a smaller subset that drives the calc).
+  const pvInverter = parseFloat(document.getElementById('pvInverter').value) || 0;
+  const priceDay   = parseFloat(document.getElementById('elecPrice').value)  || 0;
+  const priceNightRaw = document.getElementById('elecPriceNight').value;
+  const priceNight = (priceNightRaw && priceNightRaw.trim() !== '') ? parseFloat(priceNightRaw) : null;
+  const selectedConfigTypes = (d.configResults || []).map(cr => cr.cfg && cr.cfg.type).filter(Boolean);
+
+  // Build results: same as _serializeState's `r` block, but strip dailyCompact since it lives
+  // separately in csvUpload (otherwise we'd duplicate the per-day arrays in Firestore).
+  const r = _serializeState();
+  if (!r) throw new Error('Geen berekening om op te slaan.');
+  const results = { ...r.r };
+  delete results.dailyCompact;
+
+  await saveLastCalcRun(_projectId, {
+    inputs: { pvInv: pvInverter, priceDay, priceNight, selectedConfigTypes },
+    results,
+  });
+  showToast('💾 Opgeslagen in project');
+}
+
 function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow, numYears) {
   const card    = document.getElementById('capAnalysisCard');
   const content = document.getElementById('capAnalysisContent');
