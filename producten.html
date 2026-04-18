@@ -90,18 +90,6 @@
       gap: 10px;
       margin-bottom: 14px;
     }
-    .hero-photo {
-      aspect-ratio: 16 / 9;
-      background: var(--bg);
-      border: 1px dashed var(--border);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      font-size: 0.92rem;
-      margin: 14px 0;
-    }
     .product-description {
       font-style: italic;
       color: var(--muted);
@@ -110,44 +98,57 @@
       line-height: 1.5;
     }
 
+    .spec-table-wrap { overflow-x: auto; margin-top: 8px; }
     table.spec-table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.93rem;
-      margin-top: 8px;
     }
+    table.spec-table th,
     table.spec-table td {
       padding: 8px 12px;
       border-bottom: 1px solid var(--border);
       vertical-align: top;
+      text-align: left;
+    }
+    table.spec-table thead th {
+      background: var(--bg);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.85rem;
+      white-space: nowrap;
     }
     table.spec-table tr:last-child td { border-bottom: none; }
     table.spec-table td:first-child {
       color: var(--muted);
-      width: 40%;
+      width: 28%;
     }
-    table.spec-table td:last-child {
-      font-weight: 500;
-    }
-
-    .config-totals {
-      background: #eef4ff;
-      border: 1px solid var(--primary);
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-top: 16px;
-      font-size: 0.95rem;
+    table.spec-table .col-totaal {
+      font-weight: 600;
       color: var(--primary-dark);
     }
-
-    .photo-gallery {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-      margin-top: 16px;
+    table.spec-table .em-dash {
+      color: var(--muted);
     }
-    .photo-placeholder {
-      aspect-ratio: 1 / 1;
+
+    .photo-section h2 { margin-bottom: 6px; }
+    .carousel-hint {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .photo-carousel {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      gap: 12px;
+      padding-bottom: 8px;
+      scrollbar-width: thin;
+    }
+    .photo-item {
+      flex: 0 0 280px;
+      aspect-ratio: 4 / 3;
+      scroll-snap-align: start;
       background: var(--bg);
       border: 1px dashed var(--border);
       border-radius: 8px;
@@ -155,7 +156,7 @@
       align-items: center;
       justify-content: center;
       color: var(--muted);
-      font-size: 0.82rem;
+      font-size: 0.88rem;
       text-align: center;
       padding: 8px;
     }
@@ -168,7 +169,7 @@
     @media (max-width: 600px) {
       h1 { font-size: 1.3rem; }
       h2 { font-size: 1.05rem; }
-      .photo-gallery { grid-template-columns: repeat(2, 1fr); }
+      .photo-item { flex-basis: 80%; }
     }
   </style>
 </head>
@@ -185,12 +186,18 @@
 const MARSTEK_PER_UNIT = {
   capacityNominal: 5.12,   // kWh
   inverterPower:   2.5,    // kW
+  weight:          60,     // kg
 };
 const ZENDURE_PER_INVERTER = {
-  acPower: 2.4,            // kW
+  acPower:    2.4,         // kW
+  peakKw:     3.6,         // kW
+  loadW:      2400,        // W
+  dischargeW: 2600,        // W
+  weight:     10.12,       // kg
 };
 const ZENDURE_PER_BATTERY = {
   capacityNominal: 2.88,   // kWh
+  weight:          26.1,   // kg
 };
 
 // ─── FORMATTING HELPERS ─────────────────────────────────────────────────────
@@ -200,115 +207,120 @@ function fmtKwh(n) {
 function fmtKw(n) {
   return n.toLocaleString('nl-BE', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
 }
+function fmtKg(n) {
+  return n.toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const DASH = '<span class="em-dash">—</span>';
+
+// ─── SHARED PIECES ──────────────────────────────────────────────────────────
+function renderCarousel() {
+  return `
+    <section class="card photo-section">
+      <h2>📷 Foto's</h2>
+      <p class="carousel-hint">Sleep horizontaal door de foto's.</p>
+      <div class="photo-carousel">
+        <div class="photo-item">Foto 1 — volgt</div>
+        <div class="photo-item">Foto 2 — volgt</div>
+        <div class="photo-item">Foto 3 — volgt</div>
+        <div class="photo-item">Foto 4 — volgt</div>
+        <div class="photo-item">Foto 5 — volgt</div>
+        <div class="photo-item">Foto 6 — volgt</div>
+      </div>
+    </section>
+  `;
+}
+
+function renderFootnote() {
+  return `
+    <div class="alert alert-info calc-footnote">
+      ℹ️ <div>Onze ROI-calculator rekent met conservatievere waarden om realistische besparing te tonen — fabrikantswaarden zijn theoretische maxima en houden geen rekening met dagelijkse ontlaadbeperkingen, performantieverlies over de jaren, of niet-100%-bruikbare capaciteit.</div>
+    </div>
+  `;
+}
 
 // ─── RENDERERS ──────────────────────────────────────────────────────────────
 function renderMarstek(numUnits) {
   const totalCap      = numUnits * MARSTEK_PER_UNIT.capacityNominal;
   const totalInverter = numUnits * MARSTEK_PER_UNIT.inverterPower;
+  const totalWeight   = numUnits * MARSTEK_PER_UNIT.weight;
   return `
     <div class="card config-banner">
       🔋 Uw configuratie: <strong>${numUnits} × Marstek Venus E V3</strong>
     </div>
     <section class="product-section">
       <div class="brand-header"><h2>Marstek Venus E V3</h2></div>
-      <div class="hero-photo">Foto van Marstek Venus E V3 volgt</div>
       <p class="product-description">
         Plug-and-play AC-thuisbatterij met geïntegreerde bidirectionele omvormer.
         Modulair uitbreidbaar, eenvoudige installatie, native WiFi en RS485.
       </p>
-      <table class="spec-table">
-        <tbody>
-          <tr><td>Capaciteit</td><td>5,12 kWh nominaal (4,608 kWh bij 90% DoD)</td></tr>
-          <tr><td>Geïntegreerde omvormer</td><td>2,5 kW bidirectioneel</td></tr>
-          <tr><td>Chemie</td><td>LFP (LiFePO4)</td></tr>
-          <tr><td>Spanning</td><td>51,2 V</td></tr>
-          <tr><td>Cyclussen</td><td>&gt; 6.000 (90% DoD)</td></tr>
-          <tr><td>Beschermingsklasse</td><td>IP65</td></tr>
-          <tr><td>Werktemperatuur</td><td>−20 °C tot +60 °C</td></tr>
-          <tr><td>Afmetingen</td><td>480 × 624 × 153 mm</td></tr>
-          <tr><td>Gewicht</td><td>60 kg</td></tr>
-          <tr><td>Connectiviteit</td><td>WiFi · RS485</td></tr>
-        </tbody>
-      </table>
-      <div class="config-totals">
-        <strong>Aantal in uw configuratie:</strong> ${numUnits} units &nbsp;·&nbsp;
-        <strong>Totaal capaciteit:</strong> ${fmtKwh(totalCap)} kWh nominaal &nbsp;·&nbsp;
-        <strong>Totaal AC-vermogen:</strong> ${fmtKw(totalInverter)} kW
-      </div>
-      <div class="photo-gallery">
-        <div class="photo-placeholder">Extra foto 1 — volgt</div>
-        <div class="photo-placeholder">Extra foto 2 — volgt</div>
-        <div class="photo-placeholder">Extra foto 3 — volgt</div>
+      <div class="spec-table-wrap">
+        <table class="spec-table spec-2col">
+          <thead>
+            <tr><th>Spec</th><th>Configuratie totaal</th><th>Per unit</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Capaciteit</td><td class="col-totaal">${fmtKwh(totalCap)} kWh nominaal</td><td>5,12 kWh nominaal (4,608 kWh bij 90% DoD)</td></tr>
+            <tr><td>AC-vermogen (omv. integrated)</td><td class="col-totaal">${fmtKw(totalInverter)} kW</td><td>2,5 kW bidirectioneel</td></tr>
+            <tr><td>Chemie</td><td class="col-totaal">${DASH}</td><td>LFP (LiFePO4)</td></tr>
+            <tr><td>Spanning</td><td class="col-totaal">${DASH}</td><td>51,2 V</td></tr>
+            <tr><td>Cyclussen</td><td class="col-totaal">${DASH}</td><td>&gt; 6.000 (90% DoD)</td></tr>
+            <tr><td>Beschermingsklasse</td><td class="col-totaal">${DASH}</td><td>IP65</td></tr>
+            <tr><td>Werktemperatuur</td><td class="col-totaal">${DASH}</td><td>−20 °C tot +60 °C</td></tr>
+            <tr><td>Afmetingen (per unit)</td><td class="col-totaal">${DASH}</td><td>480 × 624 × 153 mm</td></tr>
+            <tr><td>Gewicht (per unit)</td><td class="col-totaal">${DASH}</td><td>60 kg</td></tr>
+            <tr><td>Totaal gewicht</td><td class="col-totaal">${fmtKg(totalWeight)} kg</td><td>${DASH}</td></tr>
+            <tr><td>Connectiviteit</td><td class="col-totaal">${DASH}</td><td>WiFi · RS485</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
+    ${renderCarousel()}
     ${renderFootnote()}
   `;
 }
 
 function renderZendure(numInverters, numBatteriesPerInverter) {
-  const totalBatteries = numInverters * numBatteriesPerInverter;
-  const totalAcPower   = numInverters * ZENDURE_PER_INVERTER.acPower;
-  const totalCapacity  = totalBatteries * ZENDURE_PER_BATTERY.capacityNominal;
+  const totalBatteries  = numInverters * numBatteriesPerInverter;
+  const totalAcPower    = numInverters * ZENDURE_PER_INVERTER.acPower;
+  const totalPeakKw     = numInverters * ZENDURE_PER_INVERTER.peakKw;
+  const totalLoadW      = numInverters * ZENDURE_PER_INVERTER.loadW;
+  const totalDischargeW = numInverters * ZENDURE_PER_INVERTER.dischargeW;
+  const totalCapacity   = totalBatteries * ZENDURE_PER_BATTERY.capacityNominal;
+  const totalWeight     = numInverters * ZENDURE_PER_INVERTER.weight + totalBatteries * ZENDURE_PER_BATTERY.weight;
   return `
     <div class="card config-banner">
       🔋 Uw configuratie: <strong>${numInverters} × Solarflow 2400 AC + ${numBatteriesPerInverter} batterijmodules per omvormer = ${totalBatteries} batterijmodules totaal</strong>
     </div>
     <section class="product-section">
-      <div class="brand-header"><h2>Omvormer — Zendure SolarFlow 2400 AC</h2></div>
-      <div class="hero-photo">Foto van Solarflow 2400 AC volgt</div>
+      <div class="brand-header"><h2>Zendure SolarFlow 2400 AC + AB3000X</h2></div>
       <p class="product-description">
-        AC-gekoppelde omvormer/lader voor plug-and-play uitbreiding van bestaande zonne-installaties.
-        Tot 6 batterijmodules per omvormer, parallel schakelbaar voor hogere vermogens.
+        Modulair systeem met aparte AC-omvormer (SolarFlow 2400 AC) en stapelbare LiFePO4-batterijmodules (AB3000X).
+        Tot 6 modules per omvormer; meerdere omvormers parallel schakelbaar voor hogere vermogens.
+        Plug-and-play uitbreiding van bestaande zonne-installaties.
       </p>
-      <table class="spec-table">
-        <tbody>
-          <tr><td>AC-vermogen</td><td>2.400 W (piek 3.600 W gedurende 10 s)</td></tr>
-          <tr><td>Spanning</td><td>230 V / 50 Hz</td></tr>
-          <tr><td>Laadvermogen</td><td>2.400 W</td></tr>
-          <tr><td>Ontlaadvermogen</td><td>2.600 W</td></tr>
-          <tr><td>Efficiëntie</td><td>93%</td></tr>
-          <tr><td>Beschermingsklasse</td><td>IP65</td></tr>
-          <tr><td>Afmetingen</td><td>410 × 302 × 75 mm</td></tr>
-          <tr><td>Gewicht</td><td>10,12 kg</td></tr>
-        </tbody>
-      </table>
-      <div class="config-totals">
-        <strong>Aantal in uw configuratie:</strong> ${numInverters} omvormers &nbsp;·&nbsp;
-        <strong>Totaal AC-vermogen:</strong> ${fmtKw(totalAcPower)} kW
-      </div>
-      <div class="photo-gallery">
-        <div class="photo-placeholder">Extra foto 1 — volgt</div>
-        <div class="photo-placeholder">Extra foto 2 — volgt</div>
-        <div class="photo-placeholder">Extra foto 3 — volgt</div>
+      <div class="spec-table-wrap">
+        <table class="spec-table spec-3col">
+          <thead>
+            <tr><th>Spec</th><th>Configuratie totaal</th><th>Per omvormer (Solarflow 2400 AC)</th><th>Per batterijmodule (AB3000X)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Capaciteit</td><td class="col-totaal">${fmtKwh(totalCapacity)} kWh nominaal</td><td>${DASH}</td><td>2,88 kWh (nominaal)</td></tr>
+            <tr><td>AC-vermogen</td><td class="col-totaal">${fmtKw(totalAcPower)} kW (piek ${fmtKw(totalPeakKw)} kW / 10 s)</td><td>2.400 W (piek 3.600 W / 10 s)</td><td>${DASH}</td></tr>
+            <tr><td>Laadvermogen</td><td class="col-totaal">${totalLoadW} W</td><td>2.400 W</td><td>${DASH}</td></tr>
+            <tr><td>Ontlaadvermogen</td><td class="col-totaal">${totalDischargeW} W</td><td>2.600 W</td><td>${DASH}</td></tr>
+            <tr><td>Spanning</td><td class="col-totaal">${DASH}</td><td>230 V / 50 Hz</td><td>48 V</td></tr>
+            <tr><td>Chemie</td><td class="col-totaal">${DASH}</td><td>${DASH}</td><td>LiFePO4</td></tr>
+            <tr><td>Efficiëntie</td><td class="col-totaal">${DASH}</td><td>93%</td><td>${DASH}</td></tr>
+            <tr><td>Beschermingsklasse</td><td class="col-totaal">${DASH}</td><td>IP65</td><td>IP65</td></tr>
+            <tr><td>Afmetingen (per stuk)</td><td class="col-totaal">${DASH}</td><td>410 × 302 × 75 mm</td><td>477,5 × 320 × 194 mm</td></tr>
+            <tr><td>Gewicht (per stuk)</td><td class="col-totaal">${DASH}</td><td>10,12 kg</td><td>26,1 kg</td></tr>
+            <tr><td>Totaal gewicht</td><td class="col-totaal">${fmtKg(totalWeight)} kg</td><td>${DASH}</td><td>${DASH}</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
-    <section class="product-section">
-      <div class="brand-header"><h2>Batterijmodule — Zendure AB3000X</h2></div>
-      <div class="hero-photo">Foto van AB3000X volgt</div>
-      <p class="product-description">
-        LiFePO4-batterijmodule, stapelbaar tot 6 modules per omvormer.
-        Elke module werkt op 48 V om verliezen te beperken.
-      </p>
-      <table class="spec-table">
-        <tbody>
-          <tr><td>Capaciteit</td><td>2,88 kWh (nominaal)</td></tr>
-          <tr><td>Chemie</td><td>LiFePO4</td></tr>
-          <tr><td>Spanning</td><td>48 V</td></tr>
-          <tr><td>Beschermingsklasse</td><td>IP65</td></tr>
-          <tr><td>Afmetingen</td><td>477,5 × 320 × 194 mm</td></tr>
-          <tr><td>Gewicht</td><td>26,1 kg</td></tr>
-        </tbody>
-      </table>
-      <div class="config-totals">
-        <strong>Aantal in uw configuratie:</strong> ${totalBatteries} modules &nbsp;·&nbsp;
-        <strong>Totaal capaciteit:</strong> ${fmtKwh(totalCapacity)} kWh nominaal
-      </div>
-      <div class="photo-gallery">
-        <div class="photo-placeholder">Extra foto 1 — volgt</div>
-        <div class="photo-placeholder">Extra foto 2 — volgt</div>
-        <div class="photo-placeholder">Extra foto 3 — volgt</div>
-      </div>
-    </section>
+    ${renderCarousel()}
     ${renderFootnote()}
   `;
 }
@@ -317,14 +329,6 @@ function renderFallback() {
   return `
     <div class="alert alert-warning">
       ⚠️ <div>Geen geldige configuratie geselecteerd. <a href="index.html">Ga terug naar de calculator</a> en klik op een 📖 Productspecs-knop bij een gekozen configuratie.</div>
-    </div>
-  `;
-}
-
-function renderFootnote() {
-  return `
-    <div class="alert alert-info calc-footnote">
-      ℹ️ <div>Onze ROI-calculator rekent met conservatievere waarden om realistische besparing te tonen — fabrikantswaarden zijn theoretische maxima en houden geen rekening met dagelijkse ontlaadbeperkingen, performantieverlies over de jaren, of niet-100%-bruikbare capaciteit.</div>
     </div>
   `;
 }
