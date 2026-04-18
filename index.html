@@ -854,13 +854,13 @@ function _buildChartConfig(buckets, dualTariff) {
 
   const datasets = [];
   if (dualTariff) {
-    datasets.push({ type: 'bar', label: 'Afname dag',      data: buckets.map(b =>  b.afnamedag),    backgroundColor: '#e54545', stack: 'afname',   order: 2 });
-    datasets.push({ type: 'bar', label: 'Afname nacht',    data: buckets.map(b =>  b.afnamenacht),  backgroundColor: '#b02a2a', stack: 'afname',   order: 2 });
-    datasets.push({ type: 'bar', label: 'Injectie dag',    data: buckets.map(b => -b.injectiedag),  backgroundColor: '#00b478', stack: 'injectie', order: 2 });
-    datasets.push({ type: 'bar', label: 'Injectie nacht',  data: buckets.map(b => -b.injectienacht),backgroundColor: '#007a52', stack: 'injectie', order: 2 });
+    datasets.push({ type: 'bar', label: 'Afname dag',      data: buckets.map(b =>  b.afnamedag),    backgroundColor: '#e54545', stack: 'energy', order: 2 });
+    datasets.push({ type: 'bar', label: 'Afname nacht',    data: buckets.map(b =>  b.afnamenacht),  backgroundColor: '#b02a2a', stack: 'energy', order: 2 });
+    datasets.push({ type: 'bar', label: 'Injectie dag',    data: buckets.map(b => -b.injectiedag),  backgroundColor: '#00b478', stack: 'energy', order: 2 });
+    datasets.push({ type: 'bar', label: 'Injectie nacht',  data: buckets.map(b => -b.injectienacht),backgroundColor: '#007a52', stack: 'energy', order: 2 });
   } else {
-    datasets.push({ type: 'bar', label: 'Afname',   data: buckets.map(b =>  b.afname),   backgroundColor: '#e54545', stack: 'afname',   order: 2 });
-    datasets.push({ type: 'bar', label: 'Injectie', data: buckets.map(b => -b.injectie), backgroundColor: '#00b478', stack: 'injectie', order: 2 });
+    datasets.push({ type: 'bar', label: 'Afname',   data: buckets.map(b =>  b.afname),   backgroundColor: '#e54545', stack: 'energy', order: 2 });
+    datasets.push({ type: 'bar', label: 'Injectie', data: buckets.map(b => -b.injectie), backgroundColor: '#00b478', stack: 'energy', order: 2 });
   }
   datasets.push({ type: 'line', label: 'Ø afname',   data: Array(labels.length).fill(avgAfname),    borderColor: '#7a1010', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
   datasets.push({ type: 'line', label: 'Ø injectie', data: Array(labels.length).fill(-avgInjectie), borderColor: '#004d33', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
