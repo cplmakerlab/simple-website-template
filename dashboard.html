@@ -87,8 +87,61 @@
 
     .hide { display: none !important; }
 
-    /* placeholders — Task 5 fills these in */
-    #projectList { color: var(--muted); font-style: italic; }
+    table.project-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    table.project-table th,
+    table.project-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: middle;
+    }
+    table.project-table thead th {
+      background: var(--bg);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    table.project-table tr:last-child td { border-bottom: none; }
+    table.project-table tr.deleted-row { opacity: 0.5; }
+
+    .status-chip {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .status-chip.readonly { cursor: default; }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .row-actions button {
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      font-size: 1.05rem;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+    .row-actions button:hover { background: var(--bg); }
+
+    #projectList .empty-state {
+      color: var(--muted);
+      font-style: italic;
+      padding: 24px 8px;
+    }
   </style>
 </head>
 <body>
@@ -166,9 +219,85 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.getElementById('userDisplayName').textContent = user.displayName || user.email;
     showState('stateAuthorized');
-    // Task 5 will hook in: fetch and render the project list here.
+    refreshProjectList();
   });
+
+  document.getElementById('toggleShowDeleted').addEventListener('change', refreshProjectList);
 });
+
+// ─── PROJECT LIST ───────────────────────────────────────────────────────────
+function fmtDate(ts) {
+  // ts = Firestore Timestamp
+  if (!ts || typeof ts.toDate !== 'function') return '—';
+  return ts.toDate().toLocaleDateString('nl-BE', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function shortName(email) {
+  if (!email) return '—';
+  return email.split('@')[0];
+}
+
+function statusChipHTML(statusKey) {
+  const meta = getStatusMeta(statusKey);
+  return `<span class="status-chip readonly" data-status="${meta.key}" style="background:${meta.color};">${meta.label}</span>`;
+}
+
+function rowHTML(p, isDeleted) {
+  const updated = fmtDate(p.updatedAt);
+  const by      = shortName(p.createdBy);
+  const action  = isDeleted
+    ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen">↶</button>`
+    : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen">🗑️</button>`;
+  return `
+    <tr class="${isDeleted ? 'deleted-row' : ''}">
+      <td><a href="index.html?project=${p.id}" style="color:var(--primary);text-decoration:none;font-weight:600;">${escapeHtml(p.projectName || '')}</a></td>
+      <td>${escapeHtml(p.customerName || '')}</td>
+      <td>${statusChipHTML(p.status)}</td>
+      <td>${updated}</td>
+      <td>${by}</td>
+      <td class="row-actions">
+        <button type="button" class="openBtn" data-id="${p.id}" title="Open">📂</button>
+        ${action}
+      </td>
+    </tr>`;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+async function refreshProjectList() {
+  const el = document.getElementById('projectList');
+  el.innerHTML = '<p class="empty-state">⏳ Laden…</p>';
+  const showDeleted = document.getElementById('toggleShowDeleted').checked;
+  try {
+    const active  = await listActiveProjects();
+    const deleted = showDeleted ? await listDeletedProjects() : [];
+    const total = active.length + deleted.length;
+    if (total === 0) {
+      el.innerHTML = '<p class="empty-state">Nog geen projecten. Klik op <strong>+ Nieuw project</strong> om te beginnen.</p>';
+      return;
+    }
+    const rows = [
+      ...active.map(p => rowHTML(p, false)),
+      ...deleted.map(p => rowHTML(p, true)),
+    ].join('');
+    el.innerHTML = `
+      <table class="project-table">
+        <thead><tr>
+          <th>Project</th><th>Klant</th><th>Status</th><th>Bijgewerkt</th><th>Door</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    // Wire open buttons
+    el.querySelectorAll('.openBtn').forEach(btn => {
+      btn.addEventListener('click', () => { window.location.href = `index.html?project=${btn.dataset.id}`; });
+    });
+    // delete/restore wired in Task 7
+  } catch (e) {
+    el.innerHTML = `<div class="alert alert-error">Kon projecten niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+  }
+}
 </script>
 
 </body>
