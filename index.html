@@ -710,6 +710,70 @@ function renderWithAvg(currentValue, avgValue, formatter, numYears) {
 // ─── SAVE / LOAD STATE ────────────────────────────────────────────────────────
 let _saved = null; // last renderResults argument, set at render time
 
+// ─── ENERGY CHART HELPERS ──────────────────────────────────────────────────
+function _buildYearBuckets(allDays) {
+  // Group per calendar year; keep only years with a complete count of days (365, or 366 for leap years).
+  const byYear = {};
+  for (const d of allDays) {
+    const y = d.date.getFullYear();
+    if (!byYear[y]) byYear[y] = { afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0, dayCount: 0 };
+    byYear[y].afnamedag     += d.afnamedag;
+    byYear[y].afnamenacht   += d.afnamenacht;
+    byYear[y].injectiedag   += d.injectiedag;
+    byYear[y].injectienacht += d.injectienacht;
+    byYear[y].dayCount      += 1;
+  }
+  function isComplete(y, count) {
+    const isLeap = (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0);
+    return count === (isLeap ? 366 : 365);
+  }
+  return Object.entries(byYear)
+    .filter(([y, v]) => isComplete(parseInt(y, 10), v.dayCount))
+    .sort((a, b) => parseInt(a[0], 10) - parseInt(b[0], 10))
+    .map(([y, v]) => ({ label: y, afnamedag: v.afnamedag, afnamenacht: v.afnamenacht, injectiedag: v.injectiedag, injectienacht: v.injectienacht }));
+}
+
+function _buildMonthBuckets(windowDays) {
+  // Aggregate the rolling-window days into per-month buckets. Keys are YYYY-MM.
+  const byMonth = {};
+  for (const d of windowDays) {
+    const mk = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}`;
+    if (!byMonth[mk]) byMonth[mk] = { afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0 };
+    byMonth[mk].afnamedag     += d.afnamedag;
+    byMonth[mk].afnamenacht   += d.afnamenacht;
+    byMonth[mk].injectiedag   += d.injectiedag;
+    byMonth[mk].injectienacht += d.injectienacht;
+  }
+  const MONTH_NL = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+  return Object.keys(byMonth).sort().map(mk => {
+    const [y, m] = mk.split('-');
+    return { label: `${MONTH_NL[parseInt(m, 10) - 1]} '${y.slice(2)}`, monthKey: mk, ...byMonth[mk] };
+  });
+}
+
+function _buildDayBuckets(allDays, monthKey) {
+  return allDays
+    .filter(d => {
+      const mk = `${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}`;
+      return mk === monthKey;
+    })
+    .map(d => ({
+      label: String(d.date.getDate()),
+      afnamedag: d.afnamedag,
+      afnamenacht: d.afnamenacht,
+      injectiedag: d.injectiedag,
+      injectienacht: d.injectienacht,
+    }));
+}
+
+function _availableMonthKeys(allDays) {
+  const set = new Set();
+  for (const d of allDays) {
+    set.add(`${d.date.getFullYear()}-${String(d.date.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return [...set].sort();
+}
+
 function _serializeState() {
   if (!_saved) return null;
   const d = _saved;
