@@ -84,6 +84,20 @@
       margin-bottom: 20px;
       box-shadow: 0 2px 8px rgba(44, 123, 229, 0.06);
     }
+    /* Side-by-side layout of spec-section + photo-section on wide screens. */
+    .product-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+      gap: 20px;
+      align-items: start;
+      margin-bottom: 20px;
+    }
+    .product-layout > .product-section,
+    .product-layout > .photo-section { margin-bottom: 0; }
+    @media (max-width: 900px) {
+      .product-layout { grid-template-columns: 1fr; }
+    }
+    main { max-width: 1200px; margin: 0 auto; }
     .brand-header {
       display: flex;
       align-items: center;
@@ -406,6 +420,7 @@ function renderMarstek(numUnits) {
     <div class="card config-banner">
       🔋 Uw configuratie: <strong>${numUnits} × Marstek Venus E V3</strong>
     </div>
+    <div class="product-layout">
     <section class="product-section">
       <div class="brand-header"><h2>Marstek Venus E V3</h2></div>
       <p class="product-description">
@@ -434,6 +449,7 @@ function renderMarstek(numUnits) {
       </div>
     </section>
     ${renderCarousel(MARSTEK_PHOTOS)}
+    </div>
     ${renderFootnote()}
   `;
 }
@@ -450,6 +466,7 @@ function renderZendure(numInverters, numBatteriesPerInverter) {
     <div class="card config-banner">
       🔋 Uw configuratie: <strong>${numInverters} × Solarflow 2400 AC + ${numBatteriesPerInverter} batterijmodules per omvormer = ${totalBatteries} batterijmodules totaal</strong>
     </div>
+    <div class="product-layout">
     <section class="product-section">
       <div class="brand-header"><h2>Zendure SolarFlow 2400 AC + AB3000X</h2></div>
       <p class="product-description">
@@ -479,6 +496,7 @@ function renderZendure(numInverters, numBatteriesPerInverter) {
       </div>
     </section>
     ${renderCarousel(ZENDURE_PHOTOS)}
+    </div>
     ${renderFootnote()}
   `;
 }
