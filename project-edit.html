@@ -45,6 +45,36 @@
       #formSections { grid-template-columns: 1fr; }
     }
 
+    /* Drag-drop zone for photo uploads */
+    .pe-drop-zone {
+      border: 2px dashed #c4cadb;
+      border-radius: 10px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s;
+      background: #f7f9fd;
+      font-size: 0.9rem;
+      margin-top: 8px;
+      user-select: none;
+    }
+    .pe-drop-zone:hover { background: #eef4ff; border-color: var(--primary); }
+    .pe-drop-zone.drag-over { background: #dcebff; border-color: var(--primary); border-style: solid; }
+    .pe-drop-zone.uploading { cursor: progress; border-color: var(--primary); background: #f7f9fd; }
+    .pe-drop-zone input[type=file] { display: none; }
+    .pe-drop-zone-progress { color: var(--primary-dark); font-weight: 600; }
+    .pe-spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #d4dae5;
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: pe-spin 0.8s linear infinite;
+      vertical-align: -2px;
+      margin-right: 6px;
+    }
+    @keyframes pe-spin { to { transform: rotate(360deg); } }
+
     /* Photo grid + lightbox (same pattern as dashboard) */
     .photo-grid {
       display: grid;
@@ -772,9 +802,15 @@ function sectionPhotos() {
       <summary>📷 Foto's <span id="pePhotosCount" style="font-weight:400;color:var(--muted);"></span></summary>
       <div class="section-body">
         <div class="photo-grid" id="pePhotoGrid"><p class="help">⏳ Laden…</p></div>
-        <div class="photo-uploader" style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-          <input type="file" id="pePhotoInput" accept="image/*" multiple style="flex:1;font-size:0.85rem;" />
-          <button type="button" class="btn btn-secondary" id="pePhotoUploadBtn" style="font-size:0.85rem;padding:6px 10px;">📤 Upload</button>
+        <div class="pe-drop-zone" id="peDropZone">
+          <input type="file" id="pePhotoInput" accept="image/*" multiple />
+          <div class="pe-drop-zone-prompt" id="peDropPrompt">
+            📂 <strong>Sleep foto's hier</strong> <span style="color:var(--muted)">of klik om te selecteren</span>
+            <div class="help" style="margin-top:4px;">Meerdere tegelijk is OK (max 15 MB per foto).</div>
+          </div>
+          <div class="pe-drop-zone-progress hide" id="peDropProgress">
+            <span class="pe-spinner"></span>Uploaden <span id="peUploadCount">0/0</span>…
+          </div>
         </div>
         <div id="pePhotoErr" class="alert alert-error" style="display:none;font-size:0.85rem;margin-top:8px;"></div>
       </div>
@@ -791,24 +827,69 @@ function wireSectionPhotos() {
       if (grid) grid.innerHTML = `<p class="help" style="color:var(--danger)">Kon foto's niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</p>`;
     });
 
-  document.getElementById('pePhotoUploadBtn').addEventListener('click', async () => {
-    const input = document.getElementById('pePhotoInput');
-    const errEl = document.getElementById('pePhotoErr');
-    errEl.style.display = 'none'; errEl.textContent = '';
-    const files = Array.from(input.files || []);
-    if (!files.length) { errEl.textContent = 'Kies eerst een foto.'; errEl.style.display = ''; return; }
-    const btn = document.getElementById('pePhotoUploadBtn');
-    btn.disabled = true; btn.textContent = 'Uploaden…';
-    let failMsg = null;
-    for (const f of files) {
-      try { await uploadProjectPhoto(PROJECT_ID, f); }
-      catch (e) { failMsg = e && e.message ? e.message : String(e); break; }
-    }
-    input.value = '';
-    if (failMsg) { errEl.textContent = failMsg; errEl.style.display = ''; }
-    try { _photos = await listProjectPhotos(PROJECT_ID); renderPhotoGrid(); } catch {}
-    btn.disabled = false; btn.textContent = '📤 Upload';
+  const zone  = document.getElementById('peDropZone');
+  const input = document.getElementById('pePhotoInput');
+  if (!zone || !input) return;
+
+  // Click zone → file picker (but not when the click bubbled from an input already).
+  zone.addEventListener('click', (e) => {
+    if (e.target === input) return;
+    if (zone.classList.contains('uploading')) return;
+    input.click();
   });
+  input.addEventListener('change', () => {
+    const files = Array.from(input.files || []);
+    input.value = '';  // reset so picking the same file again re-triggers change
+    if (files.length) runPeUpload(files);
+  });
+
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    if (!zone.classList.contains('uploading')) zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', e => {
+    if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
+  });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    if (zone.classList.contains('uploading')) return;
+    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
+    if (files.length) runPeUpload(files);
+  });
+}
+
+async function runPeUpload(files) {
+  const zone     = document.getElementById('peDropZone');
+  const promptEl = document.getElementById('peDropPrompt');
+  const progEl   = document.getElementById('peDropProgress');
+  const countEl  = document.getElementById('peUploadCount');
+  const errEl    = document.getElementById('pePhotoErr');
+  errEl.style.display = 'none'; errEl.textContent = '';
+  promptEl.classList.add('hide');
+  progEl.classList.remove('hide');
+  zone.classList.add('uploading');
+  countEl.textContent = `0/${files.length}`;
+  let done = 0;
+  let failMsg = null;
+  for (const f of files) {
+    try {
+      await uploadProjectPhoto(PROJECT_ID, f);
+      done++;
+      countEl.textContent = `${done}/${files.length}`;
+    } catch (e) {
+      failMsg = e && e.message ? e.message : String(e);
+      break;
+    }
+  }
+  if (failMsg) {
+    errEl.textContent = `Fout na ${done}/${files.length}: ${failMsg}`;
+    errEl.style.display = '';
+  }
+  try { _photos = await listProjectPhotos(PROJECT_ID); renderPhotoGrid(); } catch {}
+  progEl.classList.add('hide');
+  promptEl.classList.remove('hide');
+  zone.classList.remove('uploading');
 }
 
 function renderPhotoGrid() {
