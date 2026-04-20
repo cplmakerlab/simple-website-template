@@ -223,10 +223,14 @@ function renderSections() {
     sectionBasisgegevens(),
     sectionSupplier(),
     sectionWoning(),
+    sectionElectrical(),
+    sectionCabinet(),
   ].join('');
   wireSectionBasisgegevens();
   wireSectionSupplier();
   wireSectionWoning();
+  wireSectionElectrical();
+  wireSectionCabinet();
 }
 
 function sectionBasisgegevens() {
@@ -373,6 +377,109 @@ function wireSectionWoning() {
   sel.addEventListener('change', e => {
     const v = e.target.value;
     _project.calcDefaults.btw = v === '' ? null : Number(v);
+  });
+}
+
+function sectionElectrical() {
+  const e = _project.electrical;
+  const opts = ['', ...CONNECTION_TYPES].map(t =>
+    `<option value="${t}" ${t === (e.connectionType || '') ? 'selected' : ''}>${t === '' ? '— Niet bepaald —' : t}</option>`
+  ).join('');
+  return `
+    <details class="card" id="secElectrical" open>
+      <summary>🔌 Elektrische aansluiting</summary>
+      <div class="section-body">
+        <div class="form-row">
+          <label for="fConnectionType">Type aansluiting</label>
+          <select id="fConnectionType">${opts}</select>
+        </div>
+        <div class="form-row">
+          <label for="fFuseRating">Zekeringsterkte Fluvius-zijde (A)</label>
+          <input type="number" id="fFuseRating" min="0" step="1" value="${e.fuseRatingA != null ? e.fuseRatingA : ''}" />
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function wireSectionElectrical() {
+  document.getElementById('fConnectionType').addEventListener('change', e => {
+    _project.electrical.connectionType = e.target.value || null;
+  });
+  document.getElementById('fFuseRating').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    _project.electrical.fuseRatingA = isNaN(v) ? null : v;
+  });
+}
+
+// Tri-state radio helper: returns HTML for three labels (Ja/Nee/Onbekend).
+// `name` is unique in the DOM; `value` is the current stored state (null|true|false).
+function triStateHtml(name, value) {
+  const mk = (v, label) => {
+    const match = (v === null ? value === null : value === v);
+    const strV = v === null ? 'unknown' : String(v);
+    return `<label><input type="radio" name="${name}" value="${strV}" ${match ? 'checked' : ''} /> ${label}</label>`;
+  };
+  return `
+    <div class="tri-state">
+      ${mk(true,  'Ja')}
+      ${mk(false, 'Nee')}
+      ${mk(null,  'Onbekend')}
+    </div>
+  `;
+}
+
+function parseTriState(strVal) {
+  if (strVal === 'true')  return true;
+  if (strVal === 'false') return false;
+  return null;
+}
+
+function sectionCabinet() {
+  const c = _project.cabinet;
+  const row = (label, fieldKey, help) => `
+    <div class="form-row">
+      <label>${label}</label>
+      ${triStateHtml('fCab_' + fieldKey, c[fieldKey])}
+      ${help ? `<div class="help">${help}</div>` : ''}
+    </div>
+  `;
+  return `
+    <details class="card" id="secCabinet" open>
+      <summary>🗄 Zekeringkast</summary>
+      <div class="section-body">
+        <div class="form-row">
+          <label for="fFreeUnits">Vrije modules in de kast</label>
+          <input type="number" id="fFreeUnits" min="0" step="1" value="${c.freeUnits != null ? c.freeUnits : ''}" />
+          <div class="help">Aantal DIN-rail units dat nog vrij is voor extra zekeringen.</div>
+        </div>
+        ${row('Rem-automaat aanwezig?', 'hasRemAutomaat', '')}
+        <div class="form-row">
+          <label for="fWiringDiameter">Diameter bekabeling in kast (mm²) <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
+          <input type="number" id="fWiringDiameter" min="0" step="0.5" value="${c.wiringDiameterMm2 != null ? c.wiringDiameterMm2 : ''}" />
+        </div>
+        ${row('Stopcontact in de omgeving van de Fluvius-aansluiting?', 'hasOutletNearFluvius', '')}
+        ${row('Wifi-bereik bij Fluvius-aansluiting?', 'hasWifiNearFluvius', '')}
+        ${row('Plaats om batterijen te plaatsen bij zekeringkast?', 'batteryPlacementRoom', '')}
+        ${row('Wifi-bereik bij zekeringkast?', 'hasWifiNearCabinet', '')}
+      </div>
+    </details>
+  `;
+}
+
+function wireSectionCabinet() {
+  document.getElementById('fFreeUnits').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    _project.cabinet.freeUnits = isNaN(v) ? null : v;
+  });
+  document.getElementById('fWiringDiameter').addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    _project.cabinet.wiringDiameterMm2 = isNaN(v) ? null : v;
+  });
+  ['hasRemAutomaat','hasOutletNearFluvius','hasWifiNearFluvius','batteryPlacementRoom','hasWifiNearCabinet'].forEach(key => {
+    document.querySelectorAll(`input[name="fCab_${key}"]`).forEach(r => {
+      r.addEventListener('change', e => { _project.cabinet[key] = parseTriState(e.target.value); });
+    });
   });
 }
 
