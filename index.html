@@ -2377,6 +2377,13 @@ async function loadProjectIntoUI(id) {
   if (proj.csvUpload && proj.lastCalcRun) {
     const restored = buildSavedFromProject(proj);
     _applyLoadedState(restored, /*showBanner*/ false);
+    // #results hash (set by dashboard's 💾 button) → scroll to results block.
+    if (window.location.hash === '#results') {
+      const firstResultCard = document.querySelector('#results .card');
+      if (firstResultCard) {
+        setTimeout(() => firstResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      }
+    }
   } else if (proj.csvUpload && !proj.lastCalcRun) {
     // CSV present but never calculated — load the form values (if any) but don't auto-render results.
     // User clicks Bereken when ready.

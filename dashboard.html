@@ -324,6 +324,9 @@ function rowHTML(p, isDeleted) {
   const editBtn = isDeleted
     ? ''
     : `<button type="button" class="editBtn" data-id="${p.id}" title="Bewerken">✏️</button>`;
+  const calcBtn = (!isDeleted && p.lastCalcRun && p.lastCalcRun.calculatedAt)
+    ? `<button type="button" class="calcBtn" data-id="${p.id}" title="Open bij opgeslagen berekening">💾</button>`
+    : '';
   const action  = isDeleted
     ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen">↶</button>`
     : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen">🗑️</button>`;
@@ -336,6 +339,7 @@ function rowHTML(p, isDeleted) {
       <td>${by}</td>
       <td class="row-actions">
         <button type="button" class="openBtn" data-id="${p.id}" title="Open">📂</button>
+        ${calcBtn}
         ${editBtn}
         ${action}
       </td>
@@ -376,6 +380,10 @@ async function refreshProjectList() {
     // Wire edit buttons
     el.querySelectorAll('.editBtn').forEach(btn => {
       btn.addEventListener('click', () => { window.location.href = `project-edit.html?project=${btn.dataset.id}`; });
+    });
+    // Wire calc-result jump buttons
+    el.querySelectorAll('.calcBtn').forEach(btn => {
+      btn.addEventListener('click', () => { window.location.href = `index.html?project=${btn.dataset.id}#results`; });
     });
     // Wire status-chip popovers
     el.querySelectorAll('.status-chip.editable').forEach(chip => {
