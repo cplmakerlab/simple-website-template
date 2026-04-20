@@ -304,6 +304,7 @@
     @media (max-width: 600px) {
       h1 { font-size: 1.3rem; }
       .scenarios-grid { grid-template-columns: 1fr; }
+      .pv-grid { grid-template-columns: 1fr !important; }
     }
     @media (max-width: 1020px) {
       .scenarios-grid { grid-template-columns: 1fr; }
@@ -580,6 +581,15 @@
 <div id="projectMissingCsv" class="card alert alert-warning" style="display:none;">
   📁 <div>Dit project heeft nog geen CSV. <button type="button" class="btn" id="missingCsvBtn">CSV uploaden</button></div>
 </div>
+
+<details id="projectValuesCard" class="card" style="display:none;">
+  <summary style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;">
+    <h2 style="margin:0;"><span class="icon">📋</span> Projectgegevens</h2>
+    <button type="button" class="btn btn-secondary" id="pvEditBtn" style="font-size:0.85rem;padding:4px 10px;">✏ Aanpassen</button>
+  </summary>
+  <div id="pvIncompleteWarn" class="alert alert-warning" style="display:none;margin-top:10px;"></div>
+  <div class="pv-grid" id="pvGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px 16px;margin-top:12px;font-size:0.9rem;"></div>
+</details>
 
 <h1>⚡ SmartPeak - Batterij ROI Calculator</h1>
 <p class="subtitle">Bereken de terugverdientijd van uw batterijinstallatie op basis van uw verbruikshistoriek.</p>
@@ -2075,6 +2085,85 @@ let _projectDoc  = null;
   });
 })();
 
+// ─── Project values summary card (projectValuesCard) ─────────────────────────
+function renderProjectValuesCard(project) {
+  const m = mergeProjectMetadata(project);
+  const rows = [];
+  function add(label, value) {
+    if (value == null || value === '' || (Array.isArray(value) && value.length === 0)) return;
+    rows.push(`<div style="color:var(--muted);">${label}</div><div>${value}</div>`);
+  }
+
+  // Leverancier
+  if (m.supplier.name) add('Leverancier', escapeHtmlLite(m.supplier.name));
+  if (m.supplier.isSingleTariff) {
+    if (m.supplier.priceDay != null) add('Tarief (enkelvoudig)', m.supplier.priceDay.toFixed(3) + ' €/kWh');
+  } else {
+    if (m.supplier.priceDay   != null) add('Dagtarief',   m.supplier.priceDay.toFixed(3)   + ' €/kWh');
+    if (m.supplier.priceNight != null) add('Nachttarief', m.supplier.priceNight.toFixed(3) + ' €/kWh');
+  }
+
+  // Woning / BTW
+  const ageLbl = m.site.houseAgeOver10Years === true  ? '10 jaar of ouder'
+             : m.site.houseAgeOver10Years === false ? 'Jonger dan 10 jaar'
+             : null;
+  if (ageLbl) add('Leeftijd woning', ageLbl);
+  const effBtw = effectiveBtwFor(project);
+  if (effBtw != null) add('BTW', effBtw + '%');
+  if (m.calcDefaults.keuring) add('Keuring (voorkeur)', m.calcDefaults.keuring === 'yes' ? 'Met keuring' : 'Zonder keuring');
+
+  // Elektrisch
+  if (m.electrical.connectionType) add('Aansluiting', m.electrical.connectionType);
+  if (m.electrical.fuseRatingA != null) add('Fluvius-zekering', m.electrical.fuseRatingA + ' A');
+
+  // Zekeringkast
+  if (m.cabinet.freeUnits != null) add('Vrije modules in kast', m.cabinet.freeUnits);
+  if (m.cabinet.wiringDiameterMm2 != null) add('Bekabeling-diameter', m.cabinet.wiringDiameterMm2 + ' mm²');
+  const tri = v => v === true ? 'Ja' : v === false ? 'Nee' : null;
+  const triPairs = [
+    ['Rem-automaat',                   m.cabinet.hasRemAutomaat],
+    ['Stopcontact bij Fluvius',        m.cabinet.hasOutletNearFluvius],
+    ['Wifi bij Fluvius',               m.cabinet.hasWifiNearFluvius],
+    ['Plaats voor batterijen',         m.cabinet.batteryPlacementRoom],
+    ['Wifi bij zekeringkast',          m.cabinet.hasWifiNearCabinet],
+  ];
+  triPairs.forEach(([label, v]) => { const s = tri(v); if (s) add(label, s); });
+
+  // Omvormers
+  if (m.solar.inverters.length > 0) {
+    const total = totalInverterPowerKw(project);
+    add('Omvormervermogen totaal', total.toFixed(1) + ' kW');
+    add('Aantal omvormers', m.solar.inverters.length);
+    const totalPanels = m.solar.inverters.reduce((s, inv) => s + (Number(inv.panelCount) || 0), 0);
+    if (totalPanels > 0) add('Aantal zonnepanelen', totalPanels);
+  }
+
+  const grid = document.getElementById('pvGrid');
+  const card = document.getElementById('projectValuesCard');
+  if (rows.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  grid.innerHTML = rows.join('');
+  card.style.display = '';
+  card.removeAttribute('open');
+
+  // Wire the edit button (idempotent: remove existing listener by replacing node).
+  const btn = document.getElementById('pvEditBtn');
+  const fresh = btn.cloneNode(true);
+  btn.replaceWith(fresh);
+  fresh.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.location.href = 'project-edit.html?project=' + encodeURIComponent(project.id);
+  });
+}
+
+function escapeHtmlLite(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
 async function loadProjectIntoUI(id) {
   const proj = await getProject(id);
   if (!proj || proj.deletedAt) {
@@ -2094,6 +2183,7 @@ async function loadProjectIntoUI(id) {
   document.getElementById('pbCustomer').textContent = proj.customerName || '—';
   renderProjectStatusChip();
   document.getElementById('projectBanner').style.display = '';
+  renderProjectValuesCard(proj);
 
   // If we have CSV + calc data, reuse the v:5 share-link restore path.
   if (proj.csvUpload && proj.lastCalcRun) {
