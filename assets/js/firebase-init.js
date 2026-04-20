@@ -46,6 +46,27 @@ const PROJECT_STATUSES = [
 
 const DEFAULT_STATUS = 'nieuw_contact';
 
+// ─── PROJECT PHASES (Kanban-board grouping) ──────────────────────────────────
+// 5 fasen die de 16 statussen groeperen. Drop op een bord-kolom zet de status
+// naar `statuses[0]` van die fase. Kaart-chip blijft klikbaar voor fijnregeling.
+const PROJECT_PHASES = [
+  { key: 'nieuw',      label: 'Nieuw',       color: '#9aa3b2', statuses: ['nieuw_contact', 'wachten_op_data'] },
+  { key: 'bezoek',     label: 'Bezoek',      color: '#7eb6e8', statuses: ['klaar_voor_bezoek', 'bezoek_gepland', 'bezoek_gedaan'] },
+  { key: 'offerte',    label: 'Offerte',     color: '#f6a623', statuses: ['offerte_uit', 'wacht_op_beslissing'] },
+  { key: 'uitvoering', label: 'Uitvoering',  color: '#00b478', statuses: ['akkoord', 'installatie_gepland', 'in_uitvoering', 'keuring_aangevraagd', 'keuring_gepland', 'keuring_gedaan'] },
+  { key: 'afgesloten', label: 'Afgesloten',  color: '#0a6e4a', statuses: ['facturatie', 'afgesloten', 'niet_akkoord'] },
+];
+
+function phaseForStatus(statusKey) {
+  for (const p of PROJECT_PHASES) {
+    if (p.statuses.includes(statusKey)) return p;
+  }
+  return PROJECT_PHASES[0];
+}
+
+// Status-keys that mark a project as "finished" (hidden by default in dashboard).
+const FINISHED_STATUSES = ['afgesloten', 'niet_akkoord'];
+
 // ─── CONNECTION TYPES ────────────────────────────────────────────────────────
 const CONNECTION_TYPES = ['1x230', '3x230', '3x400+N'];
 
@@ -269,6 +290,34 @@ async function restoreProject(id) {
     deletedAt: null,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
+}
+
+// Permanent (hard) delete — cascades to photos (Storage bytes + Firestore docs),
+// comments sub-collection, and the project doc itself. Kan niet ongedaan.
+async function hardDeleteProject(id) {
+  // Photos: delete bytes + Firestore doc per photo.
+  try {
+    const photosSnap = await projectDoc(id).collection('photos').get();
+    for (const doc of photosSnap.docs) {
+      const data = doc.data();
+      if (data.storagePath) {
+        try { await getStorage().ref(data.storagePath).delete(); }
+        catch (e) { console.warn('Storage file delete failed for', data.storagePath, e); }
+      }
+      await doc.ref.delete();
+    }
+  } catch (e) { console.warn('photos cascade failed', e); }
+
+  // Comments.
+  try {
+    const commentsSnap = await projectDoc(id).collection('comments').get();
+    for (const doc of commentsSnap.docs) {
+      await doc.ref.delete();
+    }
+  } catch (e) { console.warn('comments cascade failed', e); }
+
+  // Project doc itself.
+  await projectDoc(id).delete();
 }
 
 // Replace the project's CSV (used both at first upload AND when replacing an existing CSV).
