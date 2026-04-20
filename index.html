@@ -696,10 +696,6 @@
   <button class="btn btn-calculate" onclick="calculate()">
     <span>⚡</span> Bereken ROI
   </button>
-  <label class="btn btn-secondary btn-loadsave" style="cursor:pointer; margin-top:0; display:inline-flex; align-items:center; gap:8px;">
-    <span>📂</span> Laden vanuit opgeslagen berekening
-    <input type="file" id="loadSaveFileTop" accept=".json" onchange="loadFromJSONFile(event)" style="display:none">
-  </label>
 </div>
 
 <!-- LOADED FROM SAVE BANNER -->
@@ -759,10 +755,6 @@
     <div class="save-actions">
       <button class="btn btn-secondary btn-copyshare" onclick="copyShareLink()">🔗 Kopieer deellink</button>
       <button class="btn btn-secondary" onclick="downloadSave()">⬇️ Download JSON</button>
-      <label class="btn btn-secondary" style="cursor:pointer; margin:0;">
-        📂 Laden vanuit JSON
-        <input type="file" id="loadSaveFile" accept=".json" onchange="loadFromJSONFile(event)" style="display:none">
-      </label>
     </div>
     <div class="share-url-row" id="shareUrlRow" style="display:none;">
       <input type="text" id="shareUrlInput" readonly onclick="this.select()" />
@@ -1176,21 +1168,6 @@ function downloadSave() {
   a.click();
   URL.revokeObjectURL(a.href);
   showToast('⬇️ JSON-bestand gedownload');
-}
-
-function loadFromJSONFile(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  e.target.value = '';
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      _applyLoadedState(JSON.parse(ev.target.result), true);
-    } catch(err) {
-      alert('Ongeldig bestandsformaat. Controleer of het een geldig batterij-JSON-bestand is.');
-    }
-  };
-  reader.readAsText(file);
 }
 
 function _applyLoadedState(state, showBanner) {
