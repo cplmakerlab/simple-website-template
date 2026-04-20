@@ -77,6 +77,7 @@ function newEmptyProjectMetadata() {
       hasWifiNearFluvius:     null,
       batteryPlacementRoom:   null,
       hasWifiNearCabinet:     null,
+      lineGroundChecked:      null,
     },
     solar: {
       inverters: [],

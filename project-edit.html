@@ -9,6 +9,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
 
   <script src="assets/js/csv.js"></script>
   <script src="assets/js/firebase-init.js"></script>
@@ -537,6 +538,14 @@ function sectionCabinet() {
         ${row('Wifi-bereik bij Fluvius-aansluiting?', 'hasWifiNearFluvius', '')}
         ${row('Plaats om batterijen te plaatsen bij zekeringkast?', 'batteryPlacementRoom', '')}
         ${row('Wifi-bereik bij zekeringkast?', 'hasWifiNearCabinet', '')}
+        <div class="form-row">
+          <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="fLineGroundChecked" ${c.lineGroundChecked === true ? 'checked' : ''} style="margin-top:2px;" />
+            <span>Meting fase ↔ aarde uitgevoerd én onder 30 V
+              <span class="help" style="font-weight:400;text-transform:none;display:block;">Verplicht bij Zendure-installaties om een ground fault te voorkomen. Vink aan nadat je gemeten hebt.</span>
+            </span>
+          </label>
+        </div>
       </div>
     </details>
   `;
@@ -555,6 +564,9 @@ function wireSectionCabinet() {
     document.querySelectorAll(`input[name="fCab_${key}"]`).forEach(r => {
       r.addEventListener('change', e => { _project.cabinet[key] = parseTriState(e.target.value); });
     });
+  });
+  document.getElementById('fLineGroundChecked').addEventListener('change', e => {
+    _project.cabinet.lineGroundChecked = e.target.checked ? true : null;
   });
 }
 
