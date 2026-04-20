@@ -168,39 +168,6 @@
       padding: 24px 8px;
     }
 
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-      padding: 16px;
-    }
-    .modal-backdrop.open { display: flex; }
-    .modal {
-      background: var(--card);
-      border-radius: var(--radius);
-      padding: 24px;
-      max-width: 520px;
-      width: 100%;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-    }
-    .modal h2 { margin-bottom: 16px; }
-    .form-row { margin-bottom: 14px; }
-    .form-row label { display: block; font-weight: 600; margin-bottom: 6px; color: var(--text); font-size: 0.9rem; }
-    .form-row input[type="text"],
-    .form-row select {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font: inherit;
-      background: #fff;
-    }
-    .form-row .help { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
-    .form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
   </style>
 </head>
 <body>
@@ -241,36 +208,6 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="newProjectBackdrop">
-  <div class="modal">
-    <h2>+ Nieuw project</h2>
-    <form id="newProjectForm">
-      <div class="form-row">
-        <label for="npName">Projectnaam <span style="color:var(--danger)">*</span></label>
-        <input type="text" id="npName" required maxlength="120" />
-      </div>
-      <div class="form-row">
-        <label for="npCustomer">Klantnaam <span style="color:var(--danger)">*</span></label>
-        <input type="text" id="npCustomer" required maxlength="120" />
-      </div>
-      <div class="form-row">
-        <label for="npStatus">Status</label>
-        <select id="npStatus"></select>
-      </div>
-      <div class="form-row">
-        <label for="npCsv">CSV (Fluvius export)</label>
-        <input type="file" id="npCsv" accept=".csv" />
-        <div class="help">Optioneel — kan ook later toegevoegd worden binnen het project.</div>
-      </div>
-      <div id="npError" class="alert alert-error hide"></div>
-      <div class="form-actions">
-        <button type="button" class="btn btn-secondary" id="npCancelBtn">Annuleren</button>
-        <button type="submit" class="btn" id="npSubmitBtn">Aanmaken</button>
-      </div>
-    </form>
-  </div>
-</div>
-
 <script>
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
 function showState(which) {
@@ -295,62 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btnSignOut').addEventListener('click', () => signOut());
   document.getElementById('btnSignOutNW').addEventListener('click', () => signOut());
 
-  // ── New-project modal wiring ─────────────────────────────────────────────
-  const backdrop = document.getElementById('newProjectBackdrop');
-  const form     = document.getElementById('newProjectForm');
-  const errEl    = document.getElementById('npError');
-  const submit   = document.getElementById('npSubmitBtn');
-
-  // Populate status dropdown from PROJECT_STATUSES enum
-  const statusSelect = document.getElementById('npStatus');
-  statusSelect.innerHTML = PROJECT_STATUSES.map(s =>
-    `<option value="${s.key}" ${s.key === DEFAULT_STATUS ? 'selected' : ''}>${s.label}</option>`
-  ).join('');
-
-  function openNewProjectModal() {
-    form.reset();
-    statusSelect.value = DEFAULT_STATUS;
-    errEl.classList.add('hide');
-    backdrop.classList.add('open');
-    document.getElementById('npName').focus();
-  }
-  function closeNewProjectModal() {
-    backdrop.classList.remove('open');
-  }
-
-  document.getElementById('btnNewProject').addEventListener('click', openNewProjectModal);
-  document.getElementById('npCancelBtn').addEventListener('click', closeNewProjectModal);
-  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeNewProjectModal(); });
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    errEl.classList.add('hide');
-    submit.disabled = true;
-    submit.textContent = 'Bezig…';
-    try {
-      const projectName  = document.getElementById('npName').value.trim();
-      const customerName = document.getElementById('npCustomer').value.trim();
-      const status       = statusSelect.value;
-      const file         = document.getElementById('npCsv').files[0] || null;
-
-      if (!projectName || !customerName) {
-        throw new Error('Projectnaam en klantnaam zijn verplicht.');
-      }
-
-      let csvData = null;
-      if (file) {
-        const text = await file.text();
-        csvData = extractCsvForStorage(text); // throws if CSV invalid
-      }
-
-      const ref = await createProject({ projectName, customerName, status, csvData });
-      window.location.href = `index.html?project=${ref.id}`;
-    } catch (err) {
-      errEl.textContent = err && err.message ? err.message : String(err);
-      errEl.classList.remove('hide');
-      submit.disabled = false;
-      submit.textContent = 'Aanmaken';
-    }
+  // New-project button → redirect to project-edit page.
+  document.getElementById('btnNewProject').addEventListener('click', () => {
+    window.location.href = 'project-edit.html?new=1';
   });
 
   // Listen for auth state changes
@@ -437,6 +321,9 @@ function openStatusPopover(chip) {
 function rowHTML(p, isDeleted) {
   const updated = fmtDate(p.updatedAt);
   const by      = shortName(p.createdBy);
+  const editBtn = isDeleted
+    ? ''
+    : `<button type="button" class="editBtn" data-id="${p.id}" title="Bewerken">✏️</button>`;
   const action  = isDeleted
     ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen">↶</button>`
     : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen">🗑️</button>`;
@@ -449,6 +336,7 @@ function rowHTML(p, isDeleted) {
       <td>${by}</td>
       <td class="row-actions">
         <button type="button" class="openBtn" data-id="${p.id}" title="Open">📂</button>
+        ${editBtn}
         ${action}
       </td>
     </tr>`;
@@ -484,6 +372,10 @@ async function refreshProjectList() {
     // Wire open buttons
     el.querySelectorAll('.openBtn').forEach(btn => {
       btn.addEventListener('click', () => { window.location.href = `index.html?project=${btn.dataset.id}`; });
+    });
+    // Wire edit buttons
+    el.querySelectorAll('.editBtn').forEach(btn => {
+      btn.addEventListener('click', () => { window.location.href = `project-edit.html?project=${btn.dataset.id}`; });
     });
     // Wire status-chip popovers
     el.querySelectorAll('.status-chip.editable').forEach(chip => {
