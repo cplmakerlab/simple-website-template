@@ -349,7 +349,13 @@ async function addComment(projectId, text) {
   const batch = getDb().batch();
   const commentRef = projectDoc(projectId).collection('comments').doc();
   batch.set(commentRef, { author: email, text: trimmed, createdAt: now });
-  batch.update(projectDoc(projectId), { lastCommentAt: now, updatedAt: now });
+  // Bump lastCommentAt AND the poster's own readState — so the poster's own
+  // post never shows as "unread" to themselves.
+  batch.update(projectDoc(projectId), {
+    lastCommentAt: now,
+    [`readStates.${email}`]: now,
+    updatedAt: now,
+  });
   await batch.commit();
   return commentRef.id;
 }
@@ -371,4 +377,58 @@ function hasUnreadComments(project, email) {
   const lca = project.lastCommentAt.toMillis ? project.lastCommentAt.toMillis() : 0;
   const rsm = rs.toMillis ? rs.toMillis() : 0;
   return lca > rsm;
+}
+
+// ─── GROUND-FAULT WARNING PREDICATE ──────────────────────────────────────────
+function isMarstekConfig(type) { return typeof type === 'string' && type.startsWith('MARVE'); }
+
+function needsGroundFaultCheck(project) {
+  const lcr = project && project.lastCalcRun;
+  if (!lcr) return false;
+  const types = (lcr.inputs && lcr.inputs.selectedConfigTypes) || [];
+  if (types.length === 0) return false;
+  const anyNonMarstek = types.some(t => !isMarstekConfig(t));
+  if (!anyNonMarstek) return false;
+  const m = mergeProjectMetadata(project);
+  return m.cabinet.lineGroundChecked !== true;
+}
+
+// ─── PHOTOS (Firebase Storage + Firestore metadata) ──────────────────────────
+function getStorage() { initFirebase(); return firebase.storage(); }
+
+async function uploadProjectPhoto(projectId, file) {
+  const email = currentUserEmail();
+  if (!email) throw new Error('Niet ingelogd');
+  if (!file || !file.type.startsWith('image/')) throw new Error('Alleen afbeeldingen.');
+  const MAX_BYTES = 15 * 1024 * 1024;
+  if (file.size > MAX_BYTES) throw new Error('Te groot (max 15 MB).');
+  const safeName = file.name.replace(/[^\w.\-]+/g, '_').slice(0, 80);
+  const storagePath = `projects/${projectId}/${Date.now()}_${safeName}`;
+  const ref = getStorage().ref(storagePath);
+  await ref.put(file, { contentType: file.type });
+  await projectDoc(projectId).collection('photos').add({
+    storagePath,
+    name:        file.name,
+    contentType: file.type,
+    sizeBytes:   file.size,
+    uploadedAt:  firebase.firestore.FieldValue.serverTimestamp(),
+    uploadedBy:  email,
+  });
+  await projectDoc(projectId).update({ updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+}
+
+async function listProjectPhotos(projectId) {
+  const snap = await projectDoc(projectId).collection('photos').orderBy('uploadedAt', 'desc').get();
+  const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  await Promise.all(docs.map(async d => {
+    try { d.downloadUrl = await getStorage().ref(d.storagePath).getDownloadURL(); }
+    catch (e) { d.downloadUrl = null; d.fetchError = e && e.message ? e.message : String(e); }
+  }));
+  return docs;
+}
+
+async function deleteProjectPhoto(projectId, photoId, storagePath) {
+  await projectDoc(projectId).collection('photos').doc(photoId).delete();
+  try { await getStorage().ref(storagePath).delete(); }
+  catch (e) { console.warn('Storage file verwijderen mislukt', e); }
 }
