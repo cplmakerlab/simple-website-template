@@ -568,6 +568,16 @@
   <script src="assets/js/firebase-init.js"></script>
 </head>
 <body>
+<script>
+// Access gate: bare index.html (no ?project= and no ?data=) is not a public
+// entry point. Redirect to dashboard so random visitors hit the login wall.
+(function () {
+  var p = new URLSearchParams(window.location.search);
+  if (!p.has('project') && !p.has('data')) {
+    window.location.replace('dashboard.html');
+  }
+})();
+</script>
 
 <div id="projectBanner" class="project-banner" style="display:none;">
   <span class="pb-name" id="pbName">…</span>
