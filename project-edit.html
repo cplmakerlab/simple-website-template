@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="nl-BE">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SmartPeak — Project bewerken</title>
+
+  <!-- Firebase compat SDK (same versions as dashboard.html) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+
+  <script src="assets/js/csv.js"></script>
+  <script src="assets/js/firebase-init.js"></script>
+
+  <style>
+    :root {
+      --primary:#2c7be5; --primary-dark:#1e5fb8;
+      --bg:#f4f7fc; --card:#fff; --text:#1c2939;
+      --muted:#6b7589; --danger:#e54545; --success:#00b478;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin:0; padding:0 16px 120px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+    }
+    .topbar {
+      position: sticky; top:0; background: var(--bg); padding:12px 0;
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+      border-bottom: 1px solid #e4e9f2; z-index:10;
+    }
+    .topbar h1 { font-size:1.1rem; margin:0; }
+    .topbar .right { display:flex; gap:8px; align-items:center; font-size:0.9rem; color:var(--muted); }
+    main { max-width: 760px; margin: 0 auto; padding-top: 12px; }
+    .card {
+      background: var(--card); border-radius: 10px; padding: 16px;
+      margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .card > summary { list-style: none; cursor: pointer;
+      display:flex; align-items:center; justify-content:space-between;
+      font-weight: 600; font-size: 1.05rem; }
+    .card > summary::-webkit-details-marker { display:none; }
+    .card > summary::after { content: "▼"; font-size:0.7rem; color: var(--muted); transition: transform 0.15s; }
+    .card[open] > summary::after { transform: rotate(180deg); }
+    .section-body { padding-top: 14px; }
+    .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .form-row label { font-size: 0.85rem; font-weight: 600; color: #4a5568; }
+    .form-row input, .form-row select, .form-row textarea {
+      border: 1.5px solid #d4dae5; border-radius: 8px; padding: 10px 12px;
+      font-size: 0.95rem; background: #f7f9fd; transition: border-color 0.15s;
+    }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+      outline: none; border-color: var(--primary); background: #fff;
+    }
+    .form-row .help, .help { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+    .form-row .error { color: var(--danger); font-size: 0.85rem; margin-top: 4px; }
+    .required::after { content: " *"; color: var(--danger); }
+    .tri-state { display:flex; gap:8px; flex-wrap:wrap; }
+    .tri-state label { display:flex; align-items:center; gap:6px; font-weight:400; cursor:pointer; }
+    .action-bar {
+      position: fixed; bottom:0; left:0; right:0; background:#fff;
+      padding: 12px 16px; border-top: 1px solid #e4e9f2; z-index:20;
+      display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;
+    }
+    .btn {
+      display:inline-flex; align-items:center; gap:6px;
+      padding:10px 16px; border-radius:8px; border:none;
+      background: var(--primary); color:#fff; font-weight:600; cursor:pointer;
+      font-size: 0.95rem; text-decoration:none;
+    }
+    .btn:hover { background: var(--primary-dark); }
+    .btn:disabled { opacity:0.6; cursor:not-allowed; }
+    .btn-secondary { background:#e4e9f2; color: var(--text); }
+    .btn-secondary:hover { background:#d4dae5; }
+    .btn-danger { background: var(--danger); }
+    .alert { padding:10px 12px; border-radius:8px; font-size:0.9rem; margin-top:10px; }
+    .alert-error { background:#fde8e8; color:#a00; }
+    .alert-warning { background:#fff4dc; color:#8a6000; }
+    .alert-success { background:#def5ea; color:#0a6e4a; }
+    .hide { display:none !important; }
+    .center-card { max-width: 480px; margin: 60px auto; text-align: center; }
+    .toast {
+      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+      background: var(--success); color:#fff; padding:10px 18px; border-radius:8px;
+      font-size:0.9rem; z-index: 30; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    @media (min-width: 768px) {
+      body { padding: 0 24px 100px; }
+      .topbar h1 { font-size: 1.3rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- State 1: not logged in -->
+<div class="card center-card" id="stateLoggedOut">
+  <h1>⚡ SmartPeak — Project bewerken</h1>
+  <p class="help">Alleen voor Bloxit medewerkers.</p>
+  <button type="button" class="btn" id="btnSignIn">Log in met Google</button>
+  <p id="signInError" class="alert alert-error hide" style="margin-top:16px;"></p>
+</div>
+
+<!-- State 2: logged in but not whitelisted -->
+<div class="card center-card hide" id="stateNotWhitelisted">
+  <h1>⚠️ Geen toegang</h1>
+  <p class="help">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
+  <button type="button" class="btn btn-secondary" id="btnSignOutNW">Uitlog</button>
+</div>
+
+<!-- State 3: logged in + whitelisted -->
+<div class="hide" id="stateAuthorized">
+  <div class="topbar">
+    <h1 id="pageTitle">⚡ Nieuw project</h1>
+    <div class="right">
+      <a href="dashboard.html" class="btn btn-secondary">← Dashboard</a>
+    </div>
+  </div>
+
+  <main id="form">
+    <div id="formSections"></div>
+    <div id="globalError" class="alert alert-error hide"></div>
+  </main>
+
+  <div class="action-bar">
+    <button type="button" class="btn btn-secondary" id="btnCancel">Annuleren</button>
+    <button type="button" class="btn" id="btnSave">Opslaan</button>
+    <button type="button" class="btn" id="btnSaveAndCalc">Opslaan &amp; Bereken</button>
+  </div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const URL_PARAMS = new URLSearchParams(window.location.search);
+const IS_NEW     = URL_PARAMS.has('new');
+const PROJECT_ID = IS_NEW ? null : URL_PARAMS.get('project');
+
+// Current working project state (metadata + basisgegevens). Populated on load.
+let _project = null;
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function showState(which) {
+  ['stateLoggedOut', 'stateNotWhitelisted', 'stateAuthorized'].forEach(id => {
+    document.getElementById(id).classList.toggle('hide', id !== which);
+  });
+}
+
+function showError(msg) {
+  const el = document.getElementById('globalError');
+  el.textContent = msg;
+  el.classList.remove('hide');
+}
+function clearError() { document.getElementById('globalError').classList.add('hide'); }
+
+function showToast(msg, kind) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  if (kind === 'error') t.style.background = 'var(--danger)';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ─── ENTRY POINT ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('btnSignIn').addEventListener('click', async () => {
+    const errEl = document.getElementById('signInError');
+    errEl.classList.add('hide');
+    try { await signInWithGoogle(); }
+    catch (e) {
+      errEl.textContent = 'Aanmelden mislukt: ' + (e && e.message ? e.message : e);
+      errEl.classList.remove('hide');
+    }
+  });
+  document.getElementById('btnSignOutNW').addEventListener('click', () => signOut());
+  document.getElementById('btnCancel').addEventListener('click', () => { window.location.href = 'dashboard.html'; });
+
+  onAuthStateChanged(async user => {
+    if (!user) { showState('stateLoggedOut'); return; }
+    if (!isWhitelisted(user)) {
+      document.getElementById('notWhitelistedEmail').textContent = user.email || '(onbekend)';
+      showState('stateNotWhitelisted');
+      return;
+    }
+    showState('stateAuthorized');
+    try { await bootstrap(); }
+    catch (e) { showError('Laden mislukt: ' + (e && e.message ? e.message : e)); }
+  });
+});
+
+async function bootstrap() {
+  if (IS_NEW) {
+    _project = {
+      projectName: '',
+      customerName: '',
+      status: DEFAULT_STATUS,
+      ...newEmptyProjectMetadata(),
+      csvUpload: null,
+    };
+    document.getElementById('pageTitle').textContent = '⚡ Nieuw project';
+  } else {
+    if (!PROJECT_ID) { showError('Geen project-id opgegeven.'); return; }
+    const proj = await getProject(PROJECT_ID);
+    if (!proj || proj.deletedAt) { showError('Project niet gevonden of verwijderd.'); return; }
+    _project = {
+      ...proj,
+      ...mergeProjectMetadata(proj),
+    };
+    document.getElementById('pageTitle').textContent = '✏ ' + (proj.projectName || 'Project');
+  }
+  renderSections();
+  wireActions();
+}
+
+// Placeholder — later tasks fill renderSections() and wireActions().
+function renderSections() {
+  document.getElementById('formSections').innerHTML =
+    '<div class="card"><div class="section-body">Form wordt in latere taken ingevuld.</div></div>';
+}
+
+function wireActions() {
+  document.getElementById('btnSave').addEventListener('click', () => showError('Opslaan komt in latere taak.'));
+  document.getElementById('btnSaveAndCalc').addEventListener('click', () => showError('Opslaan & Bereken komt in latere taak.'));
+}
+</script>
+
+</body>
+</html>
