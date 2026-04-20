@@ -55,6 +55,13 @@ const CONNECTION_TYPES = ['1x230', '3x230', '3x400+N'];
 // projects (without these fields) behave identically to empty-new ones.
 function newEmptyProjectMetadata() {
   return {
+    customer: {
+      address: null,
+      phone:   null,
+      email:   null,
+    },
+    situation: null,
+    notes:     null,
     site: {
       houseAgeOver10Years: null,
     },
@@ -93,6 +100,9 @@ function mergeProjectMetadata(project) {
   const empty = newEmptyProjectMetadata();
   if (!project) return empty;
   return {
+    customer:     { ...empty.customer,     ...(project.customer || {}) },
+    situation:    project.situation != null ? project.situation : empty.situation,
+    notes:        project.notes     != null ? project.notes     : empty.notes,
     site:         { ...empty.site,         ...(project.site || {}) },
     electrical:   { ...empty.electrical,   ...(project.electrical || {}) },
     cabinet:      { ...empty.cabinet,      ...(project.cabinet || {}) },
@@ -321,4 +331,44 @@ async function getShare(id) {
   const snap = await getDb().collection('shares').doc(id).get();
   if (!snap.exists) return null;
   return { id: snap.id, ...snap.data() };
+}
+
+// ─── COMMENTS (per-project thread Kevin ↔ Ruben) ─────────────────────────────
+async function listComments(projectId) {
+  const snap = await projectDoc(projectId).collection('comments').orderBy('createdAt', 'asc').get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function addComment(projectId, text) {
+  const email = currentUserEmail();
+  if (!email) throw new Error('Niet ingelogd');
+  const trimmed = (text || '').trim();
+  if (!trimmed) throw new Error('Lege opmerking.');
+  if (trimmed.length > 4000) throw new Error('Opmerking te lang (max 4000 tekens).');
+  const now = firebase.firestore.FieldValue.serverTimestamp();
+  const batch = getDb().batch();
+  const commentRef = projectDoc(projectId).collection('comments').doc();
+  batch.set(commentRef, { author: email, text: trimmed, createdAt: now });
+  batch.update(projectDoc(projectId), { lastCommentAt: now, updatedAt: now });
+  await batch.commit();
+  return commentRef.id;
+}
+
+async function markCommentsRead(projectId) {
+  const email = currentUserEmail();
+  if (!email) return;
+  await projectDoc(projectId).update({
+    [`readStates.${email}`]: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+// True iff the project has a lastCommentAt newer than the current user's readState.
+function hasUnreadComments(project, email) {
+  if (!project || !project.lastCommentAt) return false;
+  if (!email) return false;
+  const rs = (project.readStates || {})[email];
+  if (!rs) return true;
+  const lca = project.lastCommentAt.toMillis ? project.lastCommentAt.toMillis() : 0;
+  const rsm = rs.toMillis ? rs.toMillis() : 0;
+  return lca > rsm;
 }
