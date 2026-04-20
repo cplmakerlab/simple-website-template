@@ -2164,6 +2164,92 @@ function escapeHtmlLite(s) {
     ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+// Apply project metadata to the calculator form:
+//  • Sets field values from project.
+//  • Hides fields whose project value is non-null (source-of-truth = project).
+//  • Opens the Projectgegevens card with a warning if required calc fields are missing.
+// Keuring is ALWAYS visible (user may override per calculation); default only pre-filled.
+function applyProjectToCalcForm(project) {
+  const m = mergeProjectMetadata(project);
+  const hide = (inputId) => {
+    const el = document.getElementById(inputId);
+    if (el) {
+      const group = el.closest('.form-group');
+      if (group) group.style.display = 'none';
+    }
+  };
+  const show = (inputId) => {
+    const el = document.getElementById(inputId);
+    if (el) {
+      const group = el.closest('.form-group');
+      if (group) group.style.display = '';
+    }
+  };
+  const setVal = (inputId, v) => {
+    const el = document.getElementById(inputId);
+    if (el && v != null) el.value = v;
+  };
+
+  // PV inverter — sum of inverters
+  const totalKw = totalInverterPowerKw(project);
+  if (totalKw > 0) {
+    setVal('pvInverter', totalKw);
+    hide('pvInverter');
+  } else {
+    show('pvInverter');
+  }
+
+  // Prijs dag
+  if (m.supplier.priceDay != null) {
+    setVal('elecPrice', m.supplier.priceDay);
+    hide('elecPrice');
+  } else {
+    show('elecPrice');
+  }
+
+  // Prijs nacht — ook verbergen als isSingleTariff true (niet relevant)
+  if (m.supplier.isSingleTariff === true) {
+    const el = document.getElementById('elecPriceNight');
+    if (el) el.value = '';
+    hide('elecPriceNight');
+  } else if (m.supplier.priceNight != null) {
+    setVal('elecPriceNight', m.supplier.priceNight);
+    hide('elecPriceNight');
+  } else {
+    show('elecPriceNight');
+  }
+
+  // BTW
+  const effBtw = effectiveBtwFor(project);
+  if (effBtw != null) {
+    setVal('btwSelect', String(effBtw));
+    hide('btwSelect');
+  } else {
+    show('btwSelect');
+  }
+
+  // Keuring — NEVER hide; pre-fill with project default if present.
+  show('keuringSelect');
+  if (m.calcDefaults.keuring) {
+    setVal('keuringSelect', m.calcDefaults.keuring);
+  }
+
+  // Required-field warning inside the summary card.
+  const missing = [];
+  if (!(totalKw > 0))                 missing.push('Omvormervermogen (kW)');
+  if (m.supplier.priceDay == null)    missing.push('Dagtarief');
+  if (effBtw == null)                 missing.push('BTW');
+  const warnEl = document.getElementById('pvIncompleteWarn');
+  const card   = document.getElementById('projectValuesCard');
+  if (missing.length > 0 && warnEl && card) {
+    warnEl.textContent = 'Nog in te vullen vóór Bereken: ' + missing.join(', ') + '. Vul in hieronder of via ✏ Aanpassen.';
+    warnEl.style.display = '';
+    card.setAttribute('open', '');
+  } else if (warnEl) {
+    warnEl.style.display = 'none';
+  }
+}
+
 async function loadProjectIntoUI(id) {
   const proj = await getProject(id);
   if (!proj || proj.deletedAt) {
@@ -2184,6 +2270,7 @@ async function loadProjectIntoUI(id) {
   renderProjectStatusChip();
   document.getElementById('projectBanner').style.display = '';
   renderProjectValuesCard(proj);
+  applyProjectToCalcForm(proj);
 
   // If we have CSV + calc data, reuse the v:5 share-link restore path.
   if (proj.csvUpload && proj.lastCalcRun) {
