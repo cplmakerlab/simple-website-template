@@ -33,7 +33,62 @@
     }
     .topbar h1 { font-size:1.1rem; margin:0; }
     .topbar .right { display:flex; gap:8px; align-items:center; font-size:0.9rem; color:var(--muted); }
-    main { max-width: 760px; margin: 0 auto; padding-top: 12px; }
+    main { max-width: 1200px; margin: 0 auto; padding-top: 12px; }
+    #formSections {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    #formSections > details.card { margin-bottom: 0; }
+    #formSections > details.card.span-2 { grid-column: 1 / -1; }
+    @media (max-width: 760px) {
+      #formSections { grid-template-columns: 1fr; }
+    }
+
+    /* Photo grid + lightbox (same pattern as dashboard) */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 6px;
+    }
+    .photo-tile {
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      border-radius: 6px;
+      background: #f7f9fd;
+      cursor: zoom-in;
+      position: relative;
+    }
+    .photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-tile.broken {
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); font-size: 0.72rem; text-align: center; padding: 4px; cursor: help;
+    }
+    .lightbox-pe {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 300;
+      padding: 24px;
+    }
+    .lightbox-pe.open { display: flex; }
+    .lightbox-pe img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+    .lightbox-pe-btn {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      width: 44px; height: 44px; border-radius: 50%;
+      font-size: 1.4rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lightbox-pe-btn:hover { background: rgba(255, 255, 255, 0.25); }
+    .lightbox-pe .close { top: 14px; right: 14px; }
+    .lightbox-pe .prev  { left: 14px;  top: 50%; transform: translateY(-50%); }
+    .lightbox-pe .next  { right: 14px; top: 50%; transform: translateY(-50%); }
+    .lightbox-pe .del   { bottom: 14px; right: 14px; background: rgba(229,69,69,0.85); }
+    .lightbox-pe .del:hover { background: rgba(229,69,69,1); }
     .card {
       background: var(--card); border-radius: 10px; padding: 16px;
       margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
@@ -230,6 +285,7 @@ function renderSections() {
     sectionCabinet(),
     sectionSolar(),
     sectionCalcDefaults(),
+    sectionPhotos(),
     sectionCsv(),
   ].join('');
   wireSectionBasisgegevens();
@@ -241,6 +297,7 @@ function renderSections() {
   wireSectionCabinet();
   wireSectionSolar();
   wireSectionCalcDefaults();
+  wireSectionPhotos();
   wireSectionCsv();
 }
 
@@ -250,7 +307,7 @@ function sectionBasisgegevens() {
     `<option value="${s.key}" ${s.key === (p.status || DEFAULT_STATUS) ? 'selected' : ''}>${escapeHtml(s.label)}</option>`
   ).join('');
   return `
-    <details class="card" id="secBasis" open>
+    <details class="card span-2" id="secBasis" open>
       <summary>📝 Basisgegevens</summary>
       <div class="section-body">
         <div class="form-row">
@@ -315,7 +372,7 @@ function wireSectionCustomer() {
 
 function sectionSituationNotes() {
   return `
-    <details class="card" id="secSituation" open>
+    <details class="card span-2" id="secSituation" open>
       <summary>📝 Situatie &amp; notities</summary>
       <div class="section-body">
         <div class="form-row">
@@ -618,7 +675,7 @@ function sectionSolar() {
     ? '<p class="help" style="margin:8px 0;">Nog geen omvormer toegevoegd.</p>'
     : '';
   return `
-    <details class="card" id="secSolar" open>
+    <details class="card span-2" id="secSolar" open>
       <summary>☀ Zonnepanelen &amp; omvormer(s)</summary>
       <div class="section-body">
         ${emptyMsg}
@@ -694,6 +751,141 @@ function wireSectionCalcDefaults() {
   });
 }
 
+// Photos section — Firestore-backed list with upload + lightbox. Only functional when !IS_NEW
+// (a project id is required to upload). For new projects we show a hint.
+let _photos = [];
+let _photoLightboxIdx = 0;
+
+function sectionPhotos() {
+  if (IS_NEW) {
+    return `
+      <details class="card" id="secPhotos">
+        <summary>📷 Foto's</summary>
+        <div class="section-body">
+          <p class="help">Maak het project eerst aan (Opslaan). Daarna kan je hier foto's uploaden.</p>
+        </div>
+      </details>
+    `;
+  }
+  return `
+    <details class="card span-2" id="secPhotos" open>
+      <summary>📷 Foto's <span id="pePhotosCount" style="font-weight:400;color:var(--muted);"></span></summary>
+      <div class="section-body">
+        <div class="photo-grid" id="pePhotoGrid"><p class="help">⏳ Laden…</p></div>
+        <div class="photo-uploader" style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <input type="file" id="pePhotoInput" accept="image/*" multiple style="flex:1;font-size:0.85rem;" />
+          <button type="button" class="btn btn-secondary" id="pePhotoUploadBtn" style="font-size:0.85rem;padding:6px 10px;">📤 Upload</button>
+        </div>
+        <div id="pePhotoErr" class="alert alert-error" style="display:none;font-size:0.85rem;margin-top:8px;"></div>
+      </div>
+    </details>
+  `;
+}
+
+function wireSectionPhotos() {
+  if (IS_NEW) return;
+  // Async load + render
+  listProjectPhotos(PROJECT_ID).then(photos => { _photos = photos; renderPhotoGrid(); })
+    .catch(e => {
+      const grid = document.getElementById('pePhotoGrid');
+      if (grid) grid.innerHTML = `<p class="help" style="color:var(--danger)">Kon foto's niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</p>`;
+    });
+
+  document.getElementById('pePhotoUploadBtn').addEventListener('click', async () => {
+    const input = document.getElementById('pePhotoInput');
+    const errEl = document.getElementById('pePhotoErr');
+    errEl.style.display = 'none'; errEl.textContent = '';
+    const files = Array.from(input.files || []);
+    if (!files.length) { errEl.textContent = 'Kies eerst een foto.'; errEl.style.display = ''; return; }
+    const btn = document.getElementById('pePhotoUploadBtn');
+    btn.disabled = true; btn.textContent = 'Uploaden…';
+    let failMsg = null;
+    for (const f of files) {
+      try { await uploadProjectPhoto(PROJECT_ID, f); }
+      catch (e) { failMsg = e && e.message ? e.message : String(e); break; }
+    }
+    input.value = '';
+    if (failMsg) { errEl.textContent = failMsg; errEl.style.display = ''; }
+    try { _photos = await listProjectPhotos(PROJECT_ID); renderPhotoGrid(); } catch {}
+    btn.disabled = false; btn.textContent = '📤 Upload';
+  });
+}
+
+function renderPhotoGrid() {
+  const grid = document.getElementById('pePhotoGrid');
+  const count = document.getElementById('pePhotosCount');
+  if (!grid) return;
+  if (count) count.textContent = _photos.length > 0 ? `(${_photos.length})` : '';
+  if (_photos.length === 0) {
+    grid.innerHTML = '<p class="help" style="font-style:italic;">Nog geen foto\u2019s geüpload.</p>';
+    return;
+  }
+  grid.innerHTML = _photos.map((p, i) => {
+    if (!p.downloadUrl) {
+      return `<div class="photo-tile broken" title="${escapeHtml(p.fetchError || 'Kon foto niet laden')}">${escapeHtml(p.name || 'onbekend')}</div>`;
+    }
+    return `<div class="photo-tile" data-idx="${i}"><img src="${p.downloadUrl}" alt="${escapeHtml(p.name || '')}" /></div>`;
+  }).join('');
+  grid.querySelectorAll('.photo-tile[data-idx]').forEach(tile => {
+    tile.addEventListener('click', () => openPeLightbox(parseInt(tile.dataset.idx, 10)));
+  });
+}
+
+function openPeLightbox(idx) {
+  _photoLightboxIdx = idx;
+  let lb = document.getElementById('peLightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'peLightbox';
+    lb.className = 'lightbox-pe';
+    lb.innerHTML = `
+      <button type="button" class="lightbox-pe-btn close" title="Sluit">×</button>
+      <button type="button" class="lightbox-pe-btn prev" title="Vorige">‹</button>
+      <button type="button" class="lightbox-pe-btn next" title="Volgende">›</button>
+      <button type="button" class="lightbox-pe-btn del" title="Verwijder foto">🗑</button>
+      <img id="peLightboxImg" alt="" />
+    `;
+    document.body.appendChild(lb);
+    lb.querySelector('.close').addEventListener('click', () => lb.classList.remove('open'));
+    lb.querySelector('.prev').addEventListener('click', e => { e.stopPropagation(); navPeLightbox(-1); });
+    lb.querySelector('.next').addEventListener('click', e => { e.stopPropagation(); navPeLightbox(+1); });
+    lb.querySelector('.del').addEventListener('click', async e => {
+      e.stopPropagation();
+      const photo = _photos[_photoLightboxIdx];
+      if (!photo) return;
+      if (!confirm('Deze foto verwijderen?')) return;
+      try {
+        await deleteProjectPhoto(PROJECT_ID, photo.id, photo.storagePath);
+        _photos = await listProjectPhotos(PROJECT_ID);
+        renderPhotoGrid();
+        if (_photos.length === 0) lb.classList.remove('open');
+        else { _photoLightboxIdx = Math.min(_photoLightboxIdx, _photos.length - 1); refreshPeLightboxImage(); }
+      } catch (err) {
+        alert('Verwijderen mislukt: ' + (err && err.message ? err.message : err));
+      }
+    });
+    lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
+    document.addEventListener('keydown', e => {
+      if (!lb.classList.contains('open')) return;
+      if (e.key === 'Escape') lb.classList.remove('open');
+      else if (e.key === 'ArrowLeft')  navPeLightbox(-1);
+      else if (e.key === 'ArrowRight') navPeLightbox(+1);
+    });
+  }
+  refreshPeLightboxImage();
+  lb.classList.add('open');
+}
+function refreshPeLightboxImage() {
+  const img = document.getElementById('peLightboxImg');
+  const photo = _photos[_photoLightboxIdx];
+  if (img && photo && photo.downloadUrl) img.src = photo.downloadUrl;
+}
+function navPeLightbox(delta) {
+  if (!_photos.length) return;
+  _photoLightboxIdx = (_photoLightboxIdx + delta + _photos.length) % _photos.length;
+  refreshPeLightboxImage();
+}
+
 // Pending CSV state — only used when IS_NEW (no project-id yet to attach to).
 // On edit, uploads go straight to Firestore via setProjectCsv.
 let _pendingCsv = null;
@@ -708,7 +900,7 @@ function sectionCsv() {
     ? `<p class="help">📁 Nieuwe CSV klaar voor opslaan (${escapeHtml(_pendingCsv.eanCode || 'onbekend')}). Wordt samen met dit project bewaard.</p>`
     : '';
   return `
-    <details class="card" id="secCsv" open>
+    <details class="card span-2" id="secCsv" open>
       <summary>📊 Verbruikshistoriek (CSV)</summary>
       <div class="section-body">
         ${lastInfo}

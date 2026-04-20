@@ -395,7 +395,13 @@ function needsGroundFaultCheck(project) {
 }
 
 // ─── PHOTOS (Firebase Storage + Firestore metadata) ──────────────────────────
-function getStorage() { initFirebase(); return firebase.storage(); }
+function getStorage() {
+  initFirebase();
+  if (typeof firebase.storage !== 'function') {
+    throw new Error('Firebase Storage SDK niet geladen.');
+  }
+  return firebase.storage();
+}
 
 async function uploadProjectPhoto(projectId, file) {
   const email = currentUserEmail();
@@ -405,17 +411,29 @@ async function uploadProjectPhoto(projectId, file) {
   if (file.size > MAX_BYTES) throw new Error('Te groot (max 15 MB).');
   const safeName = file.name.replace(/[^\w.\-]+/g, '_').slice(0, 80);
   const storagePath = `projects/${projectId}/${Date.now()}_${safeName}`;
-  const ref = getStorage().ref(storagePath);
-  await ref.put(file, { contentType: file.type });
-  await projectDoc(projectId).collection('photos').add({
-    storagePath,
-    name:        file.name,
-    contentType: file.type,
-    sizeBytes:   file.size,
-    uploadedAt:  firebase.firestore.FieldValue.serverTimestamp(),
-    uploadedBy:  email,
-  });
-  await projectDoc(projectId).update({ updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  // Phase 1: upload bytes to Storage.
+  try {
+    await getStorage().ref(storagePath).put(file, { contentType: file.type });
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    throw new Error('Storage upload mislukt: ' + msg + ' — controleer dat Firebase Storage geactiveerd is én dat de Storage-rule voor projects/{projectId}/... gepubliceerd staat.');
+  }
+  // Phase 2: write Firestore metadata doc.
+  try {
+    await projectDoc(projectId).collection('photos').add({
+      storagePath,
+      name:        file.name,
+      contentType: file.type,
+      sizeBytes:   file.size,
+      uploadedAt:  firebase.firestore.FieldValue.serverTimestamp(),
+      uploadedBy:  email,
+    });
+    await projectDoc(projectId).update({ updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    // Orphan the storage byte — Firestore entry didn't land. User can retry.
+    throw new Error('Firestore metadata schrijven mislukt: ' + msg + ' — controleer dat de Firestore-rule voor projects/{id}/photos gepubliceerd staat.');
+  }
 }
 
 async function listProjectPhotos(projectId) {
