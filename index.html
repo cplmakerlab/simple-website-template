@@ -675,20 +675,7 @@
     <span id="configsStatus" style="font-size:0.85rem;color:var(--muted);">Klik om productconfiguraties te laden vanuit de prijslijst.</span>
   </div>
   <div id="configSelectorsArea" style="display:none;">
-    <div class="config-picker-grid">
-      <div class="form-group">
-        <label>Configuratie 1 <span style="color:var(--danger);font-size:1rem;">*</span></label>
-        <select id="config1Select"><option value="">— Kies een configuratie —</option></select>
-      </div>
-      <div class="form-group">
-        <label>Configuratie 2 <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel)</span></label>
-        <select id="config2Select"><option value="">— Geen tweede configuratie —</option></select>
-      </div>
-      <div class="form-group">
-        <label>Configuratie 3 <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel)</span></label>
-        <select id="config3Select"><option value="">— Geen derde configuratie —</option></select>
-      </div>
-    </div>
+    <div id="configPickerList" class="config-picker-grid"></div>
   </div>
 </div>
 
@@ -1263,17 +1250,61 @@ function _getPriceKey() {
   return `${document.getElementById('btwSelect').value}_${document.getElementById('keuringSelect').value}`;
 }
 
-function _populateConfigSelects(selectedTypes) {
+// Build all `<option>` HTML for a single picker. `otherSelected` is the list of
+// types already picked in the OTHER pickers — those are rendered as disabled.
+// `currentValue` is this picker's own current value; it stays selectable so the
+// user can change or clear it.
+function _buildConfigOptionsHtml(currentValue, otherSelected, isFirst) {
   const priceKey = _getPriceKey();
-  const opts = (_sheetConfigs || []).map(c =>
-    `<option value="${c.type}">${c.type} — ${c.omschrijving} | ${fmt2(c.batCap)} kWh, ${fmt2(c.batInv)} kW | ${fmtEur(c.prices[priceKey])}</option>`
-  ).join('');
-  ['config1Select','config2Select','config3Select'].forEach((id, idx) => {
-    const el = document.getElementById(id);
-    const prev = selectedTypes ? (selectedTypes[idx] || '') : el.value;
-    el.innerHTML = (idx === 0 ? '<option value="">— Kies een configuratie —</option>' : '<option value="">— Geen configuratie —</option>') + opts;
-    if (prev) el.value = prev;
-  });
+  const placeholder = isFirst
+    ? '<option value="">— Kies een configuratie —</option>'
+    : '<option value="">— Geen extra configuratie —</option>';
+  const opts = (_sheetConfigs || []).map(c => {
+    const disabled = otherSelected.includes(c.type) && c.type !== currentValue ? 'disabled' : '';
+    const selected = c.type === currentValue ? 'selected' : '';
+    return `<option value="${c.type}" ${disabled} ${selected}>${c.type} — ${c.omschrijving} | ${fmt2(c.batCap)} kWh, ${fmt2(c.batInv)} kW | ${fmtEur(c.prices[priceKey])}</option>`;
+  }).join('');
+  return placeholder + opts;
+}
+
+// Read the currently-selected config types, in DOM order, lege filterend weg.
+function readSelectedConfigs() {
+  return [...document.querySelectorAll('#configPickerList .config-select')]
+    .map(s => s.value)
+    .filter(v => v);
+}
+
+// Render N+1 pickers where N = number of selected types. Always one trailing
+// empty picker so the user can add another. Already-picked types are disabled
+// in the other pickers to prevent duplicates without visually hiding them.
+function renderConfigPickers(selectedTypes) {
+  const list = document.getElementById('configPickerList');
+  if (!list) return;
+  const chosen = (selectedTypes || []).filter(v => v);
+  list.innerHTML = '';
+  for (let i = 0; i <= chosen.length; i++) {
+    const currentValue = chosen[i] || '';
+    const others = chosen.filter((_, j) => j !== i);
+    const wrap = document.createElement('div');
+    wrap.className = 'form-group';
+    const isFirst = i === 0;
+    const labelTxt = isFirst
+      ? 'Configuratie 1 <span style="color:var(--danger);font-size:1rem;">*</span>'
+      : `Configuratie ${i + 1} <span style="font-weight:400;text-transform:none;color:var(--muted)">(optioneel)</span>`;
+    wrap.innerHTML = `
+      <label>${labelTxt}</label>
+      <select class="config-select">${_buildConfigOptionsHtml(currentValue, others, isFirst)}</select>
+    `;
+    wrap.querySelector('.config-select').addEventListener('change', () => {
+      renderConfigPickers(readSelectedConfigs());
+    });
+    list.appendChild(wrap);
+  }
+}
+
+// Legacy shim — kept because _applyLoadedState still calls this name.
+function _populateConfigSelects(selectedTypes) {
+  renderConfigPickers(selectedTypes);
 }
 
 async function loadConfigs() {
@@ -1310,9 +1341,7 @@ function calculate() {
   }
 
   const priceKey = _getPriceKey();
-  const selectedConfigs = ['config1Select','config2Select','config3Select']
-    .map(id => document.getElementById(id).value)
-    .filter(v => v)
+  const selectedConfigs = readSelectedConfigs()
     .map(type => {
       const c = _sheetConfigs.find(x => x.type === type);
       return c ? { type: c.type, omschrijving: c.omschrijving, batCap: c.batCap, batInv: c.batInv, eff: c.eff, price: c.prices[priceKey] } : null;
@@ -2136,7 +2165,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Repopulate dropdowns when BTW/keuring changes
   ['btwSelect','keuringSelect'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => {
-      if (_sheetConfigs) _populateConfigSelects();
+      if (_sheetConfigs) renderConfigPickers(readSelectedConfigs());
     });
   });
   // Auto-load from URL ?data= param
