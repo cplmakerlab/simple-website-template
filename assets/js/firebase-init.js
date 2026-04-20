@@ -46,6 +46,79 @@ const PROJECT_STATUSES = [
 
 const DEFAULT_STATUS = 'nieuw_contact';
 
+// ─── CONNECTION TYPES ────────────────────────────────────────────────────────
+const CONNECTION_TYPES = ['1x230', '3x230', '3x400+N'];
+
+// ─── PROJECT METADATA HELPERS ────────────────────────────────────────────────
+// Default-empty structure for the 6 metadata sections added in the 2026-04-20
+// expansion. Readers merge a project's stored sections over this so pre-2026-04-20
+// projects (without these fields) behave identically to empty-new ones.
+function newEmptyProjectMetadata() {
+  return {
+    site: {
+      houseAgeOver10Years: null,
+    },
+    electrical: {
+      connectionType: null,
+      fuseRatingA:    null,
+    },
+    cabinet: {
+      freeUnits:              null,
+      hasRemAutomaat:         null,
+      wiringDiameterMm2:      null,
+      hasOutletNearFluvius:   null,
+      hasWifiNearFluvius:     null,
+      batteryPlacementRoom:   null,
+      hasWifiNearCabinet:     null,
+    },
+    solar: {
+      inverters: [],
+    },
+    supplier: {
+      name:           null,
+      isSingleTariff: false,
+      priceDay:       null,
+      priceNight:     null,
+    },
+    calcDefaults: {
+      btw:     null,
+      keuring: null,
+    },
+  };
+}
+
+// Merge a project doc's metadata sections over the default-empty shape. Returns
+// a complete metadata object regardless of which sections the doc contains.
+function mergeProjectMetadata(project) {
+  const empty = newEmptyProjectMetadata();
+  if (!project) return empty;
+  return {
+    site:         { ...empty.site,         ...(project.site || {}) },
+    electrical:   { ...empty.electrical,   ...(project.electrical || {}) },
+    cabinet:      { ...empty.cabinet,      ...(project.cabinet || {}) },
+    solar:        { ...empty.solar,        ...(project.solar || {}) },
+    supplier:     { ...empty.supplier,     ...(project.supplier || {}) },
+    calcDefaults: { ...empty.calcDefaults, ...(project.calcDefaults || {}) },
+  };
+}
+
+// BTW afleidingsregel (single source of truth).
+//   houseAgeOver10Years === true  → 6
+//   houseAgeOver10Years === false → 21
+//   houseAgeOver10Years === null  → calcDefaults.btw (may be null)
+function effectiveBtwFor(project) {
+  const m = mergeProjectMetadata(project);
+  if (m.site.houseAgeOver10Years === true)  return 6;
+  if (m.site.houseAgeOver10Years === false) return 21;
+  return m.calcDefaults.btw;
+}
+
+// Sum of powerKw over all solar.inverters entries. Returns 0 if no inverters.
+function totalInverterPowerKw(project) {
+  const m = mergeProjectMetadata(project);
+  return m.solar.inverters.reduce((sum, inv) => sum + (Number(inv.powerKw) || 0), 0);
+}
+
 function getStatusMeta(key) {
   return PROJECT_STATUSES.find(s => s.key === key) || { key, label: key, color: '#9aa3b2' };
 }
@@ -102,8 +175,11 @@ function projectsCol() { return getDb().collection('projects'); }
 function projectDoc(id) { return projectsCol().doc(id); }
 
 // Create a project. csvData is the optional output of extractCsvForStorage(); pass null
-// if no CSV was uploaded at creation. Returns the new document reference.
-async function createProject({ projectName, customerName, status, csvData }) {
+// if no CSV was uploaded at creation. `metadata` is an optional object with any subset
+// of { site, electrical, cabinet, solar, supplier, calcDefaults } — if omitted, the
+// document is created without those sections (pre-2026-04-20 shape; readers fall back
+// via mergeProjectMetadata). Returns the new document reference.
+async function createProject({ projectName, customerName, status, csvData, metadata }) {
   const email = currentUserEmail();
   if (!email) throw new Error('Niet ingelogd');
   const now = firebase.firestore.FieldValue.serverTimestamp();
@@ -125,6 +201,14 @@ async function createProject({ projectName, customerName, status, csvData }) {
     } : null,
     lastCalcRun: null,
   };
+  if (metadata) {
+    if (metadata.site)         doc.site         = metadata.site;
+    if (metadata.electrical)   doc.electrical   = metadata.electrical;
+    if (metadata.cabinet)      doc.cabinet      = metadata.cabinet;
+    if (metadata.solar)        doc.solar        = metadata.solar;
+    if (metadata.supplier)     doc.supplier     = metadata.supplier;
+    if (metadata.calcDefaults) doc.calcDefaults = metadata.calcDefaults;
+  }
   return projectsCol().add(doc);
 }
 
@@ -150,6 +234,16 @@ async function updateProjectStatus(id, status) {
     status,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
+}
+
+// Patch a subset of the metadata sections on a project doc. `patch` is an object
+// with top-level keys among { site, electrical, cabinet, solar, supplier, calcDefaults,
+// projectName, customerName, status }; each value is a partial object for that section.
+// Written with {merge:true} so other keys on the same section are preserved.
+// updatedAt is always refreshed.
+async function updateProjectMetadata(id, patch) {
+  const data = { ...patch, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  await projectDoc(id).set(data, { merge: true });
 }
 
 async function softDeleteProject(id) {
