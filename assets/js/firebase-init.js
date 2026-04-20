@@ -111,7 +111,7 @@ function newEmptyProjectMetadata() {
     },
     calcDefaults: {
       btw:     null,
-      keuring: null,
+      keuring: 'yes',
     },
   };
 }
@@ -416,6 +416,11 @@ async function markCommentsRead(projectId) {
   await projectDoc(projectId).update({
     [`readStates.${email}`]: firebase.firestore.FieldValue.serverTimestamp(),
   });
+}
+
+// True iff the project has any comments at all (regardless of read-state).
+function hasAnyComments(project) {
+  return !!(project && project.lastCommentAt);
 }
 
 // True iff the project has a lastCommentAt newer than the current user's readState.

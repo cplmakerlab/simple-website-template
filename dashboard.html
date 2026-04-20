@@ -177,11 +177,16 @@
     }
     .projectNameBtn:hover { text-decoration: underline; }
 
-    /* Unread-comment chat icon (only shown when unread from other party) */
-    .unread-chat {
+    /* Chat-indicator naast projectnaam. Altijd getoond als er opmerkingen zijn;
+       pulse alleen bij ongelezen van de tegenpartij. */
+    .chat-indicator {
       display: inline-block;
       margin-right: 6px;
       font-size: 0.95rem;
+      opacity: 0.55;
+    }
+    .chat-indicator.unread {
+      opacity: 1;
       animation: chat-pulse 1.6s ease-in-out infinite;
     }
     @keyframes chat-pulse {
@@ -448,7 +453,7 @@
 <div class="card center-card hide" id="stateNotWhitelisted">
   <h1>⚠️ Geen toegang</h1>
   <p class="subtitle">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
-  <button type="button" class="btn btn-secondary" id="btnSignOutNW">Uitlog</button>
+  <button type="button" class="btn btn-secondary" id="btnSignOutNW">Uitloggen</button>
 </div>
 
 <!-- State 3: logged in + whitelisted -->
@@ -457,7 +462,7 @@
     <h1>⚡ SmartPeak — Projecten</h1>
     <div class="right">
       <span>Hallo, <strong id="userDisplayName">…</strong></span>
-      <button type="button" class="btn btn-secondary" id="btnSignOut">Uitlog</button>
+      <button type="button" class="btn btn-secondary" id="btnSignOut">Uitloggen</button>
     </div>
   </div>
 
@@ -548,9 +553,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderCurrent();
     });
   });
-  // Restore view choice on load.
+  // Restore view choice on load (default = bord).
   try {
-    const saved = localStorage.getItem('smartpeak.dashboardView') || 'list';
+    const saved = localStorage.getItem('smartpeak.dashboardView') || 'board';
     document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('active', b.dataset.view === saved));
   } catch {}
 });
@@ -631,8 +636,8 @@ function rowHTML(p, isDeleted) {
        <button type="button" class="permdelBtn"  data-id="${p.id}" data-name="${escapeHtml(p.projectName || '')}" title="Definitief verwijderen">❌</button>`
     : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen">🗑️</button>`;
   const email  = currentUserEmail();
-  const chat   = hasUnreadComments(p, email)
-    ? `<span class="unread-chat" title="Nieuwe opmerking(en) van collega">💬</span>`
+  const chat   = hasAnyComments(p)
+    ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en) van collega' : 'Opmerkingen aanwezig'}">💬</span>`
     : '';
   const warn   = needsGroundFaultCheck(p)
     ? `<span class="row-warning" title="Controleer fase↔aarde spanning: bij Zendure-installaties moet dit &lt; 30 V zijn. Zet de vink in het project zodra gemeten.">❗</span>`
@@ -696,7 +701,7 @@ function renderCurrent() {
     return;
   }
 
-  const viewMode = (localStorage.getItem('smartpeak.dashboardView') || 'list');
+  const viewMode = (localStorage.getItem('smartpeak.dashboardView') || 'board');
   if (viewMode === 'board') {
     renderBoard(active, el);
   } else {
@@ -749,8 +754,8 @@ function renderBoard(active, el) {
 
 function kanbanCardHTML(p) {
   const email = currentUserEmail();
-  const chat  = hasUnreadComments(p, email)
-    ? `<span class="unread-chat" title="Nieuwe opmerking(en)">💬</span>`
+  const chat  = hasAnyComments(p)
+    ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en)' : 'Opmerkingen aanwezig'}">💬</span>`
     : '';
   const warn  = needsGroundFaultCheck(p)
     ? `<span class="row-warning" title="Controleer fase↔aarde meting bij Zendure (&lt; 30 V).">❗</span>`
@@ -970,6 +975,7 @@ function renderDrawer(project) {
       <div class="drawer-actions">
         <a class="btn" href="${calcHref}">🧮 Open berekening</a>
         <a class="btn btn-secondary" href="project-edit.html?project=${project.id}">✏ Bewerk project</a>
+        <button type="button" class="btn btn-secondary" id="drawerDeleteBtn" style="background:#fde8e8;color:var(--danger);">🗑 Verwijderen</button>
       </div>
     </div>
   `);
@@ -1023,6 +1029,21 @@ function renderDrawer(project) {
   `);
 
   body.innerHTML = sections.join('');
+
+  // Wire delete button (soft-delete from drawer)
+  const delBtn = document.getElementById('drawerDeleteBtn');
+  if (delBtn) {
+    delBtn.addEventListener('click', async () => {
+      if (!confirm('Project verwijderen? Het wordt soft-deleted en blijft herstelbaar via "Toon verwijderde".')) return;
+      try {
+        await softDeleteProject(project.id);
+        closeDrawer();
+        await refreshProjectList();
+      } catch (err) {
+        alert('Verwijderen mislukt: ' + (err && err.message ? err.message : err));
+      }
+    });
+  }
 
   // Wire photo upload
   document.getElementById('drawerPhotoUploadBtn').addEventListener('click', async () => {
