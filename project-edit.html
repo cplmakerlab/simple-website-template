@@ -217,15 +217,116 @@ async function bootstrap() {
   wireActions();
 }
 
-// Placeholder — later tasks fill renderSections() and wireActions().
 function renderSections() {
-  document.getElementById('formSections').innerHTML =
-    '<div class="card"><div class="section-body">Form wordt in latere taken ingevuld.</div></div>';
+  const host = document.getElementById('formSections');
+  host.innerHTML = sectionBasisgegevens();
+  wireSectionBasisgegevens();
+}
+
+function sectionBasisgegevens() {
+  const p = _project;
+  const statusOpts = PROJECT_STATUSES.map(s =>
+    `<option value="${s.key}" ${s.key === (p.status || DEFAULT_STATUS) ? 'selected' : ''}>${escapeHtml(s.label)}</option>`
+  ).join('');
+  return `
+    <details class="card" id="secBasis" open>
+      <summary>📝 Basisgegevens</summary>
+      <div class="section-body">
+        <div class="form-row">
+          <label class="required" for="fProjectName">Projectnaam</label>
+          <input type="text" id="fProjectName" maxlength="120" value="${escapeHtml(p.projectName)}" />
+        </div>
+        <div class="form-row">
+          <label class="required" for="fCustomerName">Klantnaam</label>
+          <input type="text" id="fCustomerName" maxlength="120" value="${escapeHtml(p.customerName)}" />
+        </div>
+        <div class="form-row">
+          <label for="fStatus">Status</label>
+          <select id="fStatus">${statusOpts}</select>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function wireSectionBasisgegevens() {
+  // Live-update _project on input so other sections reading _project stay in sync.
+  document.getElementById('fProjectName').addEventListener('input', e => { _project.projectName = e.target.value; });
+  document.getElementById('fCustomerName').addEventListener('input', e => { _project.customerName = e.target.value; });
+  document.getElementById('fStatus').addEventListener('change', e => { _project.status = e.target.value; });
 }
 
 function wireActions() {
-  document.getElementById('btnSave').addEventListener('click', () => showError('Opslaan komt in latere taak.'));
-  document.getElementById('btnSaveAndCalc').addEventListener('click', () => showError('Opslaan & Bereken komt in latere taak.'));
+  document.getElementById('btnSave').addEventListener('click', () => save({ andCalc: false }));
+  document.getElementById('btnSaveAndCalc').addEventListener('click', () => save({ andCalc: true }));
+}
+
+// Gather the save payload from _project. Extracted so later sections all just
+// mutate _project on input and the save flow reads the full object uniformly.
+function collectFromForm() {
+  // Basisgegevens
+  const projectName  = (_project.projectName  || '').trim();
+  const customerName = (_project.customerName || '').trim();
+  if (!projectName)  throw new Error('Projectnaam is verplicht.');
+  if (!customerName) throw new Error('Klantnaam is verplicht.');
+
+  // Inverter-verplichting (ingevuld in Task 7): elk inverter-kaartje moet powerKw > 0 hebben.
+  for (let i = 0; i < _project.solar.inverters.length; i++) {
+    const inv = _project.solar.inverters[i];
+    if (!(Number(inv.powerKw) > 0)) {
+      throw new Error(`Omvormer ${i + 1}: vermogen (kW) is verplicht als de omvormer in de lijst staat.`);
+    }
+  }
+
+  const metadata = {
+    site:         _project.site,
+    electrical:   _project.electrical,
+    cabinet:      _project.cabinet,
+    solar:        _project.solar,
+    supplier:     _project.supplier,
+    calcDefaults: _project.calcDefaults,
+  };
+  return { projectName, customerName, status: _project.status || DEFAULT_STATUS, metadata };
+}
+
+async function save({ andCalc }) {
+  clearError();
+  const btnSave = document.getElementById('btnSave');
+  const btnSC   = document.getElementById('btnSaveAndCalc');
+  btnSave.disabled = true; btnSC.disabled = true;
+  const prevLabel = btnSave.textContent;
+  btnSave.textContent = 'Bezig…';
+  try {
+    const payload = collectFromForm();
+    let targetId;
+    if (IS_NEW) {
+      const ref = await createProject({
+        projectName:  payload.projectName,
+        customerName: payload.customerName,
+        status:       payload.status,
+        csvData:      null,
+        metadata:     payload.metadata,
+      });
+      targetId = ref.id;
+    } else {
+      await updateProjectMetadata(PROJECT_ID, {
+        projectName:  payload.projectName,
+        customerName: payload.customerName,
+        status:       payload.status,
+        ...payload.metadata,
+      });
+      targetId = PROJECT_ID;
+    }
+    if (andCalc) {
+      window.location.href = `index.html?project=${targetId}`;
+    } else {
+      window.location.href = 'dashboard.html';
+    }
+  } catch (e) {
+    showError(e && e.message ? e.message : String(e));
+    btnSave.disabled = false; btnSC.disabled = false;
+    btnSave.textContent = prevLabel;
+  }
 }
 </script>
 
