@@ -310,6 +310,24 @@
       .scenarios-grid { grid-template-columns: 1fr; }
     }
 
+    /* ─── READ-ONLY MODE (for ?data=<b64> share-link viewers) ─────────────── */
+    body.readonly-mode #csvUploadCard,
+    body.readonly-mode .btn-calculate,
+    body.readonly-mode .btn-loadsave,
+    body.readonly-mode .btn-load-configs,
+    body.readonly-mode .btn-copyshare,
+    body.readonly-mode #shareUrlRow {
+      display: none !important;
+    }
+    body.readonly-mode input,
+    body.readonly-mode select,
+    body.readonly-mode textarea {
+      pointer-events: none;
+      background: #f0f2f7;
+      color: #6b7589;
+      border-color: #d4dae5;
+    }
+
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
