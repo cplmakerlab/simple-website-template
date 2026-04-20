@@ -226,6 +226,8 @@ function renderSections() {
     sectionElectrical(),
     sectionCabinet(),
     sectionSolar(),
+    sectionCalcDefaults(),
+    sectionCsv(),
   ].join('');
   wireSectionBasisgegevens();
   wireSectionSupplier();
@@ -233,6 +235,8 @@ function renderSections() {
   wireSectionElectrical();
   wireSectionCabinet();
   wireSectionSolar();
+  wireSectionCalcDefaults();
+  wireSectionCsv();
 }
 
 function sectionBasisgegevens() {
@@ -582,6 +586,94 @@ function wireSectionSolar() {
   });
 }
 
+function sectionCalcDefaults() {
+  const k = _project.calcDefaults.keuring;
+  const opts = [
+    { v: '',    label: '— Geen voorkeur —' },
+    { v: 'no',  label: 'Zonder keuring' },
+    { v: 'yes', label: 'Met keuring' },
+  ].map(o => `<option value="${o.v}" ${o.v === (k || '') ? 'selected' : ''}>${o.label}</option>`).join('');
+  return `
+    <details class="card" id="secCalc" open>
+      <summary>🧮 Voorkeuren berekening</summary>
+      <div class="section-body">
+        <div class="form-row">
+          <label for="fKeuring">Voorkeur keuring</label>
+          <select id="fKeuring">${opts}</select>
+          <div class="help">Op de berekenpagina blijft deze keuze nog aanpasbaar. Wijzigt men daar de waarde, dan wordt die hier opgeslagen.</div>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function wireSectionCalcDefaults() {
+  document.getElementById('fKeuring').addEventListener('change', e => {
+    _project.calcDefaults.keuring = e.target.value === '' ? null : e.target.value;
+  });
+}
+
+// Pending CSV state — only used when IS_NEW (no project-id yet to attach to).
+// On edit, uploads go straight to Firestore via setProjectCsv.
+let _pendingCsv = null;
+
+function sectionCsv() {
+  const cu = _project.csvUpload;
+  const hasCsv = !!cu;
+  const lastInfo = hasCsv
+    ? `<p class="help">📁 <strong>${escapeHtml(cu.eanCode || 'onbekend')}</strong> — geüpload op ${formatTs(cu.uploadedAt)} door ${escapeHtml(shortEmail(cu.uploadedBy))}</p>`
+    : '';
+  const pendingInfo = _pendingCsv
+    ? `<p class="help">📁 Nieuwe CSV klaar voor opslaan (${escapeHtml(_pendingCsv.eanCode || 'onbekend')}). Wordt samen met dit project bewaard.</p>`
+    : '';
+  return `
+    <details class="card" id="secCsv" open>
+      <summary>📊 Verbruikshistoriek (CSV)</summary>
+      <div class="section-body">
+        ${lastInfo}
+        ${pendingInfo}
+        <div class="form-row">
+          <label for="fCsv">${hasCsv ? 'CSV vervangen' : 'CSV uploaden'}</label>
+          <input type="file" id="fCsv" accept=".csv" />
+          <div class="help">Optioneel bij aanmaken. Kan ook later via deze pagina toegevoegd/vervangen worden.</div>
+        </div>
+        <div id="csvErr" class="alert alert-error hide"></div>
+      </div>
+    </details>
+  `;
+}
+
+function shortEmail(e) { return e ? String(e).split('@')[0] : '—'; }
+function formatTs(ts) {
+  if (!ts || typeof ts.toDate !== 'function') return '—';
+  return ts.toDate().toLocaleString('nl-BE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+
+function wireSectionCsv() {
+  document.getElementById('fCsv').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const errEl = document.getElementById('csvErr');
+    errEl.classList.add('hide');
+    try {
+      const text = await file.text();
+      const csvData = extractCsvForStorage(text);
+      if (IS_NEW) {
+        _pendingCsv = csvData;
+      } else {
+        await setProjectCsv(PROJECT_ID, csvData);
+        const proj = await getProject(PROJECT_ID);
+        _project.csvUpload = proj.csvUpload;
+        showToast('CSV opgeslagen');
+      }
+      rerenderSection('secCsv', sectionCsv, wireSectionCsv);
+    } catch (err) {
+      errEl.textContent = err && err.message ? err.message : String(err);
+      errEl.classList.remove('hide');
+    }
+  });
+}
+
 // Helper — replaces one <details> element in place without losing scroll/state of others.
 function rerenderSection(id, renderFn, wireFn) {
   const existing = document.getElementById(id);
@@ -642,7 +734,7 @@ async function save({ andCalc }) {
         projectName:  payload.projectName,
         customerName: payload.customerName,
         status:       payload.status,
-        csvData:      null,
+        csvData:      _pendingCsv,
         metadata:     payload.metadata,
       });
       targetId = ref.id;
