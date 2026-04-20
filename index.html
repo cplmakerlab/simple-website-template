@@ -653,7 +653,7 @@
     </div>
   </div>
   <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
-    <button class="btn btn-secondary" style="margin-top:0;" onclick="loadConfigs()">🔄 Configuraties laden</button>
+    <button class="btn btn-secondary btn-load-configs" style="margin-top:0;" onclick="loadConfigs()">🔄 Configuraties laden</button>
     <span id="configsStatus" style="font-size:0.85rem;color:var(--muted);">Klik om productconfiguraties te laden vanuit de prijslijst.</span>
   </div>
   <div id="configSelectorsArea" style="display:none;">
@@ -675,10 +675,10 @@
 </div>
 
 <div style="display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-top:8px;">
-  <button class="btn" onclick="calculate()">
+  <button class="btn btn-calculate" onclick="calculate()">
     <span>⚡</span> Bereken ROI
   </button>
-  <label class="btn btn-secondary" style="cursor:pointer; margin-top:0; display:inline-flex; align-items:center; gap:8px;">
+  <label class="btn btn-secondary btn-loadsave" style="cursor:pointer; margin-top:0; display:inline-flex; align-items:center; gap:8px;">
     <span>📂</span> Laden vanuit opgeslagen berekening
     <input type="file" id="loadSaveFileTop" accept=".json" onchange="loadFromJSONFile(event)" style="display:none">
   </label>
@@ -739,7 +739,7 @@
       Sla de berekening op als deelbare URL of als JSON-bestand. De CSV-data wordt <strong>niet</strong> opgeslagen — enkel de berekende resultaten en ingegeven parameters.
     </p>
     <div class="save-actions">
-      <button class="btn btn-secondary" onclick="copyShareLink()">🔗 Kopieer deellink</button>
+      <button class="btn btn-secondary btn-copyshare" onclick="copyShareLink()">🔗 Kopieer deellink</button>
       <button class="btn btn-secondary" onclick="downloadSave()">⬇️ Download JSON</button>
       <label class="btn btn-secondary" style="cursor:pointer; margin:0;">
         📂 Laden vanuit JSON
