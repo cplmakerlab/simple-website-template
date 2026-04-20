@@ -631,7 +631,7 @@
   </div>
 </div>
 
-<div class="card">
+<div class="card" id="installParamsCard">
   <h2><span class="icon">🔧</span> Installatieparameters</h2>
   <div class="form-grid">
     <div class="form-group">
@@ -2324,6 +2324,15 @@ function applyProjectToCalcForm(project) {
   show('keuringSelect');
   if (m.calcDefaults.keuring) {
     setVal('keuringSelect', m.calcDefaults.keuring);
+  }
+
+  // Hide the whole "Installatieparameters" card when all three inputs are hidden.
+  const installCard = document.getElementById('installParamsCard');
+  if (installCard) {
+    const stillVisible = ['pvInverter', 'elecPrice', 'elecPriceNight']
+      .map(id => document.getElementById(id))
+      .filter(el => el && el.closest('.form-group') && el.closest('.form-group').style.display !== 'none');
+    installCard.style.display = stillVisible.length === 0 ? 'none' : '';
   }
 
   // Required-field warning inside the summary card.
