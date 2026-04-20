@@ -1206,7 +1206,8 @@ function showToast(msg) {
 }
 
 // ─── PRODUCT SHEET CONFIG ─────────────────────────────────────────────────────
-const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/1BYNvK5nPm--nJWuim2rssC6W-ZcGHIfKLsifa4OSgTY/export?format=csv&gid=425908603';
+// CSV URL lives in Firestore `config/products` doc (auth-gated read).
+// Fetched via getProductsConfig() in loadConfigs().
 let _sheetConfigs = null;
 
 function _parseCSVLine(line) {
@@ -1269,7 +1270,9 @@ async function loadConfigs() {
   const statusEl = document.getElementById('configsStatus');
   statusEl.innerHTML = '<span class="spinner"></span> Laden...';
   try {
-    const resp = await fetch(SHEET_CSV_URL);
+    const cfg = await getProductsConfig();
+    if (!cfg || !cfg.csvUrl) throw new Error('config/products.csvUrl ontbreekt.');
+    const resp = await fetch(cfg.csvUrl);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     _sheetConfigs = _parseSheetConfigs(await resp.text());
     if (!_sheetConfigs.length) throw new Error('Geen configuraties gevonden in de sheet.');
