@@ -177,20 +177,72 @@
     }
     .projectNameBtn:hover { text-decoration: underline; }
 
-    /* Unread-comment pulsing dot */
-    .unread-dot {
+    /* Unread-comment chat icon (only shown when unread from other party) */
+    .unread-chat {
       display: inline-block;
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--danger);
       margin-right: 6px;
-      vertical-align: middle;
-      animation: dot-pulse 1.6s ease-in-out infinite;
+      font-size: 0.95rem;
+      animation: chat-pulse 1.6s ease-in-out infinite;
     }
-    @keyframes dot-pulse {
-      0%, 100% { transform: scale(1);   opacity: 0.9; }
-      50%      { transform: scale(1.4); opacity: 0.5; }
+    @keyframes chat-pulse {
+      0%, 100% { transform: scale(1);    opacity: 1;   }
+      50%      { transform: scale(1.15); opacity: 0.6; }
     }
+    /* Ground-fault warning icon (row + drawer) */
+    .row-warning {
+      display: inline-block;
+      margin-right: 6px;
+      color: var(--warning);
+      font-size: 0.95rem;
+      cursor: help;
+    }
+
+    /* Photo grid in drawer */
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .photo-tile {
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      border-radius: 6px;
+      background: var(--bg);
+      cursor: zoom-in;
+      position: relative;
+    }
+    .photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-tile.broken { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.72rem; text-align: center; padding: 4px; cursor: help; }
+    .photo-uploader { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .photo-uploader input[type=file] { flex: 1; font-size: 0.85rem; }
+
+    /* Lightbox (re-usable with producten.html pattern) */
+    .lightbox-dash {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      display: none;
+      align-items: center; justify-content: center;
+      z-index: 300;
+      padding: 24px;
+    }
+    .lightbox-dash.open { display: flex; }
+    .lightbox-dash img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+    .lightbox-dash-btn {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      width: 44px; height: 44px; border-radius: 50%;
+      font-size: 1.4rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lightbox-dash-btn:hover { background: rgba(255, 255, 255, 0.25); }
+    .lightbox-dash .close { top: 14px; right: 14px; }
+    .lightbox-dash .prev  { left: 14px;  top: 50%; transform: translateY(-50%); }
+    .lightbox-dash .next  { right: 14px; top: 50%; transform: translateY(-50%); }
+    .lightbox-dash .del   { bottom: 14px; right: 14px; background: rgba(229,69,69,0.85); }
+    .lightbox-dash .del:hover { background: rgba(229,69,69,1); }
 
     /* Drawer + overlay */
     .drawer-overlay {
@@ -466,12 +518,15 @@ function rowHTML(p, isDeleted) {
     ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen">↶</button>`
     : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen">🗑️</button>`;
   const email  = currentUserEmail();
-  const dot    = hasUnreadComments(p, email)
-    ? `<span class="unread-dot" title="Nieuwe opmerking(en)"></span>`
+  const chat   = hasUnreadComments(p, email)
+    ? `<span class="unread-chat" title="Nieuwe opmerking(en) van collega">💬</span>`
+    : '';
+  const warn   = needsGroundFaultCheck(p)
+    ? `<span class="row-warning" title="Controleer fase↔aarde spanning: bij Zendure-installaties moet dit &lt; 30 V zijn. Zet de vink in het project zodra gemeten.">❗</span>`
     : '';
   return `
     <tr class="${isDeleted ? 'deleted-row' : ''}">
-      <td>${dot}<button type="button" class="projectNameBtn" data-id="${p.id}">${escapeHtml(p.projectName || '')}</button></td>
+      <td>${chat}${warn}<button type="button" class="projectNameBtn" data-id="${p.id}">${escapeHtml(p.projectName || '')}</button></td>
       <td>${escapeHtml(p.customerName || '')}</td>
       <td>${statusChipHTML(p.status, p.id)}</td>
       <td>${updated}</td>
@@ -599,8 +654,13 @@ async function openDrawer(projectId) {
       return;
     }
     renderDrawer(project);
-    const comments = await listComments(projectId);
+    // Load comments + photos in parallel.
+    const [comments, photos] = await Promise.all([
+      listComments(projectId).catch(e => { console.warn('listComments failed', e); return []; }),
+      listProjectPhotos(projectId).catch(e => { console.warn('listProjectPhotos failed', e); return []; }),
+    ]);
     renderComments(project, comments);
+    renderPhotos(project, photos);
     // Mark read (non-blocking). Refresh list so the pulse dot disappears.
     markCommentsRead(projectId).then(() => {
       setTimeout(refreshProjectList, 400);
@@ -638,6 +698,16 @@ function renderDrawer(project) {
 
   // Build sections conditionally.
   const sections = [];
+
+  // Ground-fault warning banner (top-of-drawer, if applicable)
+  if (needsGroundFaultCheck(project)) {
+    sections.push(`
+      <div class="alert alert-warning" style="margin-bottom:14px;">
+        ⚠️ <div><strong>Controleer fase↔aarde meting voor Zendure.</strong>
+          Nog niet aangevinkt in dit project. Meet het spanningsverschil vóór installatie en vink aan in ✏ Bewerk project om een ground fault te voorkomen.</div>
+      </div>
+    `);
+  }
 
   // Contact
   const contactLines = [];
@@ -681,6 +751,19 @@ function renderDrawer(project) {
     sections.push(`<div class="drawer-section"><h3>Notities</h3><div class="free-text">${escapeHtml(m.notes)}</div></div>`);
   }
 
+  // Photos placeholder (filled by renderPhotos after async listProjectPhotos)
+  sections.push(`
+    <div class="drawer-section" id="drawerPhotosSection">
+      <h3>📷 Foto's <span id="drawerPhotosCount" style="font-weight:400;color:var(--muted);"></span></h3>
+      <div class="photo-grid" id="drawerPhotoGrid"><p class="empty-state">⏳ Laden…</p></div>
+      <div class="photo-uploader">
+        <input type="file" id="drawerPhotoInput" accept="image/*" multiple />
+        <button type="button" class="btn btn-secondary" id="drawerPhotoUploadBtn" style="font-size:0.85rem;padding:6px 10px;">📤 Upload</button>
+      </div>
+      <div class="err" id="drawerPhotoErr" style="color:var(--danger);font-size:0.82rem;margin-top:4px;"></div>
+    </div>
+  `);
+
   // Comments placeholder (filled by renderComments)
   sections.push(`
     <div class="drawer-section" id="drawerCommentsSection">
@@ -697,6 +780,28 @@ function renderDrawer(project) {
   `);
 
   body.innerHTML = sections.join('');
+
+  // Wire photo upload
+  document.getElementById('drawerPhotoUploadBtn').addEventListener('click', async () => {
+    const input = document.getElementById('drawerPhotoInput');
+    const errEl = document.getElementById('drawerPhotoErr');
+    errEl.textContent = '';
+    const files = Array.from(input.files || []);
+    if (!files.length) { errEl.textContent = 'Kies eerst een foto.'; return; }
+    const btn = document.getElementById('drawerPhotoUploadBtn');
+    btn.disabled = true; btn.textContent = 'Uploaden…';
+    try {
+      for (const f of files) {
+        try { await uploadProjectPhoto(project.id, f); }
+        catch (e) { errEl.textContent = e && e.message ? e.message : String(e); break; }
+      }
+      input.value = '';
+      const fresh = await listProjectPhotos(project.id);
+      renderPhotos(project, fresh);
+    } finally {
+      btn.disabled = false; btn.textContent = '📤 Upload';
+    }
+  });
 
   // Wire comment submit
   document.getElementById('drawerCommentSubmit').addEventListener('click', async () => {
@@ -742,6 +847,93 @@ function renderComments(project, comments) {
   // Scroll last comment into view if the newest is below the fold.
   const lastComment = list.lastElementChild;
   if (lastComment) lastComment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Photos rendering + lightbox ------------------------------------------------
+let _drawerPhotos = [];
+let _lightboxIdx  = 0;
+
+function renderPhotos(project, photos) {
+  _drawerPhotos = photos || [];
+  const grid  = document.getElementById('drawerPhotoGrid');
+  const count = document.getElementById('drawerPhotosCount');
+  if (!grid) return;
+  count.textContent = _drawerPhotos.length > 0 ? `(${_drawerPhotos.length})` : '';
+  if (_drawerPhotos.length === 0) {
+    grid.innerHTML = '<p class="empty-state" style="font-style:italic;color:var(--muted);">Nog geen foto\u2019s geüpload.</p>';
+    return;
+  }
+  grid.innerHTML = _drawerPhotos.map((p, i) => {
+    if (!p.downloadUrl) {
+      return `<div class="photo-tile broken" title="${escapeHtml(p.fetchError || 'Kon foto niet laden')}">${escapeHtml(p.name || 'onbekend')}</div>`;
+    }
+    return `<div class="photo-tile" data-idx="${i}"><img src="${p.downloadUrl}" alt="${escapeHtml(p.name || '')}" /></div>`;
+  }).join('');
+  grid.querySelectorAll('.photo-tile[data-idx]').forEach(tile => {
+    tile.addEventListener('click', () => openLightbox(parseInt(tile.dataset.idx, 10)));
+  });
+}
+
+function openLightbox(idx) {
+  _lightboxIdx = idx;
+  let lb = document.getElementById('dashLightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'dashLightbox';
+    lb.className = 'lightbox-dash';
+    lb.innerHTML = `
+      <button type="button" class="lightbox-dash-btn close" title="Sluit">×</button>
+      <button type="button" class="lightbox-dash-btn prev" title="Vorige">‹</button>
+      <button type="button" class="lightbox-dash-btn next" title="Volgende">›</button>
+      <button type="button" class="lightbox-dash-btn del" title="Verwijder foto">🗑</button>
+      <img id="dashLightboxImg" alt="" />
+    `;
+    document.body.appendChild(lb);
+    lb.querySelector('.close').addEventListener('click', closeLightbox);
+    lb.querySelector('.prev').addEventListener('click', e => { e.stopPropagation(); navLightbox(-1); });
+    lb.querySelector('.next').addEventListener('click', e => { e.stopPropagation(); navLightbox(+1); });
+    lb.querySelector('.del').addEventListener('click', async e => {
+      e.stopPropagation();
+      const photo = _drawerPhotos[_lightboxIdx];
+      if (!photo) return;
+      if (!confirm('Deze foto verwijderen?')) return;
+      try {
+        await deleteProjectPhoto(_drawerProjectId, photo.id, photo.storagePath);
+        const fresh = await listProjectPhotos(_drawerProjectId);
+        renderPhotos(null, fresh);
+        if (fresh.length === 0) closeLightbox();
+        else { _lightboxIdx = Math.min(_lightboxIdx, fresh.length - 1); refreshLightboxImage(); }
+      } catch (err) {
+        alert('Verwijderen mislukt: ' + (err && err.message ? err.message : err));
+      }
+    });
+    lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
+    document.addEventListener('keydown', e => {
+      if (!lb.classList.contains('open')) return;
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft')  navLightbox(-1);
+      else if (e.key === 'ArrowRight') navLightbox(+1);
+    });
+  }
+  refreshLightboxImage();
+  lb.classList.add('open');
+}
+
+function refreshLightboxImage() {
+  const img = document.getElementById('dashLightboxImg');
+  const photo = _drawerPhotos[_lightboxIdx];
+  if (img && photo && photo.downloadUrl) img.src = photo.downloadUrl;
+}
+
+function navLightbox(delta) {
+  if (!_drawerPhotos.length) return;
+  _lightboxIdx = (_lightboxIdx + delta + _drawerPhotos.length) % _drawerPhotos.length;
+  refreshLightboxImage();
+}
+
+function closeLightbox() {
+  const lb = document.getElementById('dashLightbox');
+  if (lb) lb.classList.remove('open');
 }
 
 // Drawer close hooks
