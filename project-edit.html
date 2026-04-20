@@ -221,6 +221,8 @@ function renderSections() {
   const host = document.getElementById('formSections');
   host.innerHTML = [
     sectionBasisgegevens(),
+    sectionCustomer(),
+    sectionSituationNotes(),
     sectionSupplier(),
     sectionWoning(),
     sectionElectrical(),
@@ -230,6 +232,8 @@ function renderSections() {
     sectionCsv(),
   ].join('');
   wireSectionBasisgegevens();
+  wireSectionCustomer();
+  wireSectionSituationNotes();
   wireSectionSupplier();
   wireSectionWoning();
   wireSectionElectrical();
@@ -270,6 +274,71 @@ function wireSectionBasisgegevens() {
   document.getElementById('fProjectName').addEventListener('input', e => { _project.projectName = e.target.value; });
   document.getElementById('fCustomerName').addEventListener('input', e => { _project.customerName = e.target.value; });
   document.getElementById('fStatus').addEventListener('change', e => { _project.status = e.target.value; });
+}
+
+function sectionCustomer() {
+  const c = _project.customer;
+  return `
+    <details class="card" id="secCustomer" open>
+      <summary>👤 Klantcontact</summary>
+      <div class="section-body">
+        <div class="form-row">
+          <label for="fAddress">Adres <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
+          <textarea id="fAddress" rows="2" maxlength="400">${escapeHtml(c.address)}</textarea>
+          <div class="help">Straat + nummer, postcode, stad. Lijnen afbreken indien nodig.</div>
+        </div>
+        <div class="form-row">
+          <label for="fPhone">Telefoon <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
+          <input type="tel" inputmode="tel" id="fPhone" maxlength="60" value="${escapeHtml(c.phone)}" />
+        </div>
+        <div class="form-row">
+          <label for="fEmail">E-mail <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
+          <input type="email" inputmode="email" id="fEmail" maxlength="200" value="${escapeHtml(c.email)}" />
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function wireSectionCustomer() {
+  document.getElementById('fAddress').addEventListener('input', e => {
+    _project.customer.address = e.target.value.trim() || null;
+  });
+  document.getElementById('fPhone').addEventListener('input', e => {
+    _project.customer.phone = e.target.value.trim() || null;
+  });
+  document.getElementById('fEmail').addEventListener('input', e => {
+    _project.customer.email = e.target.value.trim() || null;
+  });
+}
+
+function sectionSituationNotes() {
+  return `
+    <details class="card" id="secSituation" open>
+      <summary>📝 Situatie &amp; notities</summary>
+      <div class="section-body">
+        <div class="form-row">
+          <label for="fSituation">Situatie</label>
+          <textarea id="fSituation" rows="4" maxlength="4000">${escapeHtml(_project.situation)}</textarea>
+          <div class="help">Vrije beschrijving: context, bestaande apparaten, klantwensen — alles wat handig is voor een collega om te lezen vóór een bezoek.</div>
+        </div>
+        <div class="form-row">
+          <label for="fNotes">Notities</label>
+          <textarea id="fNotes" rows="3" maxlength="2000">${escapeHtml(_project.notes)}</textarea>
+          <div class="help">Korte interne notities voor jezelf.</div>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function wireSectionSituationNotes() {
+  document.getElementById('fSituation').addEventListener('input', e => {
+    _project.situation = e.target.value || null;
+  });
+  document.getElementById('fNotes').addEventListener('input', e => {
+    _project.notes = e.target.value || null;
+  });
 }
 
 function sectionSupplier() {
@@ -709,6 +778,9 @@ function collectFromForm() {
   }
 
   const metadata = {
+    customer:     _project.customer,
+    situation:    _project.situation,
+    notes:        _project.notes,
     site:         _project.site,
     electrical:   _project.electrical,
     cabinet:      _project.cabinet,
