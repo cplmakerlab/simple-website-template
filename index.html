@@ -1988,11 +1988,80 @@ async function saveProjectCalcRun(d) {
   const results = { ...r.r };
   delete results.dailyCompact;
 
+  // Sync any fallback-entered metadata back to the project before saving the calc-run.
+  try {
+    const freshProj = await getProject(_projectId);
+    const patch = buildProjectSyncPatch(freshProj);
+    if (patch) {
+      await updateProjectMetadata(_projectId, patch);
+      _projectDoc = await getProject(_projectId);
+      showToast('📋 Projectgegevens aangevuld uit invoer');
+    }
+  } catch (e) {
+    console.warn('project sync-back failed', e);
+  }
+
   await saveLastCalcRun(_projectId, {
     inputs: { pvInv: pvInverter, priceDay, priceNight, selectedConfigTypes },
     results,
   });
   showToast('💾 Opgeslagen in project');
+}
+
+// Compare the user-entered form values against the current project. For each field the
+// project is missing, copy the form value back to the project patch. Special case for
+// pvInverter: creates/updates an inverter entry since solar.inverters is the source.
+// Returns the patch (object), or null if nothing to write.
+function buildProjectSyncPatch(project) {
+  const m = mergeProjectMetadata(project);
+  const patch = {};
+
+  // pvInverter: write to solar.inverters[0].powerKw if the project has none.
+  if (totalInverterPowerKw(project) === 0) {
+    const v = parseFloat(document.getElementById('pvInverter').value);
+    if (!isNaN(v) && v > 0) {
+      const existing = m.solar.inverters.slice();
+      if (existing.length === 0) {
+        existing.push({ id: 'inv_' + Math.random().toString(36).slice(2, 10),
+                        powerKw: v, brand: null, model: null,
+                        panelCount: null, panelPowerWp: null, circuitCount: null, orientation: null });
+      } else {
+        existing[0] = { ...existing[0], powerKw: v };
+      }
+      patch.solar = { inverters: existing };
+    }
+  }
+
+  const supplierPatch = {};
+  if (m.supplier.priceDay == null) {
+    const v = parseFloat(document.getElementById('elecPrice').value);
+    if (!isNaN(v) && v > 0) supplierPatch.priceDay = v;
+  }
+  if (m.supplier.isSingleTariff !== true && m.supplier.priceNight == null) {
+    const v = parseFloat(document.getElementById('elecPriceNight').value);
+    if (!isNaN(v) && v > 0) supplierPatch.priceNight = v;
+  }
+  if (Object.keys(supplierPatch).length > 0) {
+    patch.supplier = { ...m.supplier, ...supplierPatch };
+  }
+
+  const calcPatch = {};
+  // BTW — only if no age-based derivation and no manual default.
+  if (effectiveBtwFor(project) == null) {
+    const v = document.getElementById('btwSelect').value;
+    const n = Number(v);
+    if (n === 6 || n === 21) calcPatch.btw = n;
+  }
+  // Keuring — always: if user value differs from stored calcDefaults, write it.
+  const kSel = document.getElementById('keuringSelect').value;
+  const kStored = m.calcDefaults.keuring || null;
+  if (kSel && kSel !== kStored) calcPatch.keuring = kSel;
+
+  if (Object.keys(calcPatch).length > 0) {
+    patch.calcDefaults = { ...m.calcDefaults, ...calcPatch };
+  }
+
+  return Object.keys(patch).length > 0 ? patch : null;
 }
 
 function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow, numYears) {
