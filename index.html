@@ -591,7 +591,7 @@
 // entry point. Redirect to dashboard so random visitors hit the login wall.
 (function () {
   var p = new URLSearchParams(window.location.search);
-  if (!p.has('project') && !p.has('data')) {
+  if (!p.has('project') && !p.has('data') && !p.has('s')) {
     window.location.replace('dashboard.html');
   }
 })();
@@ -737,7 +737,6 @@
     </p>
     <div class="save-actions">
       <button class="btn btn-secondary btn-copyshare" onclick="copyShareLink()">🔗 Kopieer deellink</button>
-      <button class="btn btn-secondary" onclick="downloadSave()">⬇️ Download JSON</button>
     </div>
     <div class="share-url-row" id="shareUrlRow" style="display:none;">
       <input type="text" id="shareUrlInput" readonly onclick="this.select()" />
@@ -1137,39 +1136,33 @@ function _restoreState(r) {
   return r;
 }
 
-function copyShareLink() {
+async function copyShareLink() {
   const state = _serializeState();
   if (!state) return;
-  const b64  = _stateToB64(state);
-  const url  = location.origin + location.pathname + '?data=' + b64;
-  history.replaceState(null, '', '?data=' + b64);
-  if (url.length > 30000) {
-    showToast('⚠️ Deellink is erg lang (>30 KB). Sommige chat-apps knippen lange links af — gebruik liever "Download save" voor lange datasets.');
-  }
   const urlRow   = document.getElementById('shareUrlRow');
   const urlInput = document.getElementById('shareUrlInput');
-  urlInput.value = url;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(url)
-      .then(() => { showToast('🔗 Deellink gekopieerd naar klembord!'); urlRow.style.display = 'none'; })
-      .catch(() => { urlRow.style.display = ''; urlInput.select(); showToast('Kopieer de link hieronder handmatig.'); });
-  } else {
-    urlRow.style.display = '';
-    urlInput.select();
+  urlRow.style.display = 'none';
+  showToast('🔗 Deellink aanmaken…');
+  try {
+    const ref = await createShare(state, _projectId || null);
+    const url = location.origin + location.pathname + '?s=' + ref.id;
+    urlInput.value = url;
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('🔗 Deellink gekopieerd naar klembord!');
+      } catch {
+        urlRow.style.display = '';
+        urlInput.select();
+        showToast('Kopieer de link hieronder handmatig.');
+      }
+    } else {
+      urlRow.style.display = '';
+      urlInput.select();
+    }
+  } catch (e) {
+    showToast('❌ Deellink maken mislukt: ' + (e && e.message ? e.message : e));
   }
-}
-
-function downloadSave() {
-  const state = _serializeState();
-  if (!state) return;
-  const json  = JSON.stringify(state, null, 2);
-  const blob  = new Blob([json], { type: 'application/json' });
-  const a     = document.createElement('a');
-  a.href      = URL.createObjectURL(blob);
-  a.download  = `batterij_berekening_${state.r.eanCode || 'export'}_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  showToast('⬇️ JSON-bestand gedownload');
 }
 
 function _applyLoadedState(state, showBanner) {
@@ -2168,7 +2161,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (_sheetConfigs) renderConfigPickers(readSelectedConfigs());
     });
   });
-  // Auto-load from URL ?data= param
+  // Auto-load from URL ?data= param (legacy base64 share-link)
   const params = new URLSearchParams(window.location.search);
   const data   = params.get('data');
   if (data) {
@@ -2177,7 +2170,26 @@ window.addEventListener('DOMContentLoaded', () => {
       engageReadOnly();
     } catch(e) { console.error('Kon opgeslagen staat niet laden vanuit URL:', e); }
   }
+  // Auto-load from URL ?s=<id> param (Firestore-backed share)
+  const shareId = params.get('s');
+  if (shareId) {
+    loadShareAndEngageReadOnly(shareId).catch(e => {
+      console.error('Kon deellink niet laden:', e);
+      const banner = document.getElementById('loadedBanner');
+      if (banner) {
+        banner.innerHTML = `<div class="alert alert-error">❌ Deellink niet geldig of verwijderd. Neem contact op met je contactpersoon voor een nieuwe link.</div>`;
+        banner.style.display = '';
+      }
+    });
+  }
 });
+
+async function loadShareAndEngageReadOnly(id) {
+  const share = await getShare(id);
+  if (!share || !share.payload) throw new Error('Share niet gevonden');
+  _applyLoadedState(share.payload, true);
+  engageReadOnly();
+}
 
 // Engage read-only mode: called after a ?data=<b64> share-link has been
 // successfully restored. Adds the body class that drives the CSS, and

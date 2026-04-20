@@ -301,3 +301,24 @@ async function getProductsConfig() {
   }
   return snap.data();
 }
+
+// ─── SHARES (customer-facing read-only snapshots) ────────────────────────────
+// Each share doc holds a full v:5 state payload (inputs + results + dailyCompact).
+// Firestore rules: read = public (customers have no login), write = isWhitelisted().
+async function createShare(payload, projectId) {
+  const email = currentUserEmail();
+  if (!email) throw new Error('Niet ingelogd — alleen ingelogde gebruikers mogen deellinks maken.');
+  const doc = {
+    payload:    payload,
+    projectId:  projectId || null,
+    createdBy:  email,
+    createdAt:  firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  return getDb().collection('shares').add(doc);
+}
+
+async function getShare(id) {
+  const snap = await getDb().collection('shares').doc(id).get();
+  if (!snap.exists) return null;
+  return { id: snap.id, ...snap.data() };
+}
