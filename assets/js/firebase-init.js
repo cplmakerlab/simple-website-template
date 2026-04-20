@@ -290,3 +290,14 @@ async function saveLastCalcRun(id, { inputs, results }) {
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 }
+
+// ─── PRODUCT-SHEET CONFIG ────────────────────────────────────────────────────
+// Reads the Firestore doc that holds the product sheet CSV URL. Requires the
+// user to be authenticated + whitelisted (enforced by Firestore rules).
+async function getProductsConfig() {
+  const snap = await getDb().collection('config').doc('products').get();
+  if (!snap.exists) {
+    throw new Error('Product-configuratie niet gevonden in Firestore (config/products).');
+  }
+  return snap.data();
+}
