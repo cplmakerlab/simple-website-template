@@ -703,12 +703,8 @@
 
 <!-- RESULTS -->
 <div id="results">
-  <div class="card" style="margin-top:28px;">
-    <h2><span class="icon">📊</span> Resultaten</h2>
-    <div id="periodAlert"></div>
-    <div id="scenarioAlert"></div>
-    <div class="data-period" id="dataPeriod"></div>
-  </div>
+  <div id="periodAlert" style="margin-top:28px;"></div>
+  <div id="scenarioAlert"></div>
 
   <div class="card" id="energyChartCard" style="display:none;margin-top:0;">
     <h2><span class="icon">📊</span> Afname &amp; Injectie over tijd</h2>
@@ -1704,9 +1700,6 @@ function renderResults(d) {
     scenAlert += `<div class="alert alert-warning">⚠️ <div>ZP-omvormer (${d.pvInv} kW) is sterker dan de batterijomvormer bij: ${names}. Bij Worst Case wordt de drempel daarom hoger gezet voor deze configuraties.</div></div>`;
   }
   document.getElementById('scenarioAlert').innerHTML = scenAlert;
-
-  document.getElementById('dataPeriod').innerHTML =
-    `<strong>Totale afname (periode):</strong> ${fmt2(d.totalAfname)} kWh &nbsp;|&nbsp; <strong>Totale injectie (periode):</strong> ${fmt2(d.totalInjectie)} kWh`;
 
   // ── Summary card ───────────────────────────────────────────────────────────
   const avgAfname   = d.totalAfname   / (d.daysInWindow || 1);
