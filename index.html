@@ -2154,10 +2154,32 @@ window.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   const data   = params.get('data');
   if (data) {
-    try { _applyLoadedState(_b64ToState(data), true); }
-    catch(e) { console.error('Kon opgeslagen staat niet laden vanuit URL:', e); }
+    try {
+      _applyLoadedState(_b64ToState(data), true);
+      engageReadOnly();
+    } catch(e) { console.error('Kon opgeslagen staat niet laden vanuit URL:', e); }
   }
 });
+
+// Engage read-only mode: called after a ?data=<b64> share-link has been
+// successfully restored. Adds the body class that drives the CSS, and
+// replaces the loaded-banner content with a clear customer-facing message.
+function engageReadOnly() {
+  document.body.classList.add('readonly-mode');
+  const banner = document.getElementById('loadedBanner');
+  if (banner) {
+    banner.innerHTML = `
+      <div class="alert alert-warning" style="display:flex;gap:10px;align-items:flex-start;">
+        🔒
+        <div>
+          <strong>Gedeelde berekening — alleen-lezen.</strong><br>
+          Dit is een voorstel dat je van je contactpersoon ontving.
+          Heb je vragen of wil je aanpassingen? Neem contact op met je contactpersoon.
+        </div>
+      </div>`;
+    banner.style.display = '';
+  }
+}
 // ─── PROJECT MODE (?project=<id>) ────────────────────────────────────────────
 let _projectId   = null;
 let _projectDoc  = null;
