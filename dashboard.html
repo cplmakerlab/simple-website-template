@@ -348,6 +348,90 @@
     .configs-summary { font-size: 0.92rem; }
     .configs-summary li { margin-left: 18px; margin-bottom: 3px; }
 
+    /* Dashboard toolbar + filters */
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin-bottom: 14px;
+    }
+    .toolbar .filler { flex: 1; }
+    .toolbar input[type=search] {
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 10px; font: inherit; font-size: 0.9rem;
+      background: #fff; min-width: 180px;
+    }
+    .toolbar input[type=search]:focus { outline: none; border-color: var(--primary); }
+    .toolbar label.filter-chk {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--muted); font-size: 0.88rem; cursor: pointer;
+    }
+    .toolbar .view-toggle {
+      display: inline-flex; border: 1px solid var(--border); border-radius: 8px;
+      overflow: hidden; background: #fff;
+    }
+    .toolbar .view-toggle button {
+      background: transparent; border: 0; padding: 6px 12px;
+      font: inherit; font-size: 0.88rem; cursor: pointer; color: var(--muted);
+    }
+    .toolbar .view-toggle button.active {
+      background: var(--primary); color: #fff;
+    }
+
+    /* Kanban board */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(210px, 1fr));
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+    }
+    @media (max-width: 1100px) {
+      .kanban-board { grid-template-columns: repeat(5, 230px); }
+    }
+    .kanban-col {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 200px;
+      display: flex; flex-direction: column;
+      transition: background 0.12s, outline 0.12s;
+    }
+    .kanban-col.drag-over {
+      background: rgba(44, 123, 229, 0.08);
+      outline: 2px dashed var(--primary);
+      outline-offset: -4px;
+    }
+    .kanban-col-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; font-weight: 700; font-size: 0.85rem;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .kanban-col-header .phase-dot {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+      margin-right: 6px; vertical-align: middle;
+    }
+    .kanban-col-header .count {
+      color: var(--muted); font-weight: 600; font-size: 0.82rem;
+    }
+    .kanban-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 10px;
+      margin-bottom: 8px;
+      cursor: grab;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    .kanban-card:hover { border-color: var(--primary); }
+    .kanban-card:active { cursor: grabbing; }
+    .kanban-card.dragging { opacity: 0.5; }
+    .kanban-card-title { font-weight: 600; font-size: 0.92rem; margin-bottom: 2px; color: var(--primary-dark); cursor: pointer; }
+    .kanban-card-title:hover { text-decoration: underline; }
+    .kanban-card-customer { font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
+    .kanban-card-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+    .permdelBtn { color: var(--danger); }
+
   </style>
 </head>
 <body>
@@ -380,9 +464,18 @@
   <div class="card">
     <div class="toolbar">
       <button type="button" class="btn" id="btnNewProject">+ Nieuw project</button>
-      <label style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:0.9rem;">
-        <input type="checkbox" id="toggleShowDeleted" /> Toon verwijderde projecten
+      <input type="search" id="projectSearch" placeholder="🔍 Zoek projectnaam of klant…" />
+      <label class="filter-chk">
+        <input type="checkbox" id="toggleShowFinished" /> Toon afgesloten
       </label>
+      <label class="filter-chk">
+        <input type="checkbox" id="toggleShowDeleted" /> Toon verwijderde
+      </label>
+      <div class="filler"></div>
+      <div class="view-toggle" id="viewToggle">
+        <button type="button" data-view="list"  class="active">📋 Lijst</button>
+        <button type="button" data-view="board">🗂 Bord</button>
+      </div>
     </div>
     <div id="projectList">Project-lijst komt in Task 5.</div>
   </div>
@@ -441,6 +534,25 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('toggleShowDeleted').addEventListener('change', refreshProjectList);
+  document.getElementById('toggleShowFinished').addEventListener('change', refreshProjectList);
+  document.getElementById('projectSearch').addEventListener('input', () => {
+    // Debounce: re-render only (already-loaded list) without re-fetching Firestore.
+    renderCurrent();
+  });
+  // View toggle (Lijst / Bord). Remembers choice in localStorage.
+  document.querySelectorAll('#viewToggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = btn.dataset.view;
+      try { localStorage.setItem('smartpeak.dashboardView', v); } catch {}
+      document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('active', b === btn));
+      renderCurrent();
+    });
+  });
+  // Restore view choice on load.
+  try {
+    const saved = localStorage.getItem('smartpeak.dashboardView') || 'list';
+    document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('active', b.dataset.view === saved));
+  } catch {}
 });
 
 // ─── PROJECT LIST ───────────────────────────────────────────────────────────
@@ -515,7 +627,8 @@ function rowHTML(p, isDeleted) {
     ? `<button type="button" class="calcBtn" data-id="${p.id}" title="Open berekening">🧮</button>`
     : '';
   const action  = isDeleted
-    ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen">↶</button>`
+    ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen">↶</button>
+       <button type="button" class="permdelBtn"  data-id="${p.id}" data-name="${escapeHtml(p.projectName || '')}" title="Definitief verwijderen">❌</button>`
     : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen">🗑️</button>`;
   const email  = currentUserEmail();
   const chat   = hasUnreadComments(p, email)
@@ -543,74 +656,204 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+// Cached list of projects from Firestore. Filtering + render happens on this cache.
+let _projectsCache = { active: [], deleted: [] };
+
 async function refreshProjectList() {
   const el = document.getElementById('projectList');
   el.innerHTML = '<p class="empty-state">⏳ Laden…</p>';
   const showDeleted = document.getElementById('toggleShowDeleted').checked;
   try {
-    const active  = await listActiveProjects();
-    const deleted = showDeleted ? await listDeletedProjects() : [];
-    const total = active.length + deleted.length;
-    if (total === 0) {
-      el.innerHTML = '<p class="empty-state">Nog geen projecten. Klik op <strong>+ Nieuw project</strong> om te beginnen.</p>';
-      return;
-    }
-    const rows = [
-      ...active.map(p => rowHTML(p, false)),
-      ...deleted.map(p => rowHTML(p, true)),
-    ].join('');
-    el.innerHTML = `
-      <table class="project-table">
-        <thead><tr>
-          <th>Project</th><th>Klant</th><th>Status</th><th>Bijgewerkt</th><th>Door</th><th></th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-    // Wire project-name buttons → open drawer
-    el.querySelectorAll('.projectNameBtn').forEach(btn => {
-      btn.addEventListener('click', () => openDrawer(btn.dataset.id));
-    });
-    // Wire edit buttons
-    el.querySelectorAll('.editBtn').forEach(btn => {
-      btn.addEventListener('click', () => { window.location.href = `project-edit.html?project=${btn.dataset.id}`; });
-    });
-    // Wire calc-result jump buttons
-    el.querySelectorAll('.calcBtn').forEach(btn => {
-      btn.addEventListener('click', () => { window.location.href = `index.html?project=${btn.dataset.id}#results`; });
-    });
-    // Wire status-chip popovers
-    el.querySelectorAll('.status-chip.editable').forEach(chip => {
-      chip.addEventListener('click', (e) => {
-        e.stopPropagation();
-        openStatusPopover(chip);
-      });
-    });
-    // Wire delete buttons
-    el.querySelectorAll('.deleteBtn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        if (!confirm('Project verwijderen? Het wordt soft-deleted en blijft herstelbaar via "Toon verwijderde projecten".')) return;
-        try {
-          await softDeleteProject(btn.dataset.id);
-          await refreshProjectList();
-        } catch (err) {
-          alert('Kon niet verwijderen: ' + (err && err.message ? err.message : err));
-        }
-      });
-    });
-    // Wire restore buttons
-    el.querySelectorAll('.restoreBtn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        try {
-          await restoreProject(btn.dataset.id);
-          await refreshProjectList();
-        } catch (err) {
-          alert('Kon niet herstellen: ' + (err && err.message ? err.message : err));
-        }
-      });
-    });
+    _projectsCache.active  = await listActiveProjects();
+    _projectsCache.deleted = showDeleted ? await listDeletedProjects() : [];
+    renderCurrent();
   } catch (e) {
     el.innerHTML = `<div class="alert alert-error">Kon projecten niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
   }
+}
+
+// Apply filters (search + show-finished) to the cached projects and render in the
+// currently-active view mode (list or board).
+function renderCurrent() {
+  const el = document.getElementById('projectList');
+  const searchQ = (document.getElementById('projectSearch').value || '').trim().toLowerCase();
+  const showFinished = document.getElementById('toggleShowFinished').checked;
+
+  const matchesFilters = p => {
+    if (!p.deletedAt && !showFinished && FINISHED_STATUSES.includes(p.status)) return false;
+    if (searchQ) {
+      const hay = ((p.projectName || '') + ' ' + (p.customerName || '')).toLowerCase();
+      if (!hay.includes(searchQ)) return false;
+    }
+    return true;
+  };
+
+  const active  = _projectsCache.active.filter(matchesFilters);
+  const deleted = _projectsCache.deleted.filter(matchesFilters);
+
+  if (active.length + deleted.length === 0) {
+    el.innerHTML = '<p class="empty-state">Geen projecten die voldoen aan de filters.</p>';
+    return;
+  }
+
+  const viewMode = (localStorage.getItem('smartpeak.dashboardView') || 'list');
+  if (viewMode === 'board') {
+    renderBoard(active, el);
+  } else {
+    renderList(active, deleted, el);
+  }
+}
+
+function renderList(active, deleted, el) {
+  const rows = [
+    ...active.map(p => rowHTML(p, false)),
+    ...deleted.map(p => rowHTML(p, true)),
+  ].join('');
+  el.innerHTML = `
+    <table class="project-table">
+      <thead><tr>
+        <th>Project</th><th>Klant</th><th>Status</th><th>Bijgewerkt</th><th>Door</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  wireRowActions(el);
+}
+
+function renderBoard(active, el) {
+  // Only non-deleted projects in the board view.
+  const byPhase = new Map(PROJECT_PHASES.map(p => [p.key, []]));
+  for (const proj of active) {
+    const phase = phaseForStatus(proj.status);
+    byPhase.get(phase.key).push(proj);
+  }
+  el.innerHTML = `
+    <div class="kanban-board">
+      ${PROJECT_PHASES.map(phase => {
+        const items = byPhase.get(phase.key);
+        return `
+          <div class="kanban-col" data-phase="${phase.key}">
+            <div class="kanban-col-header">
+              <span><span class="phase-dot" style="background:${phase.color};"></span>${phase.label}</span>
+              <span class="count">${items.length}</span>
+            </div>
+            <div class="kanban-col-body">
+              ${items.map(p => kanbanCardHTML(p)).join('') || '<p class="empty-state" style="font-size:0.82rem;color:var(--muted);">—</p>'}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  wireBoard(el);
+}
+
+function kanbanCardHTML(p) {
+  const email = currentUserEmail();
+  const chat  = hasUnreadComments(p, email)
+    ? `<span class="unread-chat" title="Nieuwe opmerking(en)">💬</span>`
+    : '';
+  const warn  = needsGroundFaultCheck(p)
+    ? `<span class="row-warning" title="Controleer fase↔aarde meting bij Zendure (&lt; 30 V).">❗</span>`
+    : '';
+  return `
+    <div class="kanban-card" draggable="true" data-id="${p.id}">
+      <div class="kanban-card-title" data-id="${p.id}">${chat}${warn}${escapeHtml(p.projectName || '')}</div>
+      <div class="kanban-card-customer">${escapeHtml(p.customerName || '')}</div>
+      <div class="kanban-card-footer">
+        ${statusChipHTML(p.status, p.id)}
+      </div>
+    </div>
+  `;
+}
+
+function wireRowActions(el) {
+  // Wire project-name buttons → open drawer
+  el.querySelectorAll('.projectNameBtn').forEach(btn => {
+    btn.addEventListener('click', () => openDrawer(btn.dataset.id));
+  });
+  el.querySelectorAll('.editBtn').forEach(btn => {
+    btn.addEventListener('click', () => { window.location.href = `project-edit.html?project=${btn.dataset.id}`; });
+  });
+  el.querySelectorAll('.calcBtn').forEach(btn => {
+    btn.addEventListener('click', () => { window.location.href = `index.html?project=${btn.dataset.id}#results`; });
+  });
+  el.querySelectorAll('.status-chip.editable').forEach(chip => {
+    chip.addEventListener('click', (e) => { e.stopPropagation(); openStatusPopover(chip); });
+  });
+  el.querySelectorAll('.deleteBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Project verwijderen? Het wordt soft-deleted en blijft herstelbaar via "Toon verwijderde".')) return;
+      try { await softDeleteProject(btn.dataset.id); await refreshProjectList(); }
+      catch (err) { alert('Kon niet verwijderen: ' + (err && err.message ? err.message : err)); }
+    });
+  });
+  el.querySelectorAll('.restoreBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try { await restoreProject(btn.dataset.id); await refreshProjectList(); }
+      catch (err) { alert('Kon niet herstellen: ' + (err && err.message ? err.message : err)); }
+    });
+  });
+  el.querySelectorAll('.permdelBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id   = btn.dataset.id;
+      const name = btn.dataset.name || '(project)';
+      if (!confirm(`Definitief verwijderen van '${name}'?\n\nAlle gegevens, opmerkingen en foto's worden permanent gewist. Dit kan niet ongedaan worden.`)) return;
+      try {
+        btn.disabled = true;
+        await hardDeleteProject(id);
+        await refreshProjectList();
+      } catch (err) {
+        alert('Definitief verwijderen mislukt: ' + (err && err.message ? err.message : err));
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function wireBoard(el) {
+  // Name-click → drawer
+  el.querySelectorAll('.kanban-card-title').forEach(t => {
+    t.addEventListener('click', () => openDrawer(t.dataset.id));
+  });
+  // Status-chip popover (within card)
+  el.querySelectorAll('.status-chip.editable').forEach(chip => {
+    chip.addEventListener('click', (e) => { e.stopPropagation(); openStatusPopover(chip); });
+  });
+
+  // Drag & drop: cards draggable, columns are drop targets.
+  el.querySelectorAll('.kanban-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', card.dataset.id);
+      e.dataTransfer.effectAllowed = 'move';
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  });
+  el.querySelectorAll('.kanban-col').forEach(col => {
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', e => {
+      // Only clear highlight when leaving the column entirely.
+      if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+    });
+    col.addEventListener('drop', async e => {
+      e.preventDefault();
+      col.classList.remove('drag-over');
+      const id       = e.dataTransfer.getData('text/plain');
+      const phaseKey = col.dataset.phase;
+      if (!id || !phaseKey) return;
+      const phase = PROJECT_PHASES.find(p => p.key === phaseKey);
+      if (!phase) return;
+      // No-op if already in this phase.
+      const proj = _projectsCache.active.find(p => p.id === id);
+      if (proj && phaseForStatus(proj.status).key === phaseKey) return;
+      try {
+        await updateProjectStatus(id, phase.statuses[0]);
+        await refreshProjectList();
+      } catch (err) {
+        alert('Status wijzigen mislukt: ' + (err && err.message ? err.message : err));
+      }
+    });
+  });
 }
 
 // ─── DRAWER ──────────────────────────────────────────────────────────────────
