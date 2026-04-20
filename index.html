@@ -937,8 +937,8 @@ function _buildChartConfig(buckets, dualTariff) {
     datasets.push({ type: 'bar', label: 'Afname',   data: buckets.map(b =>  b.afname),   backgroundColor: '#e54545', stack: 'energy', order: 2 });
     datasets.push({ type: 'bar', label: 'Injectie', data: buckets.map(b => -b.injectie), backgroundColor: '#00b478', stack: 'energy', order: 2 });
   }
-  datasets.push({ type: 'line', label: 'Ø afname',   data: Array(labels.length).fill(avgAfname),    borderColor: '#7a1010', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
-  datasets.push({ type: 'line', label: 'Ø injectie', data: Array(labels.length).fill(-avgInjectie), borderColor: '#004d33', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
+  datasets.push({ type: 'line', label: 'Gem. afname',   data: Array(labels.length).fill(avgAfname),    borderColor: '#7a1010', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
+  datasets.push({ type: 'line', label: 'Gem. injectie', data: Array(labels.length).fill(-avgInjectie), borderColor: '#004d33', borderDash: [6, 4], borderWidth: 2, pointRadius: 0, fill: false, order: 1 });
 
   return {
     type: 'bar',
@@ -961,7 +961,26 @@ function _buildChartConfig(buckets, dualTariff) {
             label: (ctx) => `${ctx.dataset.label}: ${Math.abs(ctx.parsed.y).toLocaleString('nl-BE', { maximumFractionDigits: 2 })} kWh`,
           },
         },
-        legend: { position: 'bottom' },
+        legend: {
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            generateLabels: (chart) => {
+              const defaults = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+              return defaults.map(item => {
+                const ds = chart.data.datasets[item.datasetIndex];
+                if (ds && ds.type === 'line') {
+                  item.pointStyle = 'line';
+                  item.lineDash = ds.borderDash || [6, 4];
+                  item.strokeStyle = ds.borderColor;
+                  item.fillStyle = ds.borderColor;
+                  item.lineWidth = 2;
+                }
+                return item;
+              });
+            },
+          },
+        },
       },
     },
   };
