@@ -168,6 +168,133 @@
       padding: 24px 8px;
     }
 
+    /* Project-name button (opens drawer) */
+    .projectNameBtn {
+      background: transparent; border: 0; padding: 0;
+      color: var(--primary); font-weight: 600; font-size: 0.95rem;
+      cursor: pointer; text-align: left;
+    }
+    .projectNameBtn:hover { text-decoration: underline; }
+
+    /* Unread-comment pulsing dot */
+    .unread-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--danger);
+      margin-right: 6px;
+      vertical-align: middle;
+      animation: dot-pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes dot-pulse {
+      0%, 100% { transform: scale(1);   opacity: 0.9; }
+      50%      { transform: scale(1.4); opacity: 0.5; }
+    }
+
+    /* Drawer + overlay */
+    .drawer-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.18s ease-out;
+      z-index: 200;
+    }
+    .drawer-overlay.open {
+      opacity: 1; pointer-events: auto;
+    }
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 420px; max-width: 100vw;
+      background: var(--card);
+      border-left: 1px solid var(--border);
+      box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
+      transform: translateX(100%);
+      transition: transform 0.22s ease-out;
+      z-index: 201;
+      display: flex; flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+    @media (max-width: 900px) {
+      .drawer { width: 100vw; }
+    }
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 10px;
+      position: sticky; top: 0; background: var(--card); z-index: 1;
+    }
+    .drawer-header h2 { font-size: 1.1rem; margin: 0; color: var(--text); }
+    .drawer-header .meta { flex: 1; }
+    .drawer-header .meta .customer { font-size: 0.88rem; color: var(--muted); margin-top: 2px; }
+    .drawer-close-btn {
+      background: transparent; border: 0; cursor: pointer;
+      font-size: 1.4rem; color: var(--muted); padding: 0 4px;
+      line-height: 1;
+    }
+    .drawer-close-btn:hover { color: var(--text); }
+    .drawer-body {
+      flex: 1; overflow-y: auto;
+      padding: 16px 20px;
+    }
+    .drawer-section {
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .drawer-section:last-child { border-bottom: 0; margin-bottom: 0; }
+    .drawer-section h3 {
+      font-size: 0.78rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+    .drawer-section .free-text {
+      white-space: pre-wrap; font-size: 0.92rem; color: var(--text); line-height: 1.4;
+    }
+    .contact-line { font-size: 0.92rem; margin-bottom: 4px; }
+    .contact-line a { color: var(--primary); text-decoration: none; }
+    .contact-line a:hover { text-decoration: underline; }
+    .drawer-actions {
+      display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .drawer-actions .btn {
+      flex: 1 1 auto; min-width: 140px;
+      justify-content: center; font-size: 0.9rem; padding: 8px 12px;
+    }
+
+    /* Comments thread */
+    .comments-list {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-bottom: 12px;
+    }
+    .comment {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.92rem;
+    }
+    .comment .meta {
+      font-size: 0.78rem; color: var(--muted);
+      margin-bottom: 3px;
+      display: flex; justify-content: space-between; gap: 8px;
+    }
+    .comment .meta .author { font-weight: 600; color: var(--primary-dark); }
+    .comment .text { white-space: pre-wrap; line-height: 1.35; }
+    .composer { display: flex; flex-direction: column; gap: 8px; }
+    .composer textarea {
+      width: 100%;
+      border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 10px; font: inherit; font-size: 0.92rem;
+      resize: vertical; min-height: 70px; background: #f7f9fd;
+    }
+    .composer textarea:focus { outline: none; border-color: var(--primary); background: #fff; }
+    .composer .composer-row {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .composer .composer-row .err { color: var(--danger); font-size: 0.82rem; flex: 1; }
+
+    .configs-summary { font-size: 0.92rem; }
+    .configs-summary li { margin-left: 18px; margin-bottom: 3px; }
+
   </style>
 </head>
 <body>
@@ -207,6 +334,13 @@
     <div id="projectList">Project-lijst komt in Task 5.</div>
   </div>
 </div>
+
+<!-- Right-side drawer (opens on project-name click) -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="drawer" id="drawer" aria-hidden="true" role="complementary">
+  <div class="drawer-header" id="drawerHeader"></div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
 
 <script>
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
@@ -325,20 +459,23 @@ function rowHTML(p, isDeleted) {
     ? ''
     : `<button type="button" class="editBtn" data-id="${p.id}" title="Bewerken">✏️</button>`;
   const calcBtn = (!isDeleted && p.lastCalcRun && p.lastCalcRun.calculatedAt)
-    ? `<button type="button" class="calcBtn" data-id="${p.id}" title="Open bij opgeslagen berekening">💾</button>`
+    ? `<button type="button" class="calcBtn" data-id="${p.id}" title="Open berekening">🧮</button>`
     : '';
   const action  = isDeleted
     ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen">↶</button>`
     : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen">🗑️</button>`;
+  const email  = currentUserEmail();
+  const dot    = hasUnreadComments(p, email)
+    ? `<span class="unread-dot" title="Nieuwe opmerking(en)"></span>`
+    : '';
   return `
     <tr class="${isDeleted ? 'deleted-row' : ''}">
-      <td><a href="index.html?project=${p.id}" style="color:var(--primary);text-decoration:none;font-weight:600;">${escapeHtml(p.projectName || '')}</a></td>
+      <td>${dot}<button type="button" class="projectNameBtn" data-id="${p.id}">${escapeHtml(p.projectName || '')}</button></td>
       <td>${escapeHtml(p.customerName || '')}</td>
       <td>${statusChipHTML(p.status, p.id)}</td>
       <td>${updated}</td>
       <td>${by}</td>
       <td class="row-actions">
-        <button type="button" class="openBtn" data-id="${p.id}" title="Open">📂</button>
         ${calcBtn}
         ${editBtn}
         ${action}
@@ -373,9 +510,9 @@ async function refreshProjectList() {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
-    // Wire open buttons
-    el.querySelectorAll('.openBtn').forEach(btn => {
-      btn.addEventListener('click', () => { window.location.href = `index.html?project=${btn.dataset.id}`; });
+    // Wire project-name buttons → open drawer
+    el.querySelectorAll('.projectNameBtn').forEach(btn => {
+      btn.addEventListener('click', () => openDrawer(btn.dataset.id));
     });
     // Wire edit buttons
     el.querySelectorAll('.editBtn').forEach(btn => {
@@ -419,6 +556,201 @@ async function refreshProjectList() {
     el.innerHTML = `<div class="alert alert-error">Kon projecten niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
   }
 }
+
+// ─── DRAWER ──────────────────────────────────────────────────────────────────
+let _drawerProjectId = null;
+
+function fmtRelTime(ts) {
+  if (!ts || typeof ts.toDate !== 'function') return '—';
+  const date = ts.toDate();
+  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  if (diffSec < 60)     return 'net nu';
+  if (diffSec < 3600)   return Math.floor(diffSec / 60) + ' min geleden';
+  const sameDay = date.toDateString() === new Date().toDateString();
+  if (sameDay) return 'vandaag ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
+  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'gisteren ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
+  }
+  return date.toLocaleDateString('nl-BE', { day: '2-digit', month: 'short' }) +
+         ' ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
+}
+
+async function openDrawer(projectId) {
+  _drawerProjectId = projectId;
+  const drawer  = document.getElementById('drawer');
+  const overlay = document.getElementById('drawerOverlay');
+  const body    = document.getElementById('drawerBody');
+  const header  = document.getElementById('drawerHeader');
+
+  body.innerHTML   = '<p class="empty-state">⏳ Laden…</p>';
+  header.innerHTML = '<div class="meta"><h2>…</h2></div><button type="button" class="drawer-close-btn" aria-label="Sluit">×</button>';
+  header.querySelector('.drawer-close-btn').addEventListener('click', closeDrawer);
+
+  drawer.classList.add('open');
+  overlay.classList.add('open');
+  drawer.setAttribute('aria-hidden', 'false');
+
+  try {
+    const project = await getProject(projectId);
+    if (!project || project.deletedAt) {
+      body.innerHTML = '<div class="alert alert-error">Project niet gevonden of verwijderd.</div>';
+      return;
+    }
+    renderDrawer(project);
+    const comments = await listComments(projectId);
+    renderComments(project, comments);
+    // Mark read (non-blocking). Refresh list so the pulse dot disappears.
+    markCommentsRead(projectId).then(() => {
+      setTimeout(refreshProjectList, 400);
+    }).catch(err => console.warn('markCommentsRead failed', err));
+  } catch (e) {
+    body.innerHTML = `<div class="alert alert-error">Kon project niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+  }
+}
+
+function closeDrawer() {
+  const drawer  = document.getElementById('drawer');
+  const overlay = document.getElementById('drawerOverlay');
+  drawer.classList.remove('open');
+  overlay.classList.remove('open');
+  drawer.setAttribute('aria-hidden', 'true');
+  _drawerProjectId = null;
+}
+
+function renderDrawer(project) {
+  const header = document.getElementById('drawerHeader');
+  const body   = document.getElementById('drawerBody');
+  const m      = mergeProjectMetadata(project);
+
+  header.innerHTML = `
+    <div class="meta">
+      <h2>${escapeHtml(project.projectName || '(zonder naam)')}</h2>
+      <div class="customer">${escapeHtml(project.customerName || '')} · ${statusChipHTML(project.status, project.id)}</div>
+    </div>
+    <button type="button" class="drawer-close-btn" aria-label="Sluit">×</button>
+  `;
+  header.querySelector('.drawer-close-btn').addEventListener('click', closeDrawer);
+  header.querySelectorAll('.status-chip.editable').forEach(chip => {
+    chip.addEventListener('click', (e) => { e.stopPropagation(); openStatusPopover(chip); });
+  });
+
+  // Build sections conditionally.
+  const sections = [];
+
+  // Contact
+  const contactLines = [];
+  if (m.customer.address) contactLines.push(`<div class="contact-line" style="white-space:pre-wrap;">📍 ${escapeHtml(m.customer.address)}</div>`);
+  if (m.customer.phone)   contactLines.push(`<div class="contact-line">📞 <a href="tel:${escapeHtml(m.customer.phone)}">${escapeHtml(m.customer.phone)}</a></div>`);
+  if (m.customer.email)   contactLines.push(`<div class="contact-line">✉️ <a href="mailto:${escapeHtml(m.customer.email)}">${escapeHtml(m.customer.email)}</a></div>`);
+  if (contactLines.length > 0) {
+    sections.push(`<div class="drawer-section"><h3>Contact</h3>${contactLines.join('')}</div>`);
+  }
+
+  // Actions
+  const calcHref = project.lastCalcRun && project.lastCalcRun.calculatedAt
+    ? `index.html?project=${project.id}#results`
+    : `index.html?project=${project.id}`;
+  sections.push(`
+    <div class="drawer-section">
+      <div class="drawer-actions">
+        <a class="btn" href="${calcHref}">🧮 Open berekening</a>
+        <a class="btn btn-secondary" href="project-edit.html?project=${project.id}">✏ Bewerk project</a>
+      </div>
+    </div>
+  `);
+
+  // Configs summary
+  const configs = (project.lastCalcRun && project.lastCalcRun.inputs && project.lastCalcRun.inputs.selectedConfigTypes) || [];
+  if (configs.length > 0) {
+    sections.push(`
+      <div class="drawer-section">
+        <h3>Gekozen configuraties</h3>
+        <ul class="configs-summary">${configs.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
+      </div>
+    `);
+  }
+
+  // Situation
+  if (m.situation) {
+    sections.push(`<div class="drawer-section"><h3>Situatie</h3><div class="free-text">${escapeHtml(m.situation)}</div></div>`);
+  }
+  // Notes
+  if (m.notes) {
+    sections.push(`<div class="drawer-section"><h3>Notities</h3><div class="free-text">${escapeHtml(m.notes)}</div></div>`);
+  }
+
+  // Comments placeholder (filled by renderComments)
+  sections.push(`
+    <div class="drawer-section" id="drawerCommentsSection">
+      <h3>💬 Opmerkingen <span id="drawerCommentsCount" style="font-weight:400;color:var(--muted);"></span></h3>
+      <div class="comments-list" id="drawerCommentsList"><p class="empty-state">⏳ Laden…</p></div>
+      <div class="composer">
+        <textarea id="drawerCommentInput" placeholder="Plaats een opmerking…" maxlength="4000"></textarea>
+        <div class="composer-row">
+          <div class="err" id="drawerCommentErr"></div>
+          <button type="button" class="btn" id="drawerCommentSubmit">Plaats opmerking</button>
+        </div>
+      </div>
+    </div>
+  `);
+
+  body.innerHTML = sections.join('');
+
+  // Wire comment submit
+  document.getElementById('drawerCommentSubmit').addEventListener('click', async () => {
+    const errEl = document.getElementById('drawerCommentErr');
+    const btn   = document.getElementById('drawerCommentSubmit');
+    const input = document.getElementById('drawerCommentInput');
+    errEl.textContent = '';
+    const text = input.value;
+    if (!text.trim()) { errEl.textContent = 'Leeg.'; return; }
+    btn.disabled = true; btn.textContent = 'Bezig…';
+    try {
+      await addComment(project.id, text);
+      input.value = '';
+      // Refresh comments list
+      const fresh = await listComments(project.id);
+      renderComments(project, fresh);
+    } catch (e) {
+      errEl.textContent = e && e.message ? e.message : String(e);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Plaats opmerking';
+    }
+  });
+}
+
+function renderComments(project, comments) {
+  const list = document.getElementById('drawerCommentsList');
+  const count = document.getElementById('drawerCommentsCount');
+  if (!list) return;
+  count.textContent = comments.length > 0 ? `(${comments.length})` : '';
+  if (comments.length === 0) {
+    list.innerHTML = '<p class="empty-state" style="font-style:italic;color:var(--muted);">Nog geen opmerkingen. Plaats er één hieronder.</p>';
+    return;
+  }
+  list.innerHTML = comments.map(c => `
+    <div class="comment">
+      <div class="meta">
+        <span class="author">${escapeHtml(shortName(c.author))}</span>
+        <span>${fmtRelTime(c.createdAt)}</span>
+      </div>
+      <div class="text">${escapeHtml(c.text || '')}</div>
+    </div>
+  `).join('');
+  // Scroll last comment into view if the newest is below the fold.
+  const lastComment = list.lastElementChild;
+  if (lastComment) lastComment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Drawer close hooks
+document.addEventListener('DOMContentLoaded', () => {
+  const overlay = document.getElementById('drawerOverlay');
+  if (overlay) overlay.addEventListener('click', closeDrawer);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && _drawerProjectId) closeDrawer();
+  });
+});
 </script>
 
 </body>
