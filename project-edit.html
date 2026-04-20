@@ -222,9 +222,11 @@ function renderSections() {
   host.innerHTML = [
     sectionBasisgegevens(),
     sectionSupplier(),
+    sectionWoning(),
   ].join('');
   wireSectionBasisgegevens();
   wireSectionSupplier();
+  wireSectionWoning();
 }
 
 function sectionBasisgegevens() {
@@ -310,6 +312,67 @@ function wireSectionSupplier() {
   if (pn) pn.addEventListener('input', e => {
     const v = parseFloat(e.target.value);
     _project.supplier.priceNight = isNaN(v) ? null : v;
+  });
+}
+
+function sectionWoning() {
+  const ageVal = _project.site.houseAgeOver10Years;   // null | true | false
+  const effective = effectiveBtwFor(_project);         // null | 6 | 21
+  const ageDisabled = ageVal !== null;
+  const radioId = (v, label) => {
+    const checked = (ageVal === v);
+    const strV = v === null ? 'unknown' : String(v);
+    return `<label><input type="radio" name="fHouseAge" value="${strV}" ${checked ? 'checked' : ''} /> ${label}</label>`;
+  };
+  return `
+    <details class="card" id="secWoning" open>
+      <summary>🏠 Woning</summary>
+      <div class="section-body">
+        <div class="form-row">
+          <label>Leeftijd woning</label>
+          <div class="tri-state">
+            ${radioId(true,  '10 jaar of ouder')}
+            ${radioId(false, 'Jonger dan 10 jaar')}
+            ${radioId(null,  'Onbekend')}
+          </div>
+          <div class="help">10 jaar of ouder → BTW 6%. Jonger → BTW 21%.</div>
+        </div>
+        <div class="form-row">
+          <label for="fBtwManual">Effectief BTW-tarief</label>
+          <select id="fBtwManual" ${ageDisabled ? 'disabled' : ''}>
+            <option value="">— Nog niet bepaald —</option>
+            <option value="6"  ${effective === 6  ? 'selected' : ''}>6%</option>
+            <option value="21" ${effective === 21 ? 'selected' : ''}>21%</option>
+          </select>
+          <div class="help">${ageDisabled
+            ? 'Afgeleid uit de leeftijd van de woning. Kies "Onbekend" om zelf te kiezen.'
+            : 'Vul in als de leeftijd onbekend is.'}
+          </div>
+        </div>
+      </div>
+    </details>
+  `;
+}
+
+function wireSectionWoning() {
+  document.querySelectorAll('input[name="fHouseAge"]').forEach(r => {
+    r.addEventListener('change', e => {
+      const v = e.target.value;
+      _project.site.houseAgeOver10Years =
+        v === 'true'  ? true  :
+        v === 'false' ? false :
+                        null;
+      // When auto-derived, we clear the manual btw so readers always see the derived value.
+      if (_project.site.houseAgeOver10Years !== null) {
+        _project.calcDefaults.btw = null;
+      }
+      rerenderSection('secWoning', sectionWoning, wireSectionWoning);
+    });
+  });
+  const sel = document.getElementById('fBtwManual');
+  sel.addEventListener('change', e => {
+    const v = e.target.value;
+    _project.calcDefaults.btw = v === '' ? null : Number(v);
   });
 }
 
