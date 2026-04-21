@@ -720,9 +720,12 @@ function rowHTML(p, isDeleted) {
   const warn   = needsGroundFaultCheck(p)
     ? `<span class="row-warning" title="Controleer fase↔aarde spanning: bij Zendure-installaties moet dit &lt; 30 V zijn. Zet de vink in het project zodra gemeten."><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i></span>`
     : '';
+  const warnOfferte = needsOfferteWarning(p)
+    ? `<span class="row-warning row-warning-offerte" title="Offertes ontbreken — klant zit in offerte-fase maar er zijn configs zonder PDF."><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i></span>`
+    : '';
   return `
     <tr class="${isDeleted ? 'deleted-row' : ''}">
-      <td>${chat}${warn}<button type="button" class="projectNameBtn" data-id="${p.id}">${escapeHtml(p.projectName || '')}</button></td>
+      <td>${chat}${warn}${warnOfferte}<button type="button" class="projectNameBtn" data-id="${p.id}">${escapeHtml(p.projectName || '')}</button></td>
       <td>${escapeHtml(p.customerName || '')}</td>
       <td>${statusChipHTML(p.status, p.id)}</td>
       <td>${updated}</td>
@@ -838,9 +841,12 @@ function kanbanCardHTML(p) {
   const warn  = needsGroundFaultCheck(p)
     ? `<span class="row-warning" title="Controleer fase↔aarde meting bij Zendure (&lt; 30 V)."><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i></span>`
     : '';
+  const warnOfferte = needsOfferteWarning(p)
+    ? `<span class="row-warning row-warning-offerte" title="Offertes ontbreken — klant zit in offerte-fase maar er zijn configs zonder PDF."><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i></span>`
+    : '';
   return `
     <div class="kanban-card" draggable="true" data-id="${p.id}">
-      <div class="kanban-card-title" data-id="${p.id}">${chat}${warn}${escapeHtml(p.projectName || '')}</div>
+      <div class="kanban-card-title" data-id="${p.id}">${chat}${warn}${warnOfferte}${escapeHtml(p.projectName || '')}</div>
       <div class="kanban-card-customer">${escapeHtml(p.customerName || '')}</div>
       <div class="kanban-card-footer">
         ${statusChipHTML(p.status, p.id)}
@@ -1236,6 +1242,20 @@ function renderDrawer(project) {
       <div class="alert alert-warning" style="margin-bottom:14px;">
         <i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i> <div><strong>Controleer fase↔aarde meting voor Zendure.</strong>
           Nog niet aangevinkt in dit project. Meet het spanningsverschil vóór installatie en vink aan in <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Bewerk project om een ground fault te voorkomen.</div>
+      </div>
+    `);
+  }
+  if (needsOfferteWarning(project)) {
+    const missingCount = (project.lastCalcRun && project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
+      ? project.lastCalcRun.inputs.selectedConfigTypes.filter(t => !(project.dismissedConfigs || []).includes(t) && !(project.offertes || {})[t]).length
+      : 0;
+    sections.push(`
+      <div class="alert alert-warning" style="margin-bottom:14px;">
+        <i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i>
+        <div>
+          <strong>Offertes ontbreken.</strong>
+          Dit project staat in offerte-fase maar ${missingCount} config(s) hebben nog geen offerte PDF.
+        </div>
       </div>
     `);
   }
