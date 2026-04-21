@@ -186,7 +186,7 @@
 
 <!-- State 1: not logged in -->
 <div class="card center-card" id="stateLoggedOut">
-  <h1>⚡ SmartPeak — Project bewerken</h1>
+  <h1><i class="fa-solid fa-bolt" aria-hidden="true"></i> SmartPeak — Project bewerken</h1>
   <p class="help">Alleen voor Bloxit medewerkers.</p>
   <button type="button" class="btn" id="btnSignIn">Log in met Google</button>
   <p id="signInError" class="alert alert-error hide" style="margin-top:16px;"></p>
@@ -194,7 +194,7 @@
 
 <!-- State 2: logged in but not whitelisted -->
 <div class="card center-card hide" id="stateNotWhitelisted">
-  <h1>⚠️ Geen toegang</h1>
+  <h1><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i> Geen toegang</h1>
   <p class="help">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
   <button type="button" class="btn btn-secondary" id="btnSignOutNW">Uitloggen</button>
 </div>
@@ -202,7 +202,7 @@
 <!-- State 3: logged in + whitelisted -->
 <div class="hide" id="stateAuthorized">
   <div class="topbar">
-    <h1 id="pageTitle">⚡ Nieuw project</h1>
+    <h1 id="pageTitle"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Nieuw project</h1>
     <div class="right">
       <a href="dashboard.html" class="btn btn-secondary">← Dashboard</a>
     </div>
@@ -293,7 +293,7 @@ async function bootstrap() {
       ...newEmptyProjectMetadata(),
       csvUpload: null,
     };
-    document.getElementById('pageTitle').textContent = '⚡ Nieuw project';
+    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-bolt" aria-hidden="true"></i> Nieuw project';
   } else {
     if (!PROJECT_ID) { showError('Geen project-id opgegeven.'); return; }
     const proj = await getProject(PROJECT_ID);
@@ -302,7 +302,7 @@ async function bootstrap() {
       ...proj,
       ...mergeProjectMetadata(proj),
     };
-    document.getElementById('pageTitle').textContent = '✏ ' + (proj.projectName || 'Project');
+    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> ' + escapeHtml(proj.projectName || 'Project');
   }
   renderSections();
   wireActions();
@@ -343,7 +343,7 @@ function sectionBasisgegevens() {
   ).join('');
   return `
     <details class="card span-2" id="secBasis" open>
-      <summary>📝 Basisgegevens</summary>
+      <summary><i class="fa-solid fa-id-card" aria-hidden="true"></i> Basisgegevens</summary>
       <div class="section-body">
         <div class="form-row">
           <label class="required" for="fProjectName">Projectnaam</label>
@@ -408,7 +408,7 @@ function wireSectionCustomer() {
 function sectionSituationNotes() {
   return `
     <details class="card span-2" id="secSituation" open>
-      <summary>📝 Situatie &amp; notities</summary>
+      <summary><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> Situatie &amp; notities</summary>
       <div class="section-body">
         <div class="form-row">
           <label for="fSituation">Situatie</label>
@@ -439,7 +439,7 @@ function sectionSupplier() {
   const single = s.isSingleTariff === true;
   return `
     <details class="card" id="secSupplier" open>
-      <summary>💡 Leverancier &amp; tarieven</summary>
+      <summary><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Leverancier &amp; tarieven</summary>
       <div class="section-body">
         <div class="form-row">
           <label for="fSupplierName">Naam leverancier <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
@@ -498,7 +498,7 @@ function sectionWoning() {
   };
   return `
     <details class="card" id="secWoning" open>
-      <summary>🏠 Woning</summary>
+      <summary><i class="fa-solid fa-house" aria-hidden="true"></i> Woning</summary>
       <div class="section-body">
         <div class="form-row">
           <label>Leeftijd woning</label>
@@ -555,7 +555,7 @@ function sectionElectrical() {
   ).join('');
   return `
     <details class="card" id="secElectrical" open>
-      <summary>🔌 Elektrische aansluiting</summary>
+      <summary><i class="fa-solid fa-plug" aria-hidden="true"></i> Elektrische aansluiting</summary>
       <div class="section-body">
         <div class="form-row">
           <label for="fConnectionType">Type aansluiting</label>
@@ -614,7 +614,7 @@ function sectionCabinet() {
   `;
   return `
     <details class="card" id="secCabinet" open>
-      <summary>🗄 Zekeringkast</summary>
+      <summary><i class="fa-solid fa-server" aria-hidden="true"></i> Zekeringkast</summary>
       <div class="section-body">
         <div class="form-row">
           <label for="fFreeUnits">Vrije modules in de kast</label>
@@ -673,7 +673,7 @@ function sectionSolar() {
     <div class="card" data-inv-id="${inv.id}" style="background:#f4f7fc;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <strong>Omvormer ${idx + 1}</strong>
-        <button type="button" class="btn btn-danger" data-remove="${inv.id}" style="padding:4px 10px;font-size:0.85rem;">🗑 Verwijderen</button>
+        <button type="button" class="btn btn-danger" data-remove="${inv.id}" style="padding:4px 10px;font-size:0.85rem;"><i class="fa-solid fa-trash" aria-hidden="true"></i> Verwijderen</button>
       </div>
       <div class="form-row">
         <label class="required">Vermogen omvormer (kW)</label>
@@ -711,7 +711,7 @@ function sectionSolar() {
     : '';
   return `
     <details class="card span-2" id="secSolar" open>
-      <summary>☀ Zonnepanelen &amp; omvormer(s)</summary>
+      <summary><i class="fa-solid fa-solar-panel" aria-hidden="true"></i> Zonnepanelen &amp; omvormer(s)</summary>
       <div class="section-body">
         ${emptyMsg}
         <div id="invList">${invs.map(cardHtml).join('')}</div>
@@ -768,7 +768,7 @@ function sectionCalcDefaults() {
   ].map(o => `<option value="${o.v}" ${o.v === (k || '') ? 'selected' : ''}>${o.label}</option>`).join('');
   return `
     <details class="card" id="secCalc" open>
-      <summary>🧮 Voorkeuren berekening</summary>
+      <summary><i class="fa-solid fa-calculator" aria-hidden="true"></i> Voorkeuren berekening</summary>
       <div class="section-body">
         <div class="form-row">
           <label for="fKeuring">Voorkeur keuring</label>
@@ -795,7 +795,7 @@ function sectionPhotos() {
   if (IS_NEW) {
     return `
       <details class="card" id="secPhotos">
-        <summary>📷 Foto's</summary>
+        <summary><i class="fa-solid fa-images" aria-hidden="true"></i> Foto's</summary>
         <div class="section-body">
           <p class="help">Maak het project eerst aan (Opslaan). Daarna kan je hier foto's uploaden.</p>
         </div>
@@ -804,13 +804,13 @@ function sectionPhotos() {
   }
   return `
     <details class="card span-2" id="secPhotos" open>
-      <summary>📷 Foto's <span id="pePhotosCount" style="font-weight:400;color:var(--muted);"></span></summary>
+      <summary><i class="fa-solid fa-images" aria-hidden="true"></i> Foto's <span id="pePhotosCount" style="font-weight:400;color:var(--muted);"></span></summary>
       <div class="section-body">
         <div class="photo-grid" id="pePhotoGrid"><p class="help">⏳ Laden…</p></div>
         <div class="pe-drop-zone" id="peDropZone">
           <input type="file" id="pePhotoInput" accept="image/*" multiple />
           <div class="pe-drop-zone-prompt" id="peDropPrompt">
-            📂 <strong>Sleep foto's hier</strong> <span style="color:var(--muted)">of klik om te selecteren</span>
+            <i class="fa-solid fa-folder-open" aria-hidden="true"></i> <strong>Sleep foto's hier</strong> <span style="color:var(--muted)">of klik om te selecteren</span>
             <div class="help" style="margin-top:4px;">Meerdere tegelijk is OK (max 15 MB per foto).</div>
           </div>
           <div class="pe-drop-zone-progress hide" id="peDropProgress">
@@ -928,7 +928,7 @@ function openPeLightbox(idx) {
       <button type="button" class="lightbox-pe-btn close" title="Sluit">×</button>
       <button type="button" class="lightbox-pe-btn prev" title="Vorige">‹</button>
       <button type="button" class="lightbox-pe-btn next" title="Volgende">›</button>
-      <button type="button" class="lightbox-pe-btn del" title="Verwijder foto">🗑</button>
+      <button type="button" class="lightbox-pe-btn del" title="Verwijder foto"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       <img id="peLightboxImg" alt="" />
     `;
     document.body.appendChild(lb);
@@ -980,14 +980,14 @@ function sectionCsv() {
   const cu = _project.csvUpload;
   const hasCsv = !!cu;
   const lastInfo = hasCsv
-    ? `<p class="help">📁 <strong>${escapeHtml(cu.eanCode || 'onbekend')}</strong> — geüpload op ${formatTs(cu.uploadedAt)} door ${escapeHtml(shortEmail(cu.uploadedBy))}</p>`
+    ? `<p class="help"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> <strong>${escapeHtml(cu.eanCode || 'onbekend')}</strong> — geüpload op ${formatTs(cu.uploadedAt)} door ${escapeHtml(shortEmail(cu.uploadedBy))}</p>`
     : '';
   const pendingInfo = _pendingCsv
-    ? `<p class="help">📁 Nieuwe CSV klaar voor opslaan (${escapeHtml(_pendingCsv.eanCode || 'onbekend')}). Wordt samen met dit project bewaard.</p>`
+    ? `<p class="help"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Nieuwe CSV klaar voor opslaan (${escapeHtml(_pendingCsv.eanCode || 'onbekend')}). Wordt samen met dit project bewaard.</p>`
     : '';
   return `
     <details class="card span-2" id="secCsv" open>
-      <summary>📊 Verbruikshistoriek (CSV)</summary>
+      <summary><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Verbruikshistoriek (CSV)</summary>
       <div class="section-body">
         ${lastInfo}
         ${pendingInfo}
