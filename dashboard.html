@@ -482,6 +482,21 @@
     .drop-zone-hover { background: #eff6ff; border-color: #3b82f6; }
     .drop-zone-text  { color: #475569; }
     .offerte-cfg-header { margin-bottom: 8px; }
+    .offerte-row { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    .offerte-row:last-child { border-bottom: 0; }
+    .offerte-row-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .offerte-row-title { flex: 1; }
+    .offerte-row-meta { color: var(--muted, #6b7280); font-size: .85rem; margin: 2px 0 6px 26px; }
+    .offerte-row-pdf  { font-size: .9rem; margin: 0 0 6px 26px; }
+    .offerte-row-actions { margin-left: 26px; display: flex; gap: 6px; }
+    .offerte-row.dismissed { display: flex; align-items: center; gap: 8px; opacity: .5; text-decoration: line-through; padding: 6px 0; }
+    .offerte-row.dismissed .offerte-row-title { flex: 1; }
+    .offerte-divider { color: var(--muted); font-size: .8rem; margin: 12px 0 6px 0; text-align: center; }
+    .btn-icon {
+      background: transparent; border: 0; cursor: pointer; padding: 4px 6px;
+      color: var(--text, #111); font-size: .95rem;
+    }
+    .btn-icon:hover .fa-trash, .btn-icon:hover .fa-circle-xmark { color: #dc2626; }
 
   </style>
 </head>
@@ -925,7 +940,8 @@ function wireBoard(el) {
 }
 
 // ─── DRAWER ──────────────────────────────────────────────────────────────────
-let _drawerProjectId = null;
+let _drawerProjectId    = null;
+let _currentDrawerProject = null;
 
 function fmtRelTime(ts) {
   if (!ts || typeof ts.toDate !== 'function') return '—';
@@ -1071,9 +1087,13 @@ function _bindOfferteDropZone(projectId, configType) {
 }
 
 async function _refreshCurrentDrawer() {
-  // Stub — Task 9 will refetch + re-render the drawer and project-list row.
-  // For now, reload the page as a temporary fallback so user sees fresh state.
-  location.reload();
+  if (!_currentDrawerProject) return;
+  const id = _currentDrawerProject.id;
+  const snap = await firebase.firestore().collection('projects').doc(id).get();
+  if (!snap.exists) return;
+  const fresh = mergeProjectMetadata(Object.assign({ id: snap.id }, snap.data()));
+  _currentDrawerProject = fresh;
+  renderDrawer(fresh);
 }
 
 async function openDrawer(projectId) {
@@ -1097,6 +1117,7 @@ async function openDrawer(projectId) {
       body.innerHTML = '<div class="alert alert-error">Project niet gevonden of verwijderd.</div>';
       return;
     }
+    _currentDrawerProject = project;
     renderDrawer(project);
     // Load comments + photos in parallel.
     const [comments, photos] = await Promise.all([
@@ -1121,6 +1142,72 @@ function closeDrawer() {
   overlay.classList.remove('open');
   drawer.setAttribute('aria-hidden', 'true');
   _drawerProjectId = null;
+  _currentDrawerProject = null;
+}
+
+function renderDrawerOffertes(project) {
+  const types = (project.lastCalcRun && project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
+    ? project.lastCalcRun.inputs.selectedConfigTypes : [];
+  const offertes  = project.offertes || {};
+  const dismissed = new Set(project.dismissedConfigs || []);
+  if (types.length === 0) return '';
+
+  const active   = types.filter(t => !dismissed.has(t));
+  const inactive = types.filter(t =>  dismissed.has(t));
+
+  const activeRows = active.map(t => {
+    const cfg = _findConfigByType(project, t);
+    const pdf = offertes[t];
+    const iconState = pdf
+      ? '<i class="fa-solid fa-circle-check icon-ok" aria-hidden="true"></i>'
+      : '<i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i>';
+    const fileRow = pdf
+      ? `<div class="offerte-row-pdf"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> ${escapeHtml(pdf.filename || '')}</div>`
+      : `<div class="offerte-row-pdf" style="color:var(--muted);">Offerte nog niet toegevoegd</div>`;
+    const actions = pdf
+      ? `<button class="btn-icon offerte-download-btn" data-type="${escapeHtml(t)}" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
+         <button class="btn-icon offerte-replace-btn"  data-type="${escapeHtml(t)}" title="Vervangen"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
+         <button class="btn-icon offerte-trash-btn"    data-type="${escapeHtml(t)}" data-has-pdf="1" title="Verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`
+      : `<button class="btn-icon offerte-upload-btn"   data-type="${escapeHtml(t)}" title="Upload"><i class="fa-solid fa-upload" aria-hidden="true"></i></button>
+         <button class="btn-icon offerte-trash-btn"    data-type="${escapeHtml(t)}" data-has-pdf="0" title="Niet geoffreerd"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
+
+    return `
+      <div class="offerte-row ${pdf ? 'has-pdf' : 'missing-pdf'}">
+        <div class="offerte-row-head">
+          ${iconState}
+          <span class="offerte-row-title">${escapeHtml(cfg.type)} · ${escapeHtml(cfg.omschrijving || '')}</span>
+        </div>
+        <div class="offerte-row-meta">
+          € ${_formatEuros(cfg.priceEur)}${cfg.batCap ? ' · ' + escapeHtml(String(cfg.batCap)) + ' kWh' : ''}${cfg.batInv ? ' · ' + escapeHtml(String(cfg.batInv)) + ' kW' : ''}
+        </div>
+        ${fileRow}
+        <div class="offerte-row-actions">${actions}</div>
+      </div>
+    `;
+  }).join('');
+
+  const inactiveRows = inactive.length ? `
+    <div class="offerte-divider">── Niet geoffreerd ──</div>
+    ${inactive.map(t => {
+      const cfg = _findConfigByType(project, t);
+      return `
+        <div class="offerte-row dismissed">
+          <span class="offerte-row-title">${escapeHtml(cfg.type)} · ${escapeHtml(cfg.omschrijving || '')}</span>
+          <button class="btn-icon offerte-restore-btn" data-type="${escapeHtml(t)}" title="Terugzetten">
+            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+          </button>
+        </div>
+      `;
+    }).join('')}
+  ` : '';
+
+  return `
+    <section class="drawer-section drawer-configs">
+      <h3>Configs</h3>
+      ${activeRows}
+      ${inactiveRows}
+    </section>
+  `;
 }
 
 function renderDrawer(project) {
@@ -1176,16 +1263,8 @@ function renderDrawer(project) {
     </div>
   `);
 
-  // Configs summary
-  const configs = (project.lastCalcRun && project.lastCalcRun.inputs && project.lastCalcRun.inputs.selectedConfigTypes) || [];
-  if (configs.length > 0) {
-    sections.push(`
-      <div class="drawer-section">
-        <h3>Gekozen configuraties</h3>
-        <ul class="configs-summary">${configs.map(c => `<li>${escapeHtml(c)}</li>`).join('')}</ul>
-      </div>
-    `);
-  }
+  // Configs / offertes per type
+  sections.push(renderDrawerOffertes(project));
 
   // Situation
   if (m.situation) {
@@ -1404,6 +1483,47 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape' && _drawerProjectId) closeDrawer();
   });
 });
+
+// Offerte-row button delegation
+(function bindOfferteRowActions() {
+  const drawer = document.getElementById('drawer');
+  if (!drawer) return;
+  drawer.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button.btn-icon');
+    if (!btn) return;
+    const type = btn.getAttribute('data-type');
+    const project = _currentDrawerProject;
+    if (!project || !type) return;
+
+    try {
+      if (btn.classList.contains('offerte-upload-btn') || btn.classList.contains('offerte-replace-btn')) {
+        openOfferteModal(project, type);
+      }
+      else if (btn.classList.contains('offerte-download-btn')) {
+        const pdf = (project.offertes || {})[type];
+        if (!pdf || !pdf.storagePath) return;
+        const url = await firebase.storage().ref(pdf.storagePath).getDownloadURL();
+        window.open(url, '_blank');
+      }
+      else if (btn.classList.contains('offerte-trash-btn')) {
+        const hasPdf = btn.getAttribute('data-has-pdf') === '1';
+        if (hasPdf) {
+          if (!confirm('Je verwijdert ook de bijgevoegde offerte PDF. Zeker?')) return;
+          await hardDeleteProjectConfig(project.id, type);
+        } else {
+          await dismissProjectConfig(project.id, type);
+        }
+        await _refreshCurrentDrawer();
+      }
+      else if (btn.classList.contains('offerte-restore-btn')) {
+        await restoreProjectConfig(project.id, type);
+        await _refreshCurrentDrawer();
+      }
+    } catch (err) {
+      alert('Er ging iets mis: ' + (err.message || err));
+    }
+  });
+})();
 
 // Modal close bindings (generic — works for any modal-overlay)
 (function bindModalCloseActions() {
