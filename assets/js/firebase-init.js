@@ -121,7 +121,7 @@ function newEmptyProjectMetadata() {
 function mergeProjectMetadata(project) {
   const empty = newEmptyProjectMetadata();
   if (!project) return empty;
-  return {
+  const merged = {
     customer:     { ...empty.customer,     ...(project.customer || {}) },
     situation:    project.situation != null ? project.situation : empty.situation,
     notes:        project.notes     != null ? project.notes     : empty.notes,
@@ -132,6 +132,10 @@ function mergeProjectMetadata(project) {
     supplier:     { ...empty.supplier,     ...(project.supplier || {}) },
     calcDefaults: { ...empty.calcDefaults, ...(project.calcDefaults || {}) },
   };
+  merged.offertes         = project.offertes         || {};
+  merged.dismissedConfigs = Array.isArray(project.dismissedConfigs)
+                              ? project.dismissedConfigs : [];
+  return merged;
 }
 
 // BTW afleidingsregel (single source of truth).
@@ -504,4 +508,127 @@ async function deleteProjectPhoto(projectId, photoId, storagePath) {
   await projectDoc(projectId).collection('photos').doc(photoId).delete();
   try { await getStorage().ref(storagePath).delete(); }
   catch (e) { console.warn('Storage file verwijderen mislukt', e); }
+}
+
+// ─── OFFERTES (per-config PDF upload) ────────────────────────────────────────
+
+async function uploadProjectOfferte(projectId, configType, file) {
+  if (!file) throw new Error('Geen bestand opgegeven');
+  if (file.type !== 'application/pdf') throw new Error('Enkel PDF-bestanden worden aanvaard');
+  if (file.size > 10 * 1024 * 1024) throw new Error('PDF is groter dan 10 MB');
+
+  const user = firebase.auth().currentUser;
+  if (!user) throw new Error('Niet ingelogd');
+
+  const ts = Date.now();
+  const safeType = String(configType).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const storagePath = `projects/${projectId}/offertes/${safeType}_${ts}.pdf`;
+
+  // Haal eventueel bestaande blob op om te deleten na succesvolle upload.
+  const projRef = firebase.firestore().collection('projects').doc(projectId);
+  const projSnap = await projRef.get();
+  const existing = (projSnap.data() || {}).offertes || {};
+  const oldEntry = existing[configType];
+
+  // Upload nieuwe blob.
+  const ref = firebase.storage().ref(storagePath);
+  await ref.put(file, { contentType: 'application/pdf' });
+
+  const metadata = {
+    storagePath,
+    filename:    file.name,
+    sizeBytes:   file.size,
+    contentType: 'application/pdf',
+    uploadedAt:  firebase.firestore.FieldValue.serverTimestamp(),
+    uploadedBy:  user.email || null
+  };
+
+  // Firestore swap — ook restore uit dismissedConfigs impliciet.
+  await projRef.update({
+    [`offertes.${configType}`]: metadata,
+    dismissedConfigs: firebase.firestore.FieldValue.arrayRemove(configType),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  // Oude blob verwijderen (na succesvolle Firestore-swap zodat crash midden-in de nieuwe PDF niet weggooit).
+  if (oldEntry && oldEntry.storagePath && oldEntry.storagePath !== storagePath) {
+    try {
+      await firebase.storage().ref(oldEntry.storagePath).delete();
+    } catch (err) {
+      console.warn('Vorige offerte blob niet gevonden of delete-fout:', err);
+    }
+  }
+
+  return metadata;
+}
+
+async function deleteProjectOfferte(projectId, configType) {
+  const projRef = firebase.firestore().collection('projects').doc(projectId);
+  const projSnap = await projRef.get();
+  const existing = (projSnap.data() || {}).offertes || {};
+  const entry = existing[configType];
+  if (!entry) return;
+
+  try {
+    if (entry.storagePath) await firebase.storage().ref(entry.storagePath).delete();
+  } catch (err) {
+    console.warn('Storage delete faalde (blob mogelijk al weg):', err);
+  }
+
+  await projRef.update({
+    [`offertes.${configType}`]: firebase.firestore.FieldValue.delete(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+async function hardDeleteProjectConfig(projectId, configType) {
+  // 1. Blob + map-entry weg (reuse deleteProjectOfferte).
+  await deleteProjectOfferte(projectId, configType);
+
+  // 2. Type uit lastCalcRun.inputs.selectedConfigTypes halen.
+  const projRef = firebase.firestore().collection('projects').doc(projectId);
+  const snap = await projRef.get();
+  const data = snap.data() || {};
+  const types = (data.lastCalcRun && data.lastCalcRun.inputs && Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
+    ? data.lastCalcRun.inputs.selectedConfigTypes.filter(t => t !== configType)
+    : [];
+
+  // 3. Ook uit dismissedConfigs (defensief — mocht hij per ongeluk in beide staan).
+  await projRef.update({
+    'lastCalcRun.inputs.selectedConfigTypes': types,
+    dismissedConfigs: firebase.firestore.FieldValue.arrayRemove(configType),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+async function dismissProjectConfig(projectId, configType) {
+  const projRef = firebase.firestore().collection('projects').doc(projectId);
+  await projRef.update({
+    dismissedConfigs: firebase.firestore.FieldValue.arrayUnion(configType),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+async function restoreProjectConfig(projectId, configType) {
+  const projRef = firebase.firestore().collection('projects').doc(projectId);
+  await projRef.update({
+    dismissedConfigs: firebase.firestore.FieldValue.arrayRemove(configType),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+// ─── OFFERTE WARNING PREDICATE ────────────────────────────────────────────────
+// True iff project is in offerte-fase AND minstens één config heeft geen PDF en
+// is niet dismissed.
+function needsOfferteWarning(project) {
+  if (!project) return false;
+  if (typeof phaseForStatus !== 'function') return false;
+  if (phaseForStatus(project.status).key !== 'offerte') return false;
+
+  const types = (project.lastCalcRun && project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
+    ? project.lastCalcRun.inputs.selectedConfigTypes
+    : [];
+  const offertes = project.offertes || {};
+  const dismissed = new Set(Array.isArray(project.dismissedConfigs) ? project.dismissedConfigs : []);
+  return types.some(t => !dismissed.has(t) && !offertes[t]);
 }
