@@ -448,7 +448,7 @@
 
 <!-- State 1: not logged in -->
 <div class="card center-card" id="stateLoggedOut">
-  <h1>⚡ SmartPeak — Projecten</h1>
+  <h1><i class="fa-solid fa-bolt" aria-hidden="true"></i> SmartPeak — Projecten</h1>
   <p class="subtitle">Alleen voor Bloxit medewerkers.</p>
   <button type="button" class="btn" id="btnSignIn">Log in met Google</button>
   <p id="signInError" class="alert alert-error hide" style="margin-top:16px;"></p>
@@ -456,7 +456,7 @@
 
 <!-- State 2: logged in but not whitelisted -->
 <div class="card center-card hide" id="stateNotWhitelisted">
-  <h1>⚠️ Geen toegang</h1>
+  <h1><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i> Geen toegang</h1>
   <p class="subtitle">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
   <button type="button" class="btn btn-secondary" id="btnSignOutNW">Uitloggen</button>
 </div>
@@ -464,7 +464,7 @@
 <!-- State 3: logged in + whitelisted -->
 <div class="hide" id="stateAuthorized">
   <div class="topbar">
-    <h1>⚡ SmartPeak — Projecten</h1>
+    <h1><i class="fa-solid fa-bolt" aria-hidden="true"></i> SmartPeak — Projecten</h1>
     <div class="right">
       <span>Hallo, <strong id="userDisplayName">…</strong></span>
       <button type="button" class="btn btn-secondary" id="btnSignOut">Uitloggen</button>
@@ -483,8 +483,8 @@
       </label>
       <div class="filler"></div>
       <div class="view-toggle" id="viewToggle">
-        <button type="button" data-view="list"  class="active">📋 Lijst</button>
-        <button type="button" data-view="board">🗂 Bord</button>
+        <button type="button" data-view="list"  class="active"><i class="fa-solid fa-list" aria-hidden="true"></i> Lijst</button>
+        <button type="button" data-view="board"><i class="fa-solid fa-table-columns" aria-hidden="true"></i> Bord</button>
       </div>
     </div>
     <div id="projectList">Project-lijst komt in Task 5.</div>
@@ -597,7 +597,7 @@ function openStatusPopover(chip) {
     <div class="status-option" data-status="${s.key}">
       <span class="status-dot" style="background:${s.color}"></span>
       <span>${s.label}</span>
-      ${s.key === currentKey ? '<span style="margin-left:auto;color:var(--muted);">✓</span>' : ''}
+      ${s.key === currentKey ? '<span style="margin-left:auto;color:var(--muted);"><i class="fa-solid fa-check" aria-hidden="true"></i></span>' : ''}
     </div>
   `).join('');
   document.body.appendChild(pop);
@@ -632,20 +632,20 @@ function rowHTML(p, isDeleted) {
   const by      = shortName(p.createdBy);
   const editBtn = isDeleted
     ? ''
-    : `<button type="button" class="editBtn" data-id="${p.id}" title="Bewerken">✏️</button>`;
+    : `<button type="button" class="editBtn" data-id="${p.id}" title="Bewerken"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>`;
   const calcBtn = (!isDeleted && p.lastCalcRun && p.lastCalcRun.calculatedAt)
-    ? `<button type="button" class="calcBtn" data-id="${p.id}" title="Open berekening">🧮</button>`
+    ? `<button type="button" class="calcBtn" data-id="${p.id}" title="Open berekening"><i class="fa-solid fa-calculator" aria-hidden="true"></i></button>`
     : '';
   const action  = isDeleted
-    ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen">↶</button>
-       <button type="button" class="permdelBtn"  data-id="${p.id}" data-name="${escapeHtml(p.projectName || '')}" title="Definitief verwijderen">❌</button>`
-    : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen">🗑️</button>`;
+    ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
+       <button type="button" class="permdelBtn"  data-id="${p.id}" data-name="${escapeHtml(p.projectName || '')}" title="Definitief verwijderen"><i class="fa-solid fa-circle-xmark icon-danger" aria-hidden="true"></i></button>`
+    : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
   const email  = currentUserEmail();
   const chat   = hasAnyComments(p)
-    ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en) van collega' : 'Opmerkingen aanwezig'}">💬</span>`
+    ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en) van collega' : 'Opmerkingen aanwezig'}"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i></span>`
     : '';
   const warn   = needsGroundFaultCheck(p)
-    ? `<span class="row-warning" title="Controleer fase↔aarde spanning: bij Zendure-installaties moet dit &lt; 30 V zijn. Zet de vink in het project zodra gemeten.">❗</span>`
+    ? `<span class="row-warning" title="Controleer fase↔aarde spanning: bij Zendure-installaties moet dit &lt; 30 V zijn. Zet de vink in het project zodra gemeten."><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i></span>`
     : '';
   return `
     <tr class="${isDeleted ? 'deleted-row' : ''}">
@@ -760,10 +760,10 @@ function renderBoard(active, el) {
 function kanbanCardHTML(p) {
   const email = currentUserEmail();
   const chat  = hasAnyComments(p)
-    ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en)' : 'Opmerkingen aanwezig'}">💬</span>`
+    ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en)' : 'Opmerkingen aanwezig'}"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i></span>`
     : '';
   const warn  = needsGroundFaultCheck(p)
-    ? `<span class="row-warning" title="Controleer fase↔aarde meting bij Zendure (&lt; 30 V).">❗</span>`
+    ? `<span class="row-warning" title="Controleer fase↔aarde meting bij Zendure (&lt; 30 V)."><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i></span>`
     : '';
   return `
     <div class="kanban-card" draggable="true" data-id="${p.id}">
@@ -956,8 +956,8 @@ function renderDrawer(project) {
   if (needsGroundFaultCheck(project)) {
     sections.push(`
       <div class="alert alert-warning" style="margin-bottom:14px;">
-        ⚠️ <div><strong>Controleer fase↔aarde meting voor Zendure.</strong>
-          Nog niet aangevinkt in dit project. Meet het spanningsverschil vóór installatie en vink aan in ✏ Bewerk project om een ground fault te voorkomen.</div>
+        <i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i> <div><strong>Controleer fase↔aarde meting voor Zendure.</strong>
+          Nog niet aangevinkt in dit project. Meet het spanningsverschil vóór installatie en vink aan in <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Bewerk project om een ground fault te voorkomen.</div>
       </div>
     `);
   }
@@ -978,9 +978,9 @@ function renderDrawer(project) {
   sections.push(`
     <div class="drawer-section">
       <div class="drawer-actions">
-        <a class="btn" href="${calcHref}">🧮 Open berekening</a>
-        <a class="btn btn-secondary" href="project-edit.html?project=${project.id}">✏ Bewerk project</a>
-        <button type="button" class="btn btn-secondary" id="drawerDeleteBtn" style="background:#fde8e8;color:var(--danger);">🗑 Verwijderen</button>
+        <a class="btn" href="${calcHref}"><i class="fa-solid fa-calculator" aria-hidden="true"></i> Open berekening</a>
+        <a class="btn btn-secondary" href="project-edit.html?project=${project.id}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Bewerk project</a>
+        <button type="button" class="btn btn-secondary" id="drawerDeleteBtn" style="background:#fde8e8;color:var(--danger);"><i class="fa-solid fa-trash" aria-hidden="true"></i> Verwijderen</button>
       </div>
     </div>
   `);
@@ -1008,7 +1008,7 @@ function renderDrawer(project) {
   // Photos placeholder (filled by renderPhotos after async listProjectPhotos)
   sections.push(`
     <div class="drawer-section" id="drawerPhotosSection">
-      <h3>📷 Foto's <span id="drawerPhotosCount" style="font-weight:400;color:var(--muted);"></span></h3>
+      <h3><i class="fa-solid fa-images" aria-hidden="true"></i> Foto's <span id="drawerPhotosCount" style="font-weight:400;color:var(--muted);"></span></h3>
       <div class="photo-grid" id="drawerPhotoGrid"><p class="empty-state">⏳ Laden…</p></div>
       <div class="photo-uploader">
         <input type="file" id="drawerPhotoInput" accept="image/*" multiple />
@@ -1021,7 +1021,7 @@ function renderDrawer(project) {
   // Comments placeholder (filled by renderComments)
   sections.push(`
     <div class="drawer-section" id="drawerCommentsSection">
-      <h3>💬 Opmerkingen <span id="drawerCommentsCount" style="font-weight:400;color:var(--muted);"></span></h3>
+      <h3><i class="fa-solid fa-comments" aria-hidden="true"></i> Opmerkingen <span id="drawerCommentsCount" style="font-weight:400;color:var(--muted);"></span></h3>
       <div class="comments-list" id="drawerCommentsList"><p class="empty-state">⏳ Laden…</p></div>
       <div class="composer">
         <textarea id="drawerCommentInput" placeholder="Plaats een opmerking…" maxlength="4000"></textarea>
@@ -1154,7 +1154,7 @@ function openLightbox(idx) {
       <button type="button" class="lightbox-dash-btn close" title="Sluit">×</button>
       <button type="button" class="lightbox-dash-btn prev" title="Vorige">‹</button>
       <button type="button" class="lightbox-dash-btn next" title="Volgende">›</button>
-      <button type="button" class="lightbox-dash-btn del" title="Verwijder foto">🗑</button>
+      <button type="button" class="lightbox-dash-btn del" title="Verwijder foto"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       <img id="dashLightboxImg" alt="" />
     `;
     document.body.appendChild(lb);
