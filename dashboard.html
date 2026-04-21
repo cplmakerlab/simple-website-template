@@ -442,6 +442,37 @@
     .icon-warn  { color: #f59e0b; }
     .icon-danger{ color: #dc2626; }
 
+    /* generic modal */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      display: none; align-items: center; justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-dialog {
+      background: #fff; border-radius: 10px;
+      max-width: 520px; width: 100%;
+      max-height: 90vh; overflow: auto;
+      box-shadow: 0 10px 40px rgba(0,0,0,.25);
+      padding: 0;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-bottom: 1px solid var(--border, #e5e7eb);
+    }
+    .modal-header h3 { margin: 0; font-size: 1.05rem; }
+    .modal-close-btn {
+      background: transparent; border: 0; font-size: 1.2rem;
+      cursor: pointer; color: var(--muted, #6b7280);
+    }
+    .modal-body { padding: 16px; }
+    .modal-footer {
+      padding: 12px 16px; border-top: 1px solid var(--border, #e5e7eb);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+
   </style>
 </head>
 <body>
@@ -497,6 +528,23 @@
   <div class="drawer-header" id="drawerHeader"></div>
   <div class="drawer-body" id="drawerBody"></div>
 </aside>
+
+<div class="modal-overlay" id="offerteModal" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-header">
+      <h3 id="offerteModalTitle">Offerte uploaden</h3>
+      <button type="button" class="modal-close-btn" id="offerteModalClose" title="Sluiten">
+        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+      </button>
+    </div>
+    <div class="modal-body" id="offerteModalBody">
+      <!-- dynamisch ingevuld in Task 8 -->
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="offerteModalCancel">Annuleren</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
@@ -885,6 +933,26 @@ function fmtRelTime(ts) {
          ' ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
 }
 
+function openModal(modalId) {
+  const el = document.getElementById(modalId);
+  if (!el) return;
+  el.classList.add('open');
+  el.setAttribute('aria-hidden', 'false');
+  document.addEventListener('keydown', _modalEscHandler);
+}
+function closeModal(modalId) {
+  const el = document.getElementById(modalId);
+  if (!el) return;
+  el.classList.remove('open');
+  el.setAttribute('aria-hidden', 'true');
+  document.removeEventListener('keydown', _modalEscHandler);
+}
+function _modalEscHandler(e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
+  }
+}
+
 async function openDrawer(projectId) {
   _drawerProjectId = projectId;
   const drawer  = document.getElementById('drawer');
@@ -1213,6 +1281,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape' && _drawerProjectId) closeDrawer();
   });
 });
+
+// Modal close bindings (generic — works for any modal-overlay)
+(function bindModalCloseActions() {
+  const modal = document.getElementById('offerteModal');
+  if (!modal) return;
+  // click-outside
+  modal.addEventListener('click', (e) => {
+    if (e.target.id === 'offerteModal') closeModal('offerteModal');
+  });
+  const closeBtn  = document.getElementById('offerteModalClose');
+  const cancelBtn = document.getElementById('offerteModalCancel');
+  if (closeBtn)  closeBtn.addEventListener('click',  () => closeModal('offerteModal'));
+  if (cancelBtn) cancelBtn.addEventListener('click', () => closeModal('offerteModal'));
+})();
 </script>
 
 </body>
