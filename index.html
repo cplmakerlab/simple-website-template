@@ -617,8 +617,8 @@
 
 <details id="projectValuesCard" class="card" style="display:none;">
   <summary style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;">
-    <h2 style="margin:0;"><span class="icon">📋</span> Projectgegevens</h2>
-    <button type="button" class="btn btn-secondary" id="pvEditBtn" style="font-size:0.85rem;padding:4px 10px;">✏ Aanpassen</button>
+    <h2 style="margin:0;"><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> Projectgegevens</h2>
+    <button type="button" class="btn btn-secondary" id="pvEditBtn" style="font-size:0.85rem;padding:4px 10px;"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Aanpassen</button>
   </summary>
   <div id="pvIncompleteWarn" class="alert alert-warning" style="display:none;margin-top:10px;"></div>
   <div class="pv-grid" id="pvGrid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px 16px;margin-top:12px;font-size:0.9rem;"></div>
@@ -629,7 +629,7 @@
 
 <!-- INPUT CARD -->
 <div class="card" id="csvUploadCard">
-  <h2><span class="icon">📂</span> Verbruikshistoriek uploaden</h2>
+  <h2><i class="fa-solid fa-folder-open" aria-hidden="true"></i> Verbruikshistoriek uploaden</h2>
   <div class="form-group">
     <label>CSV Bestand (Fluvius verbruikshistoriek)</label>
     <input type="file" id="csvFile" accept=".csv" />
@@ -699,7 +699,7 @@
   <div id="scenarioAlert"></div>
 
   <div class="card" id="energyChartCard" style="display:none;margin-top:0;">
-    <h2><span class="icon">📊</span> Afname &amp; Injectie over tijd</h2>
+    <h2><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Afname &amp; Injectie over tijd</h2>
     <div class="chart-level-toggle" role="tablist">
       <button type="button" id="btnLevelYear"  role="tab" aria-selected="false">Jaar</button>
       <button type="button" id="btnLevelMonth" role="tab" class="active" aria-selected="true">Maand</button>
@@ -736,7 +736,7 @@
 
   <!-- SAVE / SHARE CARD -->
   <div class="card" id="saveCard" style="display:none; margin-top:0;">
-    <h2><span class="icon">💾</span> Bewaar / Deel resultaten</h2>
+    <h2><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Bewaar / Deel resultaten</h2>
     <p style="font-size:0.88rem;color:var(--muted);margin-bottom:14px;">
       Sla de berekening op als deelbare URL of als JSON-bestand. De CSV-data wordt <strong>niet</strong> opgeslagen — enkel de berekende resultaten en ingegeven parameters.
     </p>
@@ -983,7 +983,7 @@ function renderEnergyChart(d) {
   const canvas = document.getElementById('energyChartCanvas');
 
   if (typeof Chart === 'undefined') {
-    card.innerHTML = '<h2><span class="icon">📊</span> Afname &amp; Injectie over tijd</h2><div class="alert alert-warning">⚠️ <div>Grafiek niet beschikbaar — Chart.js kon niet laden.</div></div>';
+    card.innerHTML = '<h2><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Afname &amp; Injectie over tijd</h2><div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i> <div>Grafiek niet beschikbaar — Chart.js kon niet laden.</div></div>';
     card.style.display = '';
     return;
   }
@@ -1732,18 +1732,18 @@ function renderResults(d) {
       ? `<br><span style="font-size:0.88rem;">Gemiddelde berekend over <strong>${d.numYears} volledige jaren</strong> (${formatDate(d.yearsStart)} – ${formatDate(d.lastDate)}).</span>`
       : '';
     periodHTML = `<div class="alert alert-info">
-      ℹ️ <div>Berekening op basis van rollend jaar: ${formatDate(d.windowStart)} – ${formatDate(d.lastDate)} (${d.daysInWindow} dagen).${avgLine}</div></div>`;
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i> <div>Berekening op basis van rollend jaar: ${formatDate(d.windowStart)} – ${formatDate(d.lastDate)} (${d.daysInWindow} dagen).${avgLine}</div></div>`;
   }
   document.getElementById('periodAlert').innerHTML = periodHTML;
 
   // Scenario alert: always-shown explanation + optional inverter-mismatch warning
-  let scenAlert = `<div class="alert alert-info">ℹ️ <div>Voor elke configuratie tonen we twee scenario's: <strong>Worst Case</strong> (realistisch — met cap op dagelijkse afname) en <strong>Optimistisch</strong> (ideaal — geen beperking). De waarheid ligt ertussen.</div></div>`;
+  let scenAlert = `<div class="alert alert-info"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> <div>Voor elke configuratie tonen we twee scenario's: <strong>Worst Case</strong> (realistisch — met cap op dagelijkse afname) en <strong>Optimistisch</strong> (ideaal — geen beperking). De waarheid ligt ertussen.</div></div>`;
   const anyPvGtBat = d.configResults.some(cr => cr.pvGtBat);
   if (anyPvGtBat) {
     const names = d.configResults
       .map((cr, idx) => cr.pvGtBat ? `Config ${idx+1} (${fmt2(cr.cfg.batInv)} kW)` : null)
       .filter(Boolean).join(', ');
-    scenAlert += `<div class="alert alert-warning">⚠️ <div>ZP-omvormer (${d.pvInv} kW) is sterker dan de batterijomvormer bij: ${names}. Bij Worst Case wordt de drempel daarom hoger gezet voor deze configuraties.</div></div>`;
+    scenAlert += `<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i> <div>ZP-omvormer (${d.pvInv} kW) is sterker dan de batterijomvormer bij: ${names}. Bij Worst Case wordt de drempel daarom hoger gezet voor deze configuraties.</div></div>`;
   }
   document.getElementById('scenarioAlert').innerHTML = scenAlert;
 
@@ -2119,16 +2119,16 @@ function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow, numYears) {
   const showAvg = numYears >= 2;
 
   if (!rows.length || (maxCap === null && rows[0] && rows[0].qualDays < 100)) {
-    content.innerHTML = `<div class="alert alert-warning">⚠️ <div>Zelfs de kleinste capaciteit (2,5 kWh) heeft geen 100 dagen met volledige lading. Controleer uw data.</div></div>`;
+    content.innerHTML = `<div class="alert alert-warning"><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i> <div>Zelfs de kleinste capaciteit (2,5 kWh) heeft geen 100 dagen met volledige lading. Controleer uw data.</div></div>`;
     return;
   }
 
   let html = '';
   if (!isFullYear) {
-    html += `<div class="alert alert-info" style="margin-bottom:12px;">ℹ️ <div>Gebaseerd op ${daysInWindow} beschikbare dagen (geen volledig jaar).</div></div>`;
+    html += `<div class="alert alert-info" style="margin-bottom:12px;"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> <div>Gebaseerd op ${daysInWindow} beschikbare dagen (geen volledig jaar).</div></div>`;
   }
   html += `<div class="alert alert-info" style="margin-bottom:12px;">
-    ℹ️ <div>Analyse bij <strong>gelijke omvormers</strong> (drempel = capaciteit, geen laadbeperking). Gebruik dit als referentie voor de maximaal zinvolle capaciteit.
+    <i class="fa-solid fa-circle-info" aria-hidden="true"></i> <div>Analyse bij <strong>gelijke omvormers</strong> (drempel = capaciteit, geen laadbeperking). Gebruik dit als referentie voor de maximaal zinvolle capaciteit.
     <br><strong style="color:var(--success)">Groen</strong> = ≥ 100 volle laaddagen &nbsp;|&nbsp; <span style="color:var(--warning);font-weight:600">Oranje</span> = &lt; 100 dagen &nbsp;|&nbsp; <span style="background:var(--success);color:#fff;border-radius:4px;padding:1px 6px;font-size:0.78rem;font-weight:700;">MAX</span> = grootste capaciteit met ≥ 100 dagen${showAvg ? ' (gebaseerd op afgelopen jaar)' : ''}</div>
   </div>`;
 
@@ -2152,7 +2152,7 @@ function renderCapAnalysis(capAnalysis, isFullYear, daysInWindow, numYears) {
   if (maxCap !== null) {
     const maxRow = rows.find(r => r.cap === maxCap);
     html += `<div class="alert alert-success" style="margin-top:14px;">
-      ✅ <div><strong>Aanbevolen maximale capaciteit: ${fmt2(maxCap)} kWh</strong><br>
+      <i class="fa-solid fa-circle-check icon-ok" aria-hidden="true"></i> <div><strong>Aanbevolen maximale capaciteit: ${fmt2(maxCap)} kWh</strong><br>
       ${maxRow.qualDays} volle laaddagen per (berekenings)jaar.</div></div>`;
   }
   content.innerHTML = html;
@@ -2182,7 +2182,7 @@ window.addEventListener('DOMContentLoaded', () => {
       console.error('Kon deellink niet laden:', e);
       const banner = document.getElementById('loadedBanner');
       if (banner) {
-        banner.innerHTML = `<div class="alert alert-error">❌ Deellink niet geldig of verwijderd. Neem contact op met je contactpersoon voor een nieuwe link.</div>`;
+        banner.innerHTML = `<div class="alert alert-error"><i class="fa-solid fa-circle-xmark icon-danger" aria-hidden="true"></i> Deellink niet geldig of verwijderd. Neem contact op met je contactpersoon voor een nieuwe link.</div>`;
         banner.style.display = '';
       }
     });
@@ -2523,7 +2523,7 @@ function openProjectStatusPopover() {
     <div class="status-option" data-status="${s.key}">
       <span class="status-dot" style="background:${s.color}"></span>
       <span>${s.label}</span>
-      ${s.key === _projectDoc.status ? '<span style="margin-left:auto;color:var(--muted);">✓</span>' : ''}
+      ${s.key === _projectDoc.status ? '<span style="margin-left:auto;color:var(--muted);"><i class="fa-solid fa-check" aria-hidden="true"></i></span>' : ''}
     </div>
   `).join('');
   document.body.appendChild(pop);
