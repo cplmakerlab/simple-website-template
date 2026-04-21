@@ -473,6 +473,16 @@
       display: flex; justify-content: flex-end; gap: 8px;
     }
 
+    .drop-zone {
+      border: 2px dashed #cbd5e1; border-radius: 8px;
+      padding: 22px; text-align: center;
+      cursor: pointer; background: #f8fafc;
+      user-select: none;
+    }
+    .drop-zone-hover { background: #eff6ff; border-color: #3b82f6; }
+    .drop-zone-text  { color: #475569; }
+    .offerte-cfg-header { margin-bottom: 8px; }
+
   </style>
 </head>
 <body>
@@ -951,6 +961,119 @@ function _modalEscHandler(e) {
   if (e.key === 'Escape') {
     document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
   }
+}
+
+// ── Offerte upload modal ────────────────────────────────────────────────────
+
+async function openOfferteModal(project, configType) {
+  const body = document.getElementById('offerteModalBody');
+  const cfg  = _findConfigByType(project, configType);
+  const existing = (project.offertes || {})[configType];
+
+  body.innerHTML = `
+    <div class="offerte-cfg-header">
+      <div class="offerte-cfg-type" style="font-weight:600;">${escapeHtml(cfg.type)} · ${escapeHtml(cfg.omschrijving || '')}</div>
+      <div class="offerte-cfg-meta" style="color:var(--muted);font-size:.9rem;margin-top:2px;">
+        ${cfg.batCap ? escapeHtml(String(cfg.batCap)) + ' kWh · ' : ''}${cfg.batInv ? escapeHtml(String(cfg.batInv)) + ' kW omvormer · ' : ''}€ ${_formatEuros(cfg.priceEur)}
+      </div>
+    </div>
+
+    ${existing ? `
+      <div class="offerte-existing" style="margin:12px 0;padding:10px;background:#f8fafc;border-radius:6px;">
+        <div><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> <strong>${escapeHtml(existing.filename || '')}</strong></div>
+        <div style="color:var(--muted);font-size:.85rem;">
+          Geüpload door ${escapeHtml(existing.uploadedBy || 'onbekend')}${existing.uploadedAt && existing.uploadedAt.toDate ? ' op ' + _formatDate(existing.uploadedAt.toDate()) : ''}
+        </div>
+      </div>
+    ` : ''}
+
+    <div class="drop-zone" id="offerteDropZone">
+      <input type="file" accept="application/pdf" id="offerteFileInput" hidden />
+      <div class="drop-zone-text">
+        ${existing ? 'Sleep nieuwe PDF om te vervangen' : 'Sleep offerte PDF hier'}<br/>
+        <span style="color:var(--muted);font-size:.9rem;">of klik om te kiezen</span>
+      </div>
+    </div>
+    <div id="offerteUploadError" style="color:var(--danger,#dc2626);margin-top:8px;display:none;"></div>
+    <div id="offerteUploadProgress" style="margin-top:8px;display:none;">Uploaden… <span>0%</span></div>
+  `;
+
+  _bindOfferteDropZone(project.id, configType);
+  openModal('offerteModal');
+}
+
+function _findConfigByType(project, configType) {
+  const results = project.lastCalcRun && project.lastCalcRun.results;
+  const cfgResults = results && Array.isArray(results.configResults) ? results.configResults : [];
+  const match = cfgResults.find(cr => cr.cfg && cr.cfg.type === configType);
+  const cfg = match ? match.cfg : { type: configType, omschrijving: '' };
+  const priceKey = _getProjectPriceKey(project);
+  // cfg.price is resolved at calc time; cfg.prices[key] is the raw lookup fallback
+  const priceEur = cfg.price || (cfg.prices && cfg.prices[priceKey]) || 0;
+  return {
+    type:        cfg.type || configType,
+    omschrijving:cfg.omschrijving || '',
+    batCap:      cfg.batCap || null,
+    batInv:      cfg.batInv || null,
+    priceEur
+  };
+}
+
+function _getProjectPriceKey(project) {
+  const btw     = (typeof effectiveBtwFor === 'function') ? effectiveBtwFor(project) : 21;
+  const keuring = (project.calcDefaults && project.calcDefaults.inspectieGekozen === true) ? 'yes' : 'no';
+  return `${btw}_${keuring}`;
+}
+
+function _formatEuros(v) {
+  return Number(v || 0).toLocaleString('nl-BE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function _formatDate(d) {
+  return d.toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function _bindOfferteDropZone(projectId, configType) {
+  const zone  = document.getElementById('offerteDropZone');
+  const input = document.getElementById('offerteFileInput');
+  const err   = document.getElementById('offerteUploadError');
+  const prog  = document.getElementById('offerteUploadProgress');
+  if (!zone || !input) return;
+
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => {
+    if (input.files && input.files[0]) _handleOfferteFile(input.files[0], projectId, configType);
+  });
+  zone.addEventListener('dragover',  (e) => { e.preventDefault(); zone.classList.add('drop-zone-hover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drop-zone-hover'));
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.classList.remove('drop-zone-hover');
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) _handleOfferteFile(f, projectId, configType);
+  });
+
+  async function _handleOfferteFile(file, projectId, configType) {
+    err.style.display = 'none'; err.textContent = '';
+    try {
+      if (file.type !== 'application/pdf') throw new Error('Enkel PDF-bestanden');
+      if (file.size > 10 * 1024 * 1024)    throw new Error('PDF is groter dan 10 MB');
+      prog.style.display = 'block';
+      prog.querySelector('span').textContent = '…';
+      await uploadProjectOfferte(projectId, configType, file);
+      closeModal('offerteModal');
+      await _refreshCurrentDrawer();
+    } catch (e) {
+      err.textContent = e.message || String(e);
+      err.style.display = 'block';
+      prog.style.display = 'none';
+    }
+  }
+}
+
+async function _refreshCurrentDrawer() {
+  // Stub — Task 9 will refetch + re-render the drawer and project-list row.
+  // For now, reload the page as a temporary fallback so user sees fresh state.
+  location.reload();
 }
 
 async function openDrawer(projectId) {
