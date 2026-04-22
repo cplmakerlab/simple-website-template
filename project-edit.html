@@ -822,8 +822,11 @@ function sectionPhotos() {
               <strong>Sleep foto's hierheen</strong> <span class="text-muted">of klik om te selecteren</span>
               <div class="text-muted small mt-1">Meerdere tegelijk is OK (max 15 MB per foto).</div>
             </div>
-            <div class="hide" id="peDropProgress">
-              <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Uploaden <span id="peUploadCount">0/0</span>…
+            <div class="d-none" id="peDropProgress">
+              <div class="progress mt-1" style="height:6px;">
+                <div class="progress-bar" role="progressbar" style="width:0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+              </div>
+              <div class="text-muted small mt-1">Uploaden <span id="peUploadCount">0/0</span>…</div>
             </div>
           </div>
           <div id="pePhotoErr" class="alert alert-danger mt-2 d-none"></div>
@@ -882,9 +885,11 @@ async function runPeUpload(files) {
   const errEl    = document.getElementById('pePhotoErr');
   errEl.classList.add('d-none'); errEl.textContent = '';
   promptEl.classList.add('hide');
-  progEl.classList.remove('hide');
+  progEl.classList.remove('d-none');
   zone.classList.add('uploading');
   countEl.textContent = `0/${files.length}`;
+  const bar = progEl.querySelector('.progress-bar');
+  bar.style.width = '0%'; bar.setAttribute('aria-valuenow', '0');
   let done = 0;
   let failMsg = null;
   for (const f of files) {
@@ -892,6 +897,8 @@ async function runPeUpload(files) {
       await uploadProjectPhoto(PROJECT_ID, f);
       done++;
       countEl.textContent = `${done}/${files.length}`;
+      const pct = Math.round((done / files.length) * 100);
+      bar.style.width = pct + '%'; bar.setAttribute('aria-valuenow', String(pct));
     } catch (e) {
       failMsg = e && e.message ? e.message : String(e);
       break;
@@ -902,7 +909,7 @@ async function runPeUpload(files) {
     errEl.classList.remove('d-none');
   }
   try { _photos = await listProjectPhotos(PROJECT_ID); renderPhotoGrid(); } catch {}
-  progEl.classList.add('hide');
+  progEl.classList.add('d-none');
   promptEl.classList.remove('hide');
   zone.classList.remove('uploading');
 }
