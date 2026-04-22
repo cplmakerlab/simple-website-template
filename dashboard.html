@@ -13,6 +13,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
   <script src="assets/js/csv.js"></script>
   <script src="assets/js/firebase-init.js"></script>
+  <script src="assets/js/offertes-ui.js"></script>
   <style>
     /*
      * Page-specific overrides live here. Global app styles are in
@@ -20,27 +21,6 @@
      * unless a rule is truly only relevant for dashboard.html.
      */
 
-    /* Offerte-modal body styles (rendered by openOfferteModal) */
-    .offerte-cfg-header { margin-bottom: 10px; }
-    .offerte-existing { padding: 10px; background: #f8fafc; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; }
-
-    /* Offerte config cards inside the drawer grid (row-cols-1/md-2/xl-3) */
-    .offerte-row {
-      display: flex;
-      flex-direction: column;
-      padding: 10px 12px;
-      border: 1px solid var(--bs-border-color);
-      border-radius: 8px;
-      background: #fff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
-    }
-    .offerte-row.dismissed { opacity: 0.6; }
-    .offerte-row-head { display: flex; align-items: center; gap: 8px; }
-    .offerte-row-title { font-weight: 600; font-size: 0.92rem; }
-    .offerte-row-desc { font-size: 0.85rem; color: var(--sp-muted); margin-top: 2px; }
-    .offerte-row-meta, .offerte-row-pdf { font-size: 0.82rem; color: var(--sp-muted); margin-top: 4px; word-break: break-all; }
-    .offerte-row-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
-    .offerte-divider { text-align: center; color: var(--sp-muted); font-size: 0.82rem; margin: 14px 0 6px; }
   </style>
 </head>
 <body>
@@ -139,21 +119,6 @@
 <div class="offcanvas offcanvas-end" tabindex="-1" id="drawer" aria-labelledby="drawerHeaderTitle">
   <div class="offcanvas-header border-bottom" id="drawerHeader"></div>
   <div class="offcanvas-body" id="drawerBody"></div>
-</div>
-
-<div class="modal fade" id="offerteModal" tabindex="-1" aria-labelledby="offerteModalTitle" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="offerteModalTitle">Offerte uploaden</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Sluiten"></button>
-      </div>
-      <div class="modal-body" id="offerteModalBody"></div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary" id="offerteModalCancel" data-bs-dismiss="modal">Annuleren</button>
-      </div>
-    </div>
-  </div>
 </div>
 
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index:1090"></div>
@@ -550,118 +515,10 @@ function fmtRelTime(ts) {
          ' ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
 }
 
-// ── Offerte upload modal ────────────────────────────────────────────────────
-
-async function openOfferteModal(project, configType) {
-  const body = document.getElementById('offerteModalBody');
-  const cfg  = _findConfigByType(project, configType);
-  const existing = (project.offertes || {})[configType];
-
-  body.innerHTML = `
-    <div class="offerte-cfg-header">
-      <div class="offerte-cfg-type" style="font-weight:600;">${escapeHtml(cfg.type)} · ${escapeHtml(cfg.omschrijving || '')}</div>
-      <div class="offerte-cfg-meta" style="color:var(--sp-muted);font-size:.9rem;margin-top:2px;">
-        ${cfg.batCap ? escapeHtml(String(cfg.batCap)) + ' kWh · ' : ''}${cfg.batInv ? escapeHtml(String(cfg.batInv)) + ' kW omvormer · ' : ''}€ ${_formatEuros(cfg.priceEur)}
-      </div>
-    </div>
-
-    ${existing ? `
-      <div class="offerte-existing">
-        <div><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> <strong>${escapeHtml(existing.filename || '')}</strong></div>
-        <div style="color:var(--sp-muted);font-size:.85rem;">
-          Geüpload door ${escapeHtml(existing.uploadedBy || 'onbekend')}${existing.uploadedAt && existing.uploadedAt.toDate ? ' op ' + _formatDate(existing.uploadedAt.toDate()) : ''}
-        </div>
-      </div>
-    ` : ''}
-
-    <div class="sp-drop-zone" id="offerteDropZone">
-      <input type="file" accept="application/pdf" id="offerteFileInput" />
-      <div>
-        ${existing ? 'Sleep nieuwe PDF om te vervangen' : 'Sleep offerte PDF hier'}<br/>
-        <span style="color:var(--sp-muted);font-size:.9rem;">of klik om te kiezen</span>
-      </div>
-    </div>
-    <div id="offerteUploadError" class="text-danger mt-2" style="display:none;"></div>
-    <div id="offerteUploadProgress" class="mt-2" style="display:none;">Uploaden… <span>0%</span></div>
-  `;
-
-  _bindOfferteDropZone(project.id, configType);
-  const el = document.getElementById('offerteModal');
-  bootstrap.Modal.getOrCreateInstance(el).show();
-}
-
-function closeOfferteModal() {
-  const el = document.getElementById('offerteModal');
-  bootstrap.Modal.getOrCreateInstance(el).hide();
-}
-
-function _findConfigByType(project, configType) {
-  const results = project.lastCalcRun && project.lastCalcRun.results;
-  const cfgResults = results && Array.isArray(results.configResults) ? results.configResults : [];
-  const match = cfgResults.find(cr => cr.cfg && cr.cfg.type === configType);
-  const cfg = match ? match.cfg : { type: configType, omschrijving: '' };
-  const priceKey = _getProjectPriceKey(project);
-  // cfg.price is resolved at calc time; cfg.prices[key] is the raw lookup fallback
-  const priceEur = cfg.price || (cfg.prices && cfg.prices[priceKey]) || 0;
-  return {
-    type:        cfg.type || configType,
-    omschrijving:cfg.omschrijving || '',
-    batCap:      cfg.batCap || null,
-    batInv:      cfg.batInv || null,
-    priceEur
-  };
-}
-
-function _getProjectPriceKey(project) {
-  const btw     = (typeof effectiveBtwFor === 'function') ? effectiveBtwFor(project) : 21;
-  const keuring = (project.calcDefaults && project.calcDefaults.inspectieGekozen === true) ? 'yes' : 'no';
-  return `${btw}_${keuring}`;
-}
-
-function _formatEuros(v) {
-  return Number(v || 0).toLocaleString('nl-BE', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-function _formatDate(d) {
-  return d.toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', year: 'numeric' });
-}
-
-function _bindOfferteDropZone(projectId, configType) {
-  const zone  = document.getElementById('offerteDropZone');
-  const input = document.getElementById('offerteFileInput');
-  const err   = document.getElementById('offerteUploadError');
-  const prog  = document.getElementById('offerteUploadProgress');
-  if (!zone || !input) return;
-
-  zone.addEventListener('click', () => input.click());
-  input.addEventListener('change', () => {
-    if (input.files && input.files[0]) _handleOfferteFile(input.files[0], projectId, configType);
-  });
-  zone.addEventListener('dragover',  (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-  zone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    zone.classList.remove('drag-over');
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) _handleOfferteFile(f, projectId, configType);
-  });
-
-  async function _handleOfferteFile(file, projectId, configType) {
-    err.style.display = 'none'; err.textContent = '';
-    try {
-      if (file.type !== 'application/pdf') throw new Error('Enkel PDF-bestanden');
-      if (file.size > 10 * 1024 * 1024)    throw new Error('PDF is groter dan 10 MB');
-      prog.style.display = 'block';
-      prog.querySelector('span').textContent = '…';
-      await uploadProjectOfferte(projectId, configType, file);
-      closeOfferteModal();
-      await _refreshCurrentDrawer();
-    } catch (e) {
-      err.textContent = e.message || String(e);
-      err.style.display = 'block';
-      prog.style.display = 'none';
-    }
-  }
-}
+// Offerte upload modal + config-row rendering + click delegation all live in
+// assets/js/offertes-ui.js — shared between dashboard.html and project-edit.html.
+// Init is done near the page bootstrap (ensureOfferteModal + wireOffertesClicks
+// on the drawer element).
 
 async function _refreshCurrentDrawer() {
   if (!_currentDrawerProject) return;
@@ -745,85 +602,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-function renderDrawerOffertes(project) {
-  const types = (project.lastCalcRun && project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
-    ? project.lastCalcRun.inputs.selectedConfigTypes : [];
-  const offertes  = project.offertes || {};
-  const dismissed = new Set(project.dismissedConfigs || []);
-  // Active = configs still in selectedConfigTypes (calc includes them).
-  // Inactive = all dismissed entries (kept visible so the user can restore them).
-  // New data: dismiss removes from selectedConfigTypes + adds to dismissedConfigs, so
-  // the two sets are disjoint. Legacy pre-fix data may have overlap — inactive
-  // deliberately shows everything in dismissedConfigs regardless.
-  const active   = types.filter(t => !dismissed.has(t));
-  const inactive = Array.from(dismissed);
-  if (active.length === 0 && inactive.length === 0) return '';
-
-  const activeCards = active.map(t => {
-    const cfg = _findConfigByType(project, t);
-    const pdf = offertes[t];
-    const iconState = pdf
-      ? '<i class="fa-solid fa-circle-check icon-ok" aria-hidden="true"></i>'
-      : '<i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i>';
-    const fileRow = pdf
-      ? `<div class="offerte-row-pdf"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> ${escapeHtml(pdf.filename || '')}</div>`
-      : `<div class="offerte-row-pdf" style="color:var(--sp-muted);">Nog geen offerte</div>`;
-    const actions = pdf
-      ? `<button class="btn btn-sm btn-outline-secondary offerte-download-btn" data-offerte-action data-type="${escapeHtml(t)}" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
-         <button class="btn btn-sm btn-outline-secondary offerte-replace-btn"  data-offerte-action data-type="${escapeHtml(t)}" title="Vervangen"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
-         <button class="btn btn-sm btn-outline-danger offerte-trash-btn"       data-offerte-action data-type="${escapeHtml(t)}" data-has-pdf="1" title="Verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`
-      : `<button class="btn btn-sm btn-outline-primary offerte-upload-btn"     data-offerte-action data-type="${escapeHtml(t)}" title="Upload"><i class="fa-solid fa-upload" aria-hidden="true"></i></button>
-         <button class="btn btn-sm btn-outline-danger offerte-trash-btn"       data-offerte-action data-type="${escapeHtml(t)}" data-has-pdf="0" title="Niet geoffreerd"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
-
-    return `
-      <div class="col">
-        <div class="offerte-row h-100 ${pdf ? 'has-pdf' : 'missing-pdf'}">
-          <div class="offerte-row-head">
-            ${iconState}
-            <span class="offerte-row-title">${escapeHtml(cfg.type)}</span>
-          </div>
-          <div class="offerte-row-desc">${escapeHtml(cfg.omschrijving || '')}</div>
-          <div class="offerte-row-meta">
-            € ${_formatEuros(cfg.priceEur)}${cfg.batCap ? ' · ' + escapeHtml(String(cfg.batCap)) + ' kWh' : ''}${cfg.batInv ? ' · ' + escapeHtml(String(cfg.batInv)) + ' kW' : ''}
-          </div>
-          ${fileRow}
-          <div class="offerte-row-actions">${actions}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  const inactiveCards = inactive.length ? `
-    <div class="offerte-divider">── Niet geoffreerd ──</div>
-    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">
-      ${inactive.map(t => {
-        const cfg = _findConfigByType(project, t);
-        return `
-          <div class="col">
-            <div class="offerte-row dismissed h-100 d-flex justify-content-between align-items-center gap-2">
-              <span class="offerte-row-title text-truncate">${escapeHtml(cfg.type)}</span>
-              <button class="btn btn-sm btn-outline-secondary offerte-restore-btn flex-shrink-0" data-offerte-action data-type="${escapeHtml(t)}" title="Terugzetten">
-                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  ` : '';
-
-  const activeBlock = activeCards
-    ? `<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">${activeCards}</div>`
-    : '';
-
-  return `
-    <section class="border-bottom pb-3 mb-3 drawer-configs">
-      <h6 class="mb-2 text-uppercase text-muted">Configs</h6>
-      ${activeBlock}
-      ${inactiveCards}
-    </section>
-  `;
-}
 
 function renderDrawer(project) {
   const header = document.getElementById('drawerHeader');
@@ -895,7 +673,7 @@ function renderDrawer(project) {
   `);
 
   // Configs / offertes per type
-  sections.push(renderDrawerOffertes(project));
+  sections.push(renderOffertesSection(project));
 
   // Situation
   if (m.situation) {
@@ -1114,45 +892,11 @@ function closeLightbox() {
   if (lb) lb.classList.remove('open');
 }
 
-// Offerte-row button delegation (inside drawer)
-(function bindOfferteRowActions() {
+// Offerte modal + click delegation — wired once against the drawer element.
+(function bindOffertesShared() {
+  ensureOfferteModal();
   const drawer = document.getElementById('drawer');
-  if (!drawer) return;
-  drawer.addEventListener('click', async (e) => {
-    const btn = e.target.closest('button[data-offerte-action]');
-    if (!btn) return;
-    const type = btn.getAttribute('data-type');
-    const project = _currentDrawerProject;
-    if (!project || !type) return;
-
-    try {
-      if (btn.classList.contains('offerte-upload-btn') || btn.classList.contains('offerte-replace-btn')) {
-        openOfferteModal(project, type);
-      }
-      else if (btn.classList.contains('offerte-download-btn')) {
-        const pdf = (project.offertes || {})[type];
-        if (!pdf || !pdf.storagePath) return;
-        const url = await firebase.storage().ref(pdf.storagePath).getDownloadURL();
-        window.open(url, '_blank');
-      }
-      else if (btn.classList.contains('offerte-trash-btn')) {
-        const hasPdf = btn.getAttribute('data-has-pdf') === '1';
-        if (hasPdf) {
-          if (!confirm('Je verwijdert ook de bijgevoegde offerte PDF. Zeker?')) return;
-          await hardDeleteProjectConfig(project.id, type);
-        } else {
-          await dismissProjectConfig(project.id, type);
-        }
-        await _refreshCurrentDrawer();
-      }
-      else if (btn.classList.contains('offerte-restore-btn')) {
-        await restoreProjectConfig(project.id, type);
-        await _refreshCurrentDrawer();
-      }
-    } catch (err) {
-      showToast('Er ging iets mis: ' + (err.message || err), 'danger');
-    }
-  });
+  if (drawer) wireOffertesClicks(drawer, () => _currentDrawerProject, _refreshCurrentDrawer);
 })();
 
 // Status-dropdown delegation (Bootstrap dropdown-items for status change)

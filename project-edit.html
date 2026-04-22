@@ -16,6 +16,7 @@
 
   <script src="assets/js/csv.js"></script>
   <script src="assets/js/firebase-init.js"></script>
+  <script src="assets/js/offertes-ui.js"></script>
 
   <style>
     /* Page-specific rules only. Globals live in assets/css/smartpeak.css. */
@@ -60,6 +61,7 @@
       <div class="col-12" id="blokA-slot"></div>
       <div class="col-12 col-lg-6" id="blokB-slot"></div>
       <div class="col-12 col-lg-6" id="blokC-slot"></div>
+      <div class="col-12" id="blokOffertes-slot"></div>
       <div class="col-12" id="blokD-slot"></div>
     </div>
     <div id="globalError" class="alert alert-danger mt-3 hide"></div>
@@ -199,6 +201,11 @@ async function bootstrap() {
   renderSections();
   wireActions();
   wireLightbox();
+
+  // Offertes-section click delegation — attached once to the stable slot.
+  ensureOfferteModal();
+  const offertesSlot = document.getElementById('blokOffertes-slot');
+  if (offertesSlot) wireOffertesClicks(offertesSlot, () => _project, _refreshOffertes);
 }
 
 function renderSections() {
@@ -209,9 +216,49 @@ function renderSections() {
   wireBlokB();
   document.getElementById('blokC-slot').innerHTML = sectionBlokC();
   wireBlokC();
+  renderBlokOffertes();
   document.getElementById('blokD-slot').innerHTML = sectionBlokD();
   wireBlokD();
   updateSaveCalcEnabled();
+}
+
+// Offertes block — shared UI from assets/js/offertes-ui.js.
+// Hidden in new-project mode (no Firestore doc to reference yet).
+function renderBlokOffertes() {
+  const slot = document.getElementById('blokOffertes-slot');
+  if (!slot) return;
+  if (IS_NEW) {
+    slot.innerHTML = '';
+    slot.classList.add('d-none');
+    return;
+  }
+  slot.classList.remove('d-none');
+  const inner = renderOffertesCards(_project);
+  const body = inner || '<p class="text-muted mb-0">Nog geen configuraties berekend voor dit project. Draai eerst een berekening vanuit <a href="index.html?project=' + encodeURIComponent(PROJECT_ID) + '">de ROI-calculator</a>.</p>';
+  slot.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="fa-solid fa-file-invoice text-primary me-2"></i>Configs &amp; offertes</h5>
+      </div>
+      <div class="card-body">${body}</div>
+    </div>
+  `;
+}
+
+async function _refreshOffertes() {
+  if (!PROJECT_ID) return;
+  try {
+    const fresh = await getProject(PROJECT_ID);
+    if (!fresh) return;
+    // Merge only the fields the offertes section cares about — keep the user's
+    // in-flight edits to other Blok A/B/C/D fields intact.
+    _project.offertes         = fresh.offertes || {};
+    _project.dismissedConfigs = Array.isArray(fresh.dismissedConfigs) ? fresh.dismissedConfigs : [];
+    _project.lastCalcRun      = fresh.lastCalcRun || null;
+    renderBlokOffertes();
+  } catch (err) {
+    showToast('Kon offertes niet verversen: ' + (err && err.message ? err.message : String(err)), 'danger');
+  }
 }
 
 // Helper — replaces one accordion-item element in place without losing state of others.

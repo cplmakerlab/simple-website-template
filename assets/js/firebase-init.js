@@ -358,7 +358,7 @@ async function setProjectCsv(id, csvData) {
 // minus dailyCompact (which lives in csvUpload). Caller is responsible for stripping it.
 async function saveLastCalcRun(id, { inputs, results }) {
   const email = currentUserEmail();
-  await projectDoc(id).update({
+  const update = {
     lastCalcRun: {
       calculatedAt:  firebase.firestore.FieldValue.serverTimestamp(),
       calculatedBy:  email,
@@ -366,7 +366,15 @@ async function saveLastCalcRun(id, { inputs, results }) {
       results,
     },
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  });
+  };
+  // Invariant: a type that's in selectedConfigTypes must NOT be in dismissedConfigs.
+  // Whenever the calculator re-saves with a type that was previously dismissed, clear
+  // the dismiss so the drawer/edit-page stops showing it as struck-through.
+  const selected = (inputs && Array.isArray(inputs.selectedConfigTypes)) ? inputs.selectedConfigTypes : [];
+  if (selected.length > 0) {
+    update.dismissedConfigs = firebase.firestore.FieldValue.arrayRemove(...selected);
+  }
+  await projectDoc(id).update(update);
 }
 
 // ─── PRODUCT-SHEET CONFIG ────────────────────────────────────────────────────

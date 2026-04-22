@@ -344,5 +344,25 @@ body.readonly-mode input, body.readonly-mode textarea, body.readonly-mode select
   flex-shrink: 0;
 }
 
+/* ─── Offerte upload modal + config rows (shared by dashboard + project-edit) ── */
+.offerte-cfg-header { margin-bottom: 10px; }
+.offerte-existing { padding: 10px; background: #f8fafc; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; }
+.offerte-row {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+.offerte-row.dismissed { opacity: 0.6; }
+.offerte-row-head { display: flex; align-items: center; gap: 8px; }
+.offerte-row-title { font-weight: 600; font-size: 0.92rem; }
+.offerte-row-desc { font-size: 0.85rem; color: var(--sp-muted); margin-top: 2px; }
+.offerte-row-meta, .offerte-row-pdf { font-size: 0.82rem; color: var(--sp-muted); margin-top: 4px; word-break: break-all; }
+.offerte-row-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; flex-wrap: wrap; }
+.offerte-divider { text-align: center; color: var(--sp-muted); font-size: 0.82rem; margin: 14px 0 6px; }
+
 /* Utility: hidden via JS state toggles (used by all three HTML files) */
 .hide { display: none !important; }
