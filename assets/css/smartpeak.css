@@ -1,0 +1,268 @@
+/*
+ * smartpeak.css — SmartPeak brand layer on top of Bootstrap 5.3
+ *
+ * Loaded AFTER bootstrap.min.css in every backoffice HTML file
+ * (dashboard.html, project-edit.html, producten.html).
+ *
+ * Sections:
+ *   1. Bootstrap custom-property overrides (brand palette, radius, fonts)
+ *   2. Component-level overrides that Bootstrap's SCSS derivatives don't
+ *      expose via CSS variables (mainly .btn-primary hover/active states)
+ *   3. App-specific components (kanban, lightbox, photo-grid, chat-pulse,
+ *      status chip cursor, readonly-mode helpers, icon color utilities)
+ */
+
+/* ── 1. Brand tokens via Bootstrap custom properties ─────────────────── */
+
+:root {
+  --bs-primary: #2c7be5;
+  --bs-primary-rgb: 44, 123, 229;
+  --bs-link-color: #1e5fb8;
+  --bs-link-hover-color: #1a3a6e;
+  --bs-border-radius: 12px;
+  --bs-border-radius-sm: 8px;
+  --bs-border-radius-lg: 16px;
+  --bs-body-bg: #f0f4fb;
+  --bs-body-color: #1e2a3a;
+  --bs-border-color: #dce3f0;
+  --bs-font-sans-serif: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* semantic brand tokens used by app-specific CSS below */
+  --sp-muted: #6b7a99;
+  --sp-success: #00b478;
+  --sp-warning: #f6a623;
+  --sp-danger: #e54545;
+}
+
+/* ── 2. Button states Bootstrap doesn't expose via CSS vars ──────────── */
+
+.btn-primary {
+  --bs-btn-hover-bg: #1a5fba;
+  --bs-btn-hover-border-color: #1a5fba;
+  --bs-btn-active-bg: #164d97;
+  --bs-btn-active-border-color: #164d97;
+}
+
+/* ── 3. App-specific components ──────────────────────────────────────── */
+
+/* Icon color helpers (already used in FA 6 iconen) */
+.icon-ok     { color: #16a34a; }
+.icon-warn   { color: #f59e0b; }
+.icon-danger { color: #dc2626; }
+
+/* Status chip — Bootstrap .badge with pointer cursor + custom runtime color */
+.badge.status-chip {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.badge.status-chip.readonly { cursor: default; }
+.badge.status-chip:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+
+/* Offcanvas drawer: default 420px on ≥ md, full-width on < md */
+@media (min-width: 768px) {
+  #drawer { --bs-offcanvas-width: 420px; }
+}
+@media (max-width: 767.98px) {
+  #drawer { --bs-offcanvas-width: 100vw; }
+}
+
+/* ── Kanban board ────────────────────────────────────────────────────── */
+
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.kanban-col {
+  flex: 1 1 0;
+  min-width: 220px;
+  max-width: 320px;
+  background: #eef2f8;
+  border-radius: var(--bs-border-radius);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kanban-col-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--bs-body-color);
+  padding: 2px 4px 6px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.kanban-col-header .phase-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.kanban-col-header .count {
+  background: rgba(0,0,0,0.08);
+  color: var(--bs-body-color);
+  font-size: 0.78rem;
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+.kanban-col-body { display: flex; flex-direction: column; gap: 6px; min-height: 20px; }
+.kanban-col.drop-target { background: #dce8fa; }
+.kanban-card {
+  background: #fff;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: grab;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.kanban-card:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+.kanban-card.dragging { opacity: 0.5; cursor: grabbing; }
+.kanban-card-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--bs-link-color);
+  cursor: pointer;
+  margin-bottom: 2px;
+}
+.kanban-card-customer { font-size: 0.8rem; color: var(--sp-muted); margin-bottom: 4px; }
+.kanban-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* ── Chat indicator pulse ────────────────────────────────────────────── */
+
+.chat-indicator {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 0.95rem;
+  opacity: 0.55;
+}
+.chat-indicator.unread {
+  opacity: 1;
+  animation: sp-chat-pulse 1.6s ease-in-out infinite;
+}
+@keyframes sp-chat-pulse {
+  0%, 100% { transform: scale(1);    opacity: 1;   }
+  50%      { transform: scale(1.15); opacity: 0.6; }
+}
+
+/* ── Row-warning (ground-fault / offerte-missing triangles) ──────────── */
+
+.row-warning {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 0.95rem;
+  cursor: help;
+}
+
+/* ── Photo grid (drawer + project-edit) ──────────────────────────────── */
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.photo-tile {
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 6px;
+  background: var(--bs-body-bg);
+  cursor: zoom-in;
+  position: relative;
+}
+.photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo-tile.broken {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sp-muted); font-size: 0.72rem; text-align: center;
+  padding: 4px; cursor: help;
+}
+
+/* ── Lightbox (shared pattern across producten.html + dashboard drawer) */
+
+.sp-lightbox {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 1080; /* above BS offcanvas (1045) + modal (1055) */
+  padding: 24px;
+}
+.sp-lightbox.open { display: flex; }
+.sp-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+.sp-lightbox-btn {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 44px; height: 44px; border-radius: 50%;
+  font-size: 1.4rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.sp-lightbox-btn:hover { background: rgba(255, 255, 255, 0.25); }
+.sp-lightbox .close { top: 14px; right: 14px; }
+.sp-lightbox .prev  { left: 14px;  top: 50%; transform: translateY(-50%); }
+.sp-lightbox .next  { right: 14px; top: 50%; transform: translateY(-50%); }
+.sp-lightbox .del   { bottom: 14px; right: 14px; background: rgba(229,69,69,0.85); }
+.sp-lightbox .del:hover { background: rgba(229,69,69,1); }
+.sp-lightbox .counter {
+  position: absolute; bottom: 14px; left: 14px;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.85rem;
+  background: rgba(0,0,0,0.3);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+/* ── Drag-drop zone (foto-upload + offerte-upload) ───────────────────── */
+
+.sp-drop-zone {
+  border: 2px dashed #c4cadb;
+  border-radius: 10px;
+  padding: 24px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  background: #f7f9fd;
+  font-size: 0.9rem;
+  user-select: none;
+}
+.sp-drop-zone:hover { background: #eef4ff; border-color: var(--bs-primary); }
+.sp-drop-zone.drag-over { background: #dcebff; border-color: var(--bs-primary); border-style: solid; }
+.sp-drop-zone.uploading { cursor: progress; }
+.sp-drop-zone input[type=file] { display: none; }
+
+/* ── Readonly mode (share-link viewers) ──────────────────────────────── */
+/* Only referenced by index.html but lives here so all backoffice files   */
+/* can safely share snippets that become embedded in share-links later.   */
+
+body.readonly-mode .btn-primary,
+body.readonly-mode .btn-outline-primary,
+body.readonly-mode #btnNewProject,
+body.readonly-mode .no-readonly { display: none !important; }
+body.readonly-mode input, body.readonly-mode textarea, body.readonly-mode select {
+  pointer-events: none;
+  background: #f4f7fc !important;
+}
+
+/* ── Misc ────────────────────────────────────────────────────────────── */
+
+.sp-empty-state {
+  color: var(--sp-muted);
+  font-style: italic;
+  padding: 24px 8px;
+  text-align: center;
+}
+
+/* Utility: hidden via JS state toggles (used by all three HTML files) */
+.hide { display: none !important; }
