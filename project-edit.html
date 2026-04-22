@@ -1066,15 +1066,26 @@ function collectFromForm() {
   // Basisgegevens
   const projectName  = (_project.projectName  || '').trim();
   const customerName = (_project.customerName || '').trim();
-  if (!projectName)  throw new Error('Projectnaam is verplicht.');
-  if (!customerName) throw new Error('Klantnaam is verplicht.');
+
+  const errors = {};  // { fieldId-or-key: { msg, invId? } }
+  if (!projectName)  errors.fProjectName  = { msg: 'Projectnaam is verplicht.' };
+  if (!customerName) errors.fCustomerName = { msg: 'Klantnaam is verplicht.' };
 
   // Inverter-verplichting (ingevuld in Task 7): elk inverter-kaartje moet powerKw > 0 hebben.
   for (let i = 0; i < _project.solar.inverters.length; i++) {
     const inv = _project.solar.inverters[i];
     if (!(Number(inv.powerKw) > 0)) {
-      throw new Error(`Omvormer ${i + 1}: vermogen (kW) is verplicht als de omvormer in de lijst staat.`);
+      errors[`inv_powerKw_${inv.id}`] = {
+        msg: `Omvormer ${i + 1}: vermogen (kW) is verplicht als de omvormer in de lijst staat.`,
+        invId: inv.id,
+      };
     }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    const err = new Error('Sommige velden zijn verplicht of ongeldig.');
+    err.fieldErrors = errors;
+    throw err;
   }
 
   const metadata = {
@@ -1092,6 +1103,12 @@ function collectFromForm() {
 }
 
 async function save({ andCalc }) {
+  // Clear previous field-level errors before each attempt
+  ['fProjectName', 'fCustomerName'].forEach(clearFieldError);
+  // Clear any inverter powerKw errors
+  document.querySelectorAll('[data-inv-field="powerKw"].is-invalid').forEach(el => {
+    el.classList.remove('is-invalid');
+  });
   clearError();
   const btnSave = document.getElementById('btnSave');
   const btnSC   = document.getElementById('btnSaveAndCalc');
@@ -1120,11 +1137,28 @@ async function save({ andCalc }) {
       targetId = PROJECT_ID;
     }
     if (andCalc) {
-      window.location.href = `index.html?project=${targetId}`;
+      window.location.href = `index.html?project=${targetId}#results`;
     } else {
       window.location.href = 'dashboard.html';
     }
   } catch (e) {
+    if (e.fieldErrors) {
+      let firstEl = null;
+      for (const [key, { msg, invId }] of Object.entries(e.fieldErrors)) {
+        if (invId) {
+          // Per-inverter powerKw: highlight via data-attribute selector
+          const inputEl = document.querySelector(`[data-inv-field="powerKw"][data-inv-id="${invId}"]`);
+          if (inputEl) {
+            inputEl.classList.add('is-invalid');
+            if (!firstEl) firstEl = inputEl;
+          }
+        } else {
+          showFieldError(key, msg);
+          if (!firstEl) firstEl = document.getElementById(key);
+        }
+      }
+      if (firstEl) firstEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
     showError(e && e.message ? e.message : String(e));
     btnSave.disabled = false; btnSC.disabled = false;
     btnSave.textContent = prevLabel;
