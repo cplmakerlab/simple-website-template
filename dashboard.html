@@ -668,7 +668,11 @@ async function _refreshCurrentDrawer() {
   const id = _currentDrawerProject.id;
   const snap = await firebase.firestore().collection('projects').doc(id).get();
   if (!snap.exists) return;
-  const fresh = mergeProjectMetadata(Object.assign({ id: snap.id }, snap.data()));
+  // Keep the raw doc shape (id + all top-level fields: projectName, customerName,
+  // status, lastCalcRun, offertes, dismissedConfigs, ...). renderDrawer internally
+  // calls mergeProjectMetadata() to normalize the nested metadata sections;
+  // wrapping here would strip the top-level fields and break warnings + configs.
+  const fresh = { id: snap.id, ...snap.data() };
   _currentDrawerProject = fresh;
   renderDrawer(fresh);
   // Re-populate the async sections (photos + comments) that renderDrawer reset
