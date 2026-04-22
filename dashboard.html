@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" integrity="sha512-jnSuA4Ss2PkkikSOLtYs8BlYIeeIK1h99ty4YfvRPAlzr377vr3CXDb7sb7eEEBYjDtcYj+AjBH3FLv5uSJuSg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="assets/css/smartpeak.css" />
   <title>SmartPeak — Projecten</title>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
@@ -12,564 +14,141 @@
   <script src="assets/js/csv.js"></script>
   <script src="assets/js/firebase-init.js"></script>
   <style>
-    :root {
-      --primary: #2c7be5;
-      --primary-dark: #1a5fba;
-      --success: #00b478;
-      --warning: #f6a623;
-      --danger: #e54545;
-      --bg: #f0f4fb;
-      --card: #ffffff;
-      --border: #dce3f0;
-      --text: #1e2a3a;
-      --muted: #6b7a99;
-      --radius: 12px;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 24px 16px;
-    }
-    h1 { font-size: 1.7rem; font-weight: 700; color: var(--primary-dark); margin-bottom: 4px; }
-    h2 { font-size: 1.2rem; font-weight: 600; color: var(--primary-dark); margin-bottom: 12px; }
-    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 16px; }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 8px rgba(44, 123, 229, 0.06);
-    }
-    .center-card {
-      max-width: 480px;
-      margin: 80px auto;
-      text-align: center;
-    }
-    .btn {
-      display: inline-block;
-      padding: 10px 20px;
-      border-radius: 8px;
-      border: 0;
-      background: var(--primary);
-      color: #fff;
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-      text-decoration: none;
-    }
-    .btn:hover { background: var(--primary-dark); }
-    .btn-secondary { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
-    .btn-secondary:hover { background: #eef4ff; }
-    .btn-danger { background: var(--danger); }
-    .btn-danger:hover { background: #b02a2a; }
+    /*
+     * Page-specific overrides live here. Global app styles are in
+     * assets/css/smartpeak.css (loaded above). Keep this block empty
+     * unless a rule is truly only relevant for dashboard.html.
+     */
 
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 24px;
-    }
-    .topbar .right { display: flex; align-items: center; gap: 12px; color: var(--muted); }
-
-    .toolbar { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-
-    .alert {
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 0.92rem;
-      margin-bottom: 16px;
-    }
-    .alert-warning { background: #fff8ec; border: 1px solid #f6a623; color: #7a5000; }
-    .alert-info    { background: #eef4ff; border: 1px solid #2c7be5; color: #1a3a6e; }
-    .alert-error   { background: #fde8e8; border: 1px solid #e54545; color: #7a1010; }
-
-    .hide { display: none !important; }
-
-    table.project-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.92rem;
-    }
-    table.project-table th,
-    table.project-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      text-align: left;
-      vertical-align: middle;
-    }
-    table.project-table thead th {
-      background: var(--bg);
-      color: var(--muted);
-      font-weight: 600;
-      font-size: 0.82rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    table.project-table tr:last-child td { border-bottom: none; }
-    table.project-table tr.deleted-row { opacity: 0.5; }
-
-    .status-chip {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 12px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: #fff;
-      cursor: pointer;
-      user-select: none;
-      white-space: nowrap;
-    }
-    .status-chip.readonly { cursor: default; }
-    .status-chip.editable:hover { filter: brightness(1.08); }
-    .status-popover {
-      position: absolute;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-      padding: 4px 0;
-      z-index: 50;
-      min-width: 220px;
-      max-height: 360px;
-      overflow-y: auto;
-    }
-    .status-popover .status-option {
-      padding: 6px 12px;
-      cursor: pointer;
-      font-size: 0.88rem;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .status-popover .status-option:hover { background: var(--bg); }
-    .status-popover .status-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-    }
-
-    .row-actions {
-      display: flex;
-      gap: 6px;
-    }
-    .row-actions button {
-      background: transparent;
-      border: 0;
-      cursor: pointer;
-      font-size: 1.05rem;
-      padding: 4px 8px;
-      border-radius: 6px;
-    }
-    .row-actions button:hover { background: var(--bg); }
-
-    #projectList .empty-state {
-      color: var(--muted);
-      font-style: italic;
-      padding: 24px 8px;
-    }
-
-    /* Project-name button (opens drawer) */
-    .projectNameBtn {
-      background: transparent; border: 0; padding: 0;
-      color: var(--primary); font-weight: 600; font-size: 0.95rem;
-      cursor: pointer; text-align: left;
-    }
-    .projectNameBtn:hover { text-decoration: underline; }
-
-    /* Chat-indicator naast projectnaam. Altijd getoond als er opmerkingen zijn;
-       pulse alleen bij ongelezen van de tegenpartij. */
-    .chat-indicator {
-      display: inline-block;
-      margin-right: 6px;
-      font-size: 0.95rem;
-      opacity: 0.55;
-    }
-    .chat-indicator.unread {
-      opacity: 1;
-      animation: chat-pulse 1.6s ease-in-out infinite;
-    }
-    @keyframes chat-pulse {
-      0%, 100% { transform: scale(1);    opacity: 1;   }
-      50%      { transform: scale(1.15); opacity: 0.6; }
-    }
-    /* Ground-fault warning icon (row + drawer) */
-    .row-warning {
-      display: inline-block;
-      margin-right: 6px;
-      color: var(--warning);
-      font-size: 0.95rem;
-      cursor: help;
-    }
-
-    /* Photo grid in drawer */
-    .photo-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-    .photo-tile {
-      aspect-ratio: 1 / 1;
-      overflow: hidden;
-      border-radius: 6px;
-      background: var(--bg);
-      cursor: zoom-in;
-      position: relative;
-    }
-    .photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .photo-tile.broken { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 0.72rem; text-align: center; padding: 4px; cursor: help; }
-    .photo-uploader { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-    .photo-uploader input[type=file] { flex: 1; font-size: 0.85rem; }
-
-    /* Lightbox (re-usable with producten.html pattern) */
-    .lightbox-dash {
-      position: fixed; inset: 0;
-      background: rgba(0, 0, 0, 0.92);
-      display: none;
-      align-items: center; justify-content: center;
-      z-index: 300;
-      padding: 24px;
-    }
-    .lightbox-dash.open { display: flex; }
-    .lightbox-dash img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
-    .lightbox-dash-btn {
-      position: absolute;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      color: #fff;
-      width: 44px; height: 44px; border-radius: 50%;
-      font-size: 1.4rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .lightbox-dash-btn:hover { background: rgba(255, 255, 255, 0.25); }
-    .lightbox-dash .close { top: 14px; right: 14px; }
-    .lightbox-dash .prev  { left: 14px;  top: 50%; transform: translateY(-50%); }
-    .lightbox-dash .next  { right: 14px; top: 50%; transform: translateY(-50%); }
-    .lightbox-dash .del   { bottom: 14px; right: 14px; background: rgba(229,69,69,0.85); }
-    .lightbox-dash .del:hover { background: rgba(229,69,69,1); }
-
-    /* Drawer + overlay */
-    .drawer-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0, 0, 0, 0.35);
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.18s ease-out;
-      z-index: 200;
-    }
-    .drawer-overlay.open {
-      opacity: 1; pointer-events: auto;
-    }
-    .drawer {
-      position: fixed; top: 0; right: 0; bottom: 0;
-      width: 420px; max-width: 100vw;
-      background: var(--card);
-      border-left: 1px solid var(--border);
-      box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
-      transform: translateX(100%);
-      transition: transform 0.22s ease-out;
-      z-index: 201;
-      display: flex; flex-direction: column;
-    }
-    .drawer.open { transform: translateX(0); }
-    @media (max-width: 900px) {
-      .drawer { width: 100vw; }
-    }
-    .drawer-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: flex-start; gap: 10px;
-      position: sticky; top: 0; background: var(--card); z-index: 1;
-    }
-    .drawer-header h2 { font-size: 1.1rem; margin: 0; color: var(--text); }
-    .drawer-header .meta { flex: 1; }
-    .drawer-header .meta .customer { font-size: 0.88rem; color: var(--muted); margin-top: 2px; }
-    .drawer-close-btn {
-      background: transparent; border: 0; cursor: pointer;
-      font-size: 1.4rem; color: var(--muted); padding: 0 4px;
-      line-height: 1;
-    }
-    .drawer-close-btn:hover { color: var(--text); }
-    .drawer-body {
-      flex: 1; overflow-y: auto;
-      padding: 16px 20px;
-    }
-    .drawer-section {
-      margin-bottom: 18px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-    }
-    .drawer-section:last-child { border-bottom: 0; margin-bottom: 0; }
-    .drawer-section h3 {
-      font-size: 0.78rem; font-weight: 700; color: var(--muted);
-      text-transform: uppercase; letter-spacing: 0.06em;
-      margin-bottom: 8px;
-    }
-    .drawer-section .free-text {
-      white-space: pre-wrap; font-size: 0.92rem; color: var(--text); line-height: 1.4;
-    }
-    .contact-line { font-size: 0.92rem; margin-bottom: 4px; }
-    .contact-line a { color: var(--primary); text-decoration: none; }
-    .contact-line a:hover { text-decoration: underline; }
-    .drawer-actions {
-      display: flex; gap: 8px; flex-wrap: wrap;
-    }
-    .drawer-actions .btn {
-      flex: 1 1 auto; min-width: 140px;
-      justify-content: center; font-size: 0.9rem; padding: 8px 12px;
-    }
-
-    /* Comments thread */
-    .comments-list {
-      display: flex; flex-direction: column; gap: 8px;
-      margin-bottom: 12px;
-    }
-    .comment {
-      background: var(--bg);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 0.92rem;
-    }
-    .comment .meta {
-      font-size: 0.78rem; color: var(--muted);
-      margin-bottom: 3px;
-      display: flex; justify-content: space-between; gap: 8px;
-    }
-    .comment .meta .author { font-weight: 600; color: var(--primary-dark); }
-    .comment .text { white-space: pre-wrap; line-height: 1.35; }
-    .composer { display: flex; flex-direction: column; gap: 8px; }
-    .composer textarea {
-      width: 100%;
-      border: 1px solid var(--border); border-radius: 8px;
-      padding: 8px 10px; font: inherit; font-size: 0.92rem;
-      resize: vertical; min-height: 70px; background: #f7f9fd;
-    }
-    .composer textarea:focus { outline: none; border-color: var(--primary); background: #fff; }
-    .composer .composer-row {
-      display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    }
-    .composer .composer-row .err { color: var(--danger); font-size: 0.82rem; flex: 1; }
-
-    .configs-summary { font-size: 0.92rem; }
-    .configs-summary li { margin-left: 18px; margin-bottom: 3px; }
-
-    /* Dashboard toolbar + filters */
-    .toolbar {
-      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-      margin-bottom: 14px;
-    }
-    .toolbar .filler { flex: 1; }
-    .toolbar input[type=search] {
-      border: 1px solid var(--border); border-radius: 8px;
-      padding: 6px 10px; font: inherit; font-size: 0.9rem;
-      background: #fff; min-width: 180px;
-    }
-    .toolbar input[type=search]:focus { outline: none; border-color: var(--primary); }
-    .toolbar label.filter-chk {
-      display: flex; align-items: center; gap: 6px;
-      color: var(--muted); font-size: 0.88rem; cursor: pointer;
-    }
-    .toolbar .view-toggle {
-      display: inline-flex; border: 1px solid var(--border); border-radius: 8px;
-      overflow: hidden; background: #fff;
-    }
-    .toolbar .view-toggle button {
-      background: transparent; border: 0; padding: 6px 12px;
-      font: inherit; font-size: 0.88rem; cursor: pointer; color: var(--muted);
-    }
-    .toolbar .view-toggle button.active {
-      background: var(--primary); color: #fff;
-    }
-
-    /* Kanban board */
-    .kanban-board {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(210px, 1fr));
-      gap: 10px;
-      overflow-x: auto;
-      padding-bottom: 6px;
-    }
-    @media (max-width: 1100px) {
-      .kanban-board { grid-template-columns: repeat(5, 230px); }
-    }
-    .kanban-col {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      min-height: 200px;
-      display: flex; flex-direction: column;
-      transition: background 0.12s, outline 0.12s;
-    }
-    .kanban-col.drag-over {
-      background: rgba(44, 123, 229, 0.08);
-      outline: 2px dashed var(--primary);
-      outline-offset: -4px;
-    }
-    .kanban-col-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 10px; font-weight: 700; font-size: 0.85rem;
-      text-transform: uppercase; letter-spacing: 0.04em;
-    }
-    .kanban-col-header .phase-dot {
-      display: inline-block; width: 10px; height: 10px; border-radius: 50%;
-      margin-right: 6px; vertical-align: middle;
-    }
-    .kanban-col-header .count {
-      color: var(--muted); font-weight: 600; font-size: 0.82rem;
-    }
-    .kanban-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 9px 10px;
-      margin-bottom: 8px;
-      cursor: grab;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-    }
-    .kanban-card:hover { border-color: var(--primary); }
-    .kanban-card:active { cursor: grabbing; }
-    .kanban-card.dragging { opacity: 0.5; }
-    .kanban-card-title { font-weight: 600; font-size: 0.92rem; margin-bottom: 2px; color: var(--primary-dark); cursor: pointer; }
-    .kanban-card-title:hover { text-decoration: underline; }
-    .kanban-card-customer { font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
-    .kanban-card-footer { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-
-    .permdelBtn { color: var(--danger); }
-
-    .icon-ok    { color: #16a34a; }
-    .icon-warn  { color: #f59e0b; }
-    .icon-danger{ color: #dc2626; }
-
-    /* generic modal */
-    .modal-overlay {
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,.45);
-      display: none; align-items: center; justify-content: center;
-      z-index: 200;
-      padding: 20px;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal-dialog {
-      background: #fff; border-radius: 10px;
-      max-width: 520px; width: 100%;
-      max-height: 90vh; overflow: auto;
-      box-shadow: 0 10px 40px rgba(0,0,0,.25);
-      padding: 0;
-    }
-    .modal-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 16px; border-bottom: 1px solid var(--border, #e5e7eb);
-    }
-    .modal-header h3 { margin: 0; font-size: 1.05rem; }
-    .modal-close-btn {
-      background: transparent; border: 0; font-size: 1.2rem;
-      cursor: pointer; color: var(--muted, #6b7280);
-    }
-    .modal-body { padding: 16px; }
-    .modal-footer {
-      padding: 12px 16px; border-top: 1px solid var(--border, #e5e7eb);
-      display: flex; justify-content: flex-end; gap: 8px;
-    }
-
-    .drop-zone {
-      border: 2px dashed #cbd5e1; border-radius: 8px;
-      padding: 22px; text-align: center;
-      cursor: pointer; background: #f8fafc;
-      user-select: none;
-    }
-    .drop-zone-hover { background: #eff6ff; border-color: #3b82f6; }
-    .drop-zone-text  { color: #475569; }
-    .offerte-cfg-header { margin-bottom: 8px; }
-    .offerte-row { padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+    /* Offerte-modal body styles (rendered by renderOfferteModalBody) */
+    .offerte-cfg-header { margin-bottom: 10px; }
+    .offerte-existing { padding: 10px; background: #f8fafc; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; }
+    .offerte-row { padding: 10px 0; border-bottom: 1px solid var(--bs-border-color); }
+    .offerte-row.dismissed { opacity: 0.55; }
     .offerte-row:last-child { border-bottom: 0; }
-    .offerte-row-head { display: flex; align-items: center; gap: 8px; font-weight: 600; }
-    .offerte-row-title { flex: 1; }
-    .offerte-row-meta { color: var(--muted, #6b7280); font-size: .85rem; margin: 2px 0 6px 26px; }
-    .offerte-row-pdf  { font-size: .9rem; margin: 0 0 6px 26px; }
-    .offerte-row-actions { margin-left: 26px; display: flex; gap: 6px; }
-    .offerte-row.dismissed { display: flex; align-items: center; gap: 8px; opacity: .5; text-decoration: line-through; padding: 6px 0; }
-    .offerte-row.dismissed .offerte-row-title { flex: 1; }
-    .offerte-divider { color: var(--muted); font-size: .8rem; margin: 12px 0 6px 0; text-align: center; }
-    .btn-icon {
-      background: transparent; border: 0; cursor: pointer; padding: 4px 6px;
-      color: var(--text, #111); font-size: .95rem;
-    }
-    .btn-icon:hover .fa-trash, .btn-icon:hover .fa-circle-xmark { color: #dc2626; }
-
+    .offerte-row-head { display: flex; align-items: center; gap: 8px; }
+    .offerte-row-title { font-weight: 600; font-size: 0.92rem; }
+    .offerte-row-meta, .offerte-row-pdf { font-size: 0.85rem; color: var(--sp-muted); margin-top: 4px; }
+    .offerte-row-actions { display: flex; gap: 6px; margin-top: 6px; }
+    .offerte-divider { text-align: center; color: var(--sp-muted); font-size: 0.82rem; margin: 16px 0 8px; }
   </style>
 </head>
 <body>
 
 <!-- State 1: not logged in -->
-<div class="card center-card" id="stateLoggedOut">
-  <h1><i class="fa-solid fa-bolt" aria-hidden="true"></i> SmartPeak — Projecten</h1>
-  <p class="subtitle">Alleen voor Bloxit medewerkers.</p>
-  <button type="button" class="btn" id="btnSignIn">Log in met Google</button>
-  <p id="signInError" class="alert alert-error hide" style="margin-top:16px;"></p>
+<div class="card mx-auto mt-5" id="stateLoggedOut" style="max-width:480px">
+  <div class="card-body text-center p-4">
+    <h1 class="h4 mb-2"><i class="fa-solid fa-bolt text-primary"></i> SmartPeak — Projecten</h1>
+    <p class="text-muted mb-3">Alleen voor Bloxit medewerkers.</p>
+    <button type="button" class="btn btn-primary" id="btnSignIn">Log in met Google</button>
+    <p id="signInError" class="alert alert-danger mt-3 hide"></p>
+  </div>
 </div>
 
 <!-- State 2: logged in but not whitelisted -->
-<div class="card center-card hide" id="stateNotWhitelisted">
-  <h1><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i> Geen toegang</h1>
-  <p class="subtitle">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
-  <button type="button" class="btn btn-secondary" id="btnSignOutNW">Uitloggen</button>
+<div class="card mx-auto mt-5 hide" id="stateNotWhitelisted" style="max-width:480px">
+  <div class="card-body text-center p-4">
+    <h1 class="h4 mb-2"><i class="fa-solid fa-triangle-exclamation icon-danger"></i> Geen toegang</h1>
+    <p class="text-muted mb-3">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
+    <button type="button" class="btn btn-outline-secondary" id="btnSignOutNW">Uitloggen</button>
+  </div>
 </div>
 
 <!-- State 3: logged in + whitelisted -->
 <div class="hide" id="stateAuthorized">
-  <div class="topbar">
-    <h1><i class="fa-solid fa-bolt" aria-hidden="true"></i> SmartPeak — Projecten</h1>
-    <div class="right">
-      <span>Hallo, <strong id="userDisplayName">…</strong></span>
-      <button type="button" class="btn btn-secondary" id="btnSignOut">Uitloggen</button>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="toolbar">
-      <button type="button" class="btn" id="btnNewProject">+ Nieuw project</button>
-      <input type="search" id="projectSearch" placeholder="🔍 Zoek projectnaam of klant…" />
-      <label class="filter-chk">
-        <input type="checkbox" id="toggleShowFinished" /> Toon afgesloten
-      </label>
-      <label class="filter-chk">
-        <input type="checkbox" id="toggleShowDeleted" /> Toon verwijderde
-      </label>
-      <div class="filler"></div>
-      <div class="view-toggle" id="viewToggle">
-        <button type="button" data-view="list"  class="active"><i class="fa-solid fa-list" aria-hidden="true"></i> Lijst</button>
-        <button type="button" data-view="board"><i class="fa-solid fa-table-columns" aria-hidden="true"></i> Bord</button>
+  <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1"><i class="fa-solid fa-bolt text-primary"></i> SmartPeak — Projecten</span>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent" aria-controls="navbarContent" aria-expanded="false" aria-label="Menu">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarContent">
+        <ul class="navbar-nav ms-auto align-items-lg-center gap-2">
+          <li class="nav-item">Hallo, <strong id="userDisplayName">…</strong></li>
+          <li class="nav-item">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnSignOut">Uitloggen</button>
+          </li>
+        </ul>
       </div>
     </div>
-    <div id="projectList">Project-lijst komt in Task 5.</div>
-  </div>
+  </nav>
+
+  <main class="container-fluid py-3">
+
+    <!-- Toolbar -->
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="row g-2 align-items-center">
+          <div class="col-12 col-md-auto">
+            <button type="button" class="btn btn-primary w-100 w-md-auto" id="btnNewProject">
+              <i class="fa-solid fa-plus me-1"></i> Nieuw project
+            </button>
+          </div>
+          <div class="col-12 col-md">
+            <div class="input-group">
+              <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input type="search" id="projectSearch" class="form-control" placeholder="Zoek projectnaam of klant…" />
+            </div>
+          </div>
+          <div class="col-6 col-md-auto">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="toggleShowFinished">
+              <label class="form-check-label" for="toggleShowFinished">Toon afgesloten</label>
+            </div>
+          </div>
+          <div class="col-6 col-md-auto">
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="toggleShowDeleted">
+              <label class="form-check-label" for="toggleShowDeleted">Toon verwijderde</label>
+            </div>
+          </div>
+          <div class="col-12 col-lg-auto d-none d-lg-block">
+            <div class="btn-group" role="group" id="viewToggle" aria-label="View toggle">
+              <button type="button" class="btn btn-outline-primary active" data-view="list">
+                <i class="fa-solid fa-list"></i> Lijst
+              </button>
+              <button type="button" class="btn btn-outline-primary" data-view="board">
+                <i class="fa-solid fa-table-columns"></i> Bord
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Project list / kanban -->
+    <div class="card">
+      <div class="card-body p-0 p-md-3" id="projectList">
+        <p class="sp-empty-state">⏳ Laden…</p>
+      </div>
+    </div>
+  </main>
 </div>
 
 <!-- Right-side drawer (opens on project-name click) -->
-<div class="drawer-overlay" id="drawerOverlay"></div>
-<aside class="drawer" id="drawer" aria-hidden="true" role="complementary">
-  <div class="drawer-header" id="drawerHeader"></div>
-  <div class="drawer-body" id="drawerBody"></div>
-</aside>
+<div class="offcanvas offcanvas-end" tabindex="-1" id="drawer" aria-labelledby="drawerHeaderTitle">
+  <div class="offcanvas-header border-bottom" id="drawerHeader"></div>
+  <div class="offcanvas-body" id="drawerBody"></div>
+</div>
 
-<div class="modal-overlay" id="offerteModal" role="dialog" aria-modal="true" aria-hidden="true">
-  <div class="modal-dialog" role="document">
-    <div class="modal-header">
-      <h3 id="offerteModalTitle">Offerte uploaden</h3>
-      <button type="button" class="modal-close-btn" id="offerteModalClose" title="Sluiten">
-        <i class="fa-solid fa-xmark" aria-hidden="true"></i>
-      </button>
-    </div>
-    <div class="modal-body" id="offerteModalBody">
-      <!-- dynamisch ingevuld in Task 8 -->
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="btn btn-secondary" id="offerteModalCancel">Annuleren</button>
+<div class="modal fade" id="offerteModal" tabindex="-1" aria-labelledby="offerteModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="offerteModalTitle">Offerte uploaden</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+      </div>
+      <div class="modal-body" id="offerteModalBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" id="offerteModalCancel" data-bs-dismiss="modal">Annuleren</button>
+      </div>
     </div>
   </div>
 </div>
+
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index:1090"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js" integrity="sha512-1/RvZTcCDEUjY/CypiMz+iqqtaoQfAITmNSJY17Myp4Ms5mdxPS5UV7iOfdZoxcGhzFbOm6sntTKJppjvuhg4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <script>
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
@@ -631,11 +210,13 @@ document.addEventListener('DOMContentLoaded', () => {
       renderCurrent();
     });
   });
-  // Restore view choice on load (default = bord).
+  // Restore view choice on load (default = list).
   try {
-    const saved = localStorage.getItem('smartpeak.dashboardView') || 'board';
+    const saved = localStorage.getItem('smartpeak.dashboardView') || 'list';
     document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('active', b.dataset.view === saved));
   } catch {}
+
+  // Reset drawer state when Bootstrap hides it (hidden.bs.offcanvas also handled above)
 });
 
 // ─── PROJECT LIST ───────────────────────────────────────────────────────────
@@ -652,67 +233,41 @@ function shortName(email) {
 
 function statusChipHTML(statusKey, projectId) {
   const meta = getStatusMeta(statusKey);
-  return `<span class="status-chip editable" data-status="${meta.key}" data-project-id="${projectId}" style="background:${meta.color};">${meta.label}</span>`;
-}
-
-let _openPopover = null;
-function closeStatusPopover() {
-  if (_openPopover) { _openPopover.remove(); _openPopover = null; }
-}
-
-function openStatusPopover(chip) {
-  closeStatusPopover();
-  const projectId = chip.dataset.projectId;
-  const currentKey = chip.dataset.status;
-  const pop = document.createElement('div');
-  pop.className = 'status-popover';
-  pop.innerHTML = PROJECT_STATUSES.map(s => `
-    <div class="status-option" data-status="${s.key}">
-      <span class="status-dot" style="background:${s.color}"></span>
-      <span>${s.label}</span>
-      ${s.key === currentKey ? '<span style="margin-left:auto;color:var(--muted);"><i class="fa-solid fa-check" aria-hidden="true"></i></span>' : ''}
-    </div>
+  const readonly = projectId == null;
+  if (readonly) {
+    return `<span class="badge status-chip readonly" style="background:${meta.color};color:#fff;">${escapeHtml(meta.label)}</span>`;
+  }
+  const dropdownId = `stDd_${projectId}`;
+  const options = PROJECT_STATUSES.map(s => `
+    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2"
+                data-status="${s.key}" data-project-id="${projectId}">
+      <span class="d-inline-block rounded-circle" style="width:10px;height:10px;background:${s.color};flex-shrink:0;"></span>
+      ${escapeHtml(s.label)}
+    </button></li>
   `).join('');
-  document.body.appendChild(pop);
-  const rect = chip.getBoundingClientRect();
-  pop.style.left = `${rect.left + window.scrollX}px`;
-  pop.style.top  = `${rect.bottom + window.scrollY + 4}px`;
-  _openPopover = pop;
-
-  pop.querySelectorAll('.status-option').forEach(opt => {
-    opt.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const newStatus = opt.dataset.status;
-      closeStatusPopover();
-      if (newStatus === currentKey) return;
-      try {
-        await updateProjectStatus(projectId, newStatus);
-        await refreshProjectList();
-      } catch (err) {
-        alert('Kon status niet wijzigen: ' + (err && err.message ? err.message : err));
-      }
-    });
-  });
-
-  // Close on outside click
-  setTimeout(() => {
-    document.addEventListener('click', closeStatusPopover, { once: true });
-  }, 0);
+  return `
+    <div class="dropdown d-inline-block">
+      <button type="button" class="badge status-chip border-0" style="background:${meta.color};color:#fff;"
+              id="${dropdownId}" data-bs-toggle="dropdown" aria-expanded="false">
+        ${escapeHtml(meta.label)} <i class="fa-solid fa-caret-down ms-1"></i>
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="${dropdownId}">${options}</ul>
+    </div>
+  `;
 }
 
 function rowHTML(p, isDeleted) {
   const updated = fmtDate(p.updatedAt);
-  const by      = shortName(p.createdBy);
   const editBtn = isDeleted
     ? ''
-    : `<button type="button" class="editBtn" data-id="${p.id}" title="Bewerken"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>`;
+    : `<a class="btn btn-sm btn-outline-secondary editBtn" data-id="${p.id}" href="project-edit.html?project=${p.id}" title="Bewerk"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></a>`;
   const calcBtn = (!isDeleted && p.lastCalcRun && p.lastCalcRun.calculatedAt)
-    ? `<button type="button" class="calcBtn" data-id="${p.id}" title="Open berekening"><i class="fa-solid fa-calculator" aria-hidden="true"></i></button>`
+    ? `<a class="btn btn-sm btn-outline-secondary calcBtn" data-id="${p.id}" href="index.html?project=${p.id}#results" title="Open berekening"><i class="fa-solid fa-calculator" aria-hidden="true"></i></a>`
     : '';
   const action  = isDeleted
-    ? `<button type="button" class="restoreBtn"  data-id="${p.id}" title="Herstellen"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
-       <button type="button" class="permdelBtn"  data-id="${p.id}" data-name="${escapeHtml(p.projectName || '')}" title="Definitief verwijderen"><i class="fa-solid fa-circle-xmark icon-danger" aria-hidden="true"></i></button>`
-    : `<button type="button" class="deleteBtn"   data-id="${p.id}" title="Verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
+    ? `<button type="button" class="btn btn-sm btn-outline-secondary restoreBtn" data-id="${p.id}" title="Herstellen"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
+       <button type="button" class="btn btn-sm btn-outline-danger permdelBtn"   data-id="${p.id}" data-name="${escapeHtml(p.projectName || '')}" title="Definitief verwijderen"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i></button>`
+    : `<button type="button" class="btn btn-sm btn-outline-danger deleteBtn"    data-id="${p.id}" title="Verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
   const email  = currentUserEmail();
   const chat   = hasAnyComments(p)
     ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en) van collega' : 'Opmerkingen aanwezig'}"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i></span>`
@@ -724,16 +279,17 @@ function rowHTML(p, isDeleted) {
     ? `<span class="row-warning row-warning-offerte" title="Offertes ontbreken — klant zit in offerte-fase maar er zijn configs zonder PDF."><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i></span>`
     : '';
   return `
-    <tr class="${isDeleted ? 'deleted-row' : ''}">
-      <td>${chat}${warn}${warnOfferte}<button type="button" class="projectNameBtn" data-id="${p.id}">${escapeHtml(p.projectName || '')}</button></td>
-      <td>${escapeHtml(p.customerName || '')}</td>
+    <tr class="${isDeleted ? 'text-muted opacity-50' : ''}" data-id="${p.id}">
+      <td>${chat}${warn}${warnOfferte}<button type="button" class="btn btn-link p-0 text-decoration-none fw-semibold projectNameBtn" data-id="${p.id}">${escapeHtml(p.projectName || '')}</button></td>
+      <td class="d-none d-sm-table-cell">${escapeHtml(p.customerName || '')}</td>
       <td>${statusChipHTML(p.status, p.id)}</td>
-      <td>${updated}</td>
-      <td>${by}</td>
-      <td class="row-actions">
-        ${calcBtn}
-        ${editBtn}
-        ${action}
+      <td class="d-none d-sm-table-cell text-muted small">${updated}</td>
+      <td class="text-end">
+        <div class="d-flex gap-1 justify-content-end">
+          ${calcBtn}
+          ${editBtn}
+          ${action}
+        </div>
       </td>
     </tr>`;
 }
@@ -742,20 +298,43 @@ function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
+function showToast(message, variant = 'primary') {
+  const container = document.getElementById('toastContainer');
+  const id = 't_' + Date.now();
+  const html = `
+    <div id="${id}" class="toast text-bg-${variant} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${escapeHtml(message)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Sluiten"></button>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', html);
+  const el = document.getElementById(id);
+  const t = bootstrap.Toast.getOrCreateInstance(el, { delay: 4000 });
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+  t.show();
+}
+
 // Cached list of projects from Firestore. Filtering + render happens on this cache.
 let _projectsCache = { active: [], deleted: [] };
 
 async function refreshProjectList() {
   const el = document.getElementById('projectList');
-  el.innerHTML = '<p class="empty-state">⏳ Laden…</p>';
+  el.innerHTML = '<p class="sp-empty-state">⏳ Laden…</p>';
   const showDeleted = document.getElementById('toggleShowDeleted').checked;
   try {
     _projectsCache.active  = await listActiveProjects();
     _projectsCache.deleted = showDeleted ? await listDeletedProjects() : [];
     renderCurrent();
   } catch (e) {
-    el.innerHTML = `<div class="alert alert-error">Kon projecten niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+    el.innerHTML = `<div class="alert alert-danger">Kon projecten niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
   }
+}
+
+function currentView() {
+  if (window.innerWidth < 992) return 'list';
+  return localStorage.getItem('smartpeak.dashboardView') || 'list';
 }
 
 // Apply filters (search + show-finished) to the cached projects and render in the
@@ -778,11 +357,11 @@ function renderCurrent() {
   const deleted = _projectsCache.deleted.filter(matchesFilters);
 
   if (active.length + deleted.length === 0) {
-    el.innerHTML = '<p class="empty-state">Geen projecten die voldoen aan de filters.</p>';
+    el.innerHTML = '<p class="sp-empty-state">Geen projecten die voldoen aan de filters.</p>';
     return;
   }
 
-  const viewMode = (localStorage.getItem('smartpeak.dashboardView') || 'board');
+  const viewMode = currentView();
   if (viewMode === 'board') {
     renderBoard(active, el);
   } else {
@@ -796,12 +375,20 @@ function renderList(active, deleted, el) {
     ...deleted.map(p => rowHTML(p, true)),
   ].join('');
   el.innerHTML = `
-    <table class="project-table">
-      <thead><tr>
-        <th>Project</th><th>Klant</th><th>Status</th><th>Bijgewerkt</th><th>Door</th><th></th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Project</th>
+            <th class="d-none d-sm-table-cell">Klant</th>
+            <th>Status</th>
+            <th class="d-none d-sm-table-cell">Gewijzigd</th>
+            <th class="text-end">Acties</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
   wireRowActions(el);
 }
 
@@ -860,15 +447,6 @@ function wireRowActions(el) {
   el.querySelectorAll('.projectNameBtn').forEach(btn => {
     btn.addEventListener('click', () => openDrawer(btn.dataset.id));
   });
-  el.querySelectorAll('.editBtn').forEach(btn => {
-    btn.addEventListener('click', () => { window.location.href = `project-edit.html?project=${btn.dataset.id}`; });
-  });
-  el.querySelectorAll('.calcBtn').forEach(btn => {
-    btn.addEventListener('click', () => { window.location.href = `index.html?project=${btn.dataset.id}#results`; });
-  });
-  el.querySelectorAll('.status-chip.editable').forEach(chip => {
-    chip.addEventListener('click', (e) => { e.stopPropagation(); openStatusPopover(chip); });
-  });
   el.querySelectorAll('.deleteBtn').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm('Project verwijderen? Het wordt soft-deleted en blijft herstelbaar via "Toon verwijderde".')) return;
@@ -904,11 +482,6 @@ function wireBoard(el) {
   el.querySelectorAll('.kanban-card-title').forEach(t => {
     t.addEventListener('click', () => openDrawer(t.dataset.id));
   });
-  // Status-chip popover (within card)
-  el.querySelectorAll('.status-chip.editable').forEach(chip => {
-    chip.addEventListener('click', (e) => { e.stopPropagation(); openStatusPopover(chip); });
-  });
-
   // Drag & drop: cards draggable, columns are drop targets.
   el.querySelectorAll('.kanban-card').forEach(card => {
     card.addEventListener('dragstart', e => {
@@ -965,26 +538,6 @@ function fmtRelTime(ts) {
          ' ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
 }
 
-function openModal(modalId) {
-  const el = document.getElementById(modalId);
-  if (!el) return;
-  el.classList.add('open');
-  el.setAttribute('aria-hidden', 'false');
-  document.addEventListener('keydown', _modalEscHandler);
-}
-function closeModal(modalId) {
-  const el = document.getElementById(modalId);
-  if (!el) return;
-  el.classList.remove('open');
-  el.setAttribute('aria-hidden', 'true');
-  document.removeEventListener('keydown', _modalEscHandler);
-}
-function _modalEscHandler(e) {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.open').forEach(m => closeModal(m.id));
-  }
-}
-
 // ── Offerte upload modal ────────────────────────────────────────────────────
 
 async function openOfferteModal(project, configType) {
@@ -995,33 +548,39 @@ async function openOfferteModal(project, configType) {
   body.innerHTML = `
     <div class="offerte-cfg-header">
       <div class="offerte-cfg-type" style="font-weight:600;">${escapeHtml(cfg.type)} · ${escapeHtml(cfg.omschrijving || '')}</div>
-      <div class="offerte-cfg-meta" style="color:var(--muted);font-size:.9rem;margin-top:2px;">
+      <div class="offerte-cfg-meta" style="color:var(--sp-muted);font-size:.9rem;margin-top:2px;">
         ${cfg.batCap ? escapeHtml(String(cfg.batCap)) + ' kWh · ' : ''}${cfg.batInv ? escapeHtml(String(cfg.batInv)) + ' kW omvormer · ' : ''}€ ${_formatEuros(cfg.priceEur)}
       </div>
     </div>
 
     ${existing ? `
-      <div class="offerte-existing" style="margin:12px 0;padding:10px;background:#f8fafc;border-radius:6px;">
+      <div class="offerte-existing">
         <div><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> <strong>${escapeHtml(existing.filename || '')}</strong></div>
-        <div style="color:var(--muted);font-size:.85rem;">
+        <div style="color:var(--sp-muted);font-size:.85rem;">
           Geüpload door ${escapeHtml(existing.uploadedBy || 'onbekend')}${existing.uploadedAt && existing.uploadedAt.toDate ? ' op ' + _formatDate(existing.uploadedAt.toDate()) : ''}
         </div>
       </div>
     ` : ''}
 
-    <div class="drop-zone" id="offerteDropZone">
-      <input type="file" accept="application/pdf" id="offerteFileInput" hidden />
-      <div class="drop-zone-text">
+    <div class="sp-drop-zone" id="offerteDropZone">
+      <input type="file" accept="application/pdf" id="offerteFileInput" />
+      <div>
         ${existing ? 'Sleep nieuwe PDF om te vervangen' : 'Sleep offerte PDF hier'}<br/>
-        <span style="color:var(--muted);font-size:.9rem;">of klik om te kiezen</span>
+        <span style="color:var(--sp-muted);font-size:.9rem;">of klik om te kiezen</span>
       </div>
     </div>
-    <div id="offerteUploadError" style="color:var(--danger,#dc2626);margin-top:8px;display:none;"></div>
-    <div id="offerteUploadProgress" style="margin-top:8px;display:none;">Uploaden… <span>0%</span></div>
+    <div id="offerteUploadError" class="text-danger mt-2" style="display:none;"></div>
+    <div id="offerteUploadProgress" class="mt-2" style="display:none;">Uploaden… <span>0%</span></div>
   `;
 
   _bindOfferteDropZone(project.id, configType);
-  openModal('offerteModal');
+  const el = document.getElementById('offerteModal');
+  bootstrap.Modal.getOrCreateInstance(el).show();
+}
+
+function closeOfferteModal() {
+  const el = document.getElementById('offerteModal');
+  bootstrap.Modal.getOrCreateInstance(el).hide();
 }
 
 function _findConfigByType(project, configType) {
@@ -1065,11 +624,11 @@ function _bindOfferteDropZone(projectId, configType) {
   input.addEventListener('change', () => {
     if (input.files && input.files[0]) _handleOfferteFile(input.files[0], projectId, configType);
   });
-  zone.addEventListener('dragover',  (e) => { e.preventDefault(); zone.classList.add('drop-zone-hover'); });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drop-zone-hover'));
+  zone.addEventListener('dragover',  (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
   zone.addEventListener('drop', (e) => {
     e.preventDefault();
-    zone.classList.remove('drop-zone-hover');
+    zone.classList.remove('drag-over');
     const f = e.dataTransfer.files && e.dataTransfer.files[0];
     if (f) _handleOfferteFile(f, projectId, configType);
   });
@@ -1082,7 +641,7 @@ function _bindOfferteDropZone(projectId, configType) {
       prog.style.display = 'block';
       prog.querySelector('span').textContent = '…';
       await uploadProjectOfferte(projectId, configType, file);
-      closeModal('offerteModal');
+      closeOfferteModal();
       await _refreshCurrentDrawer();
     } catch (e) {
       err.textContent = e.message || String(e);
@@ -1102,54 +661,61 @@ async function _refreshCurrentDrawer() {
   renderDrawer(fresh);
 }
 
-async function openDrawer(projectId) {
+function openDrawer(projectId) {
   _drawerProjectId = projectId;
-  const drawer  = document.getElementById('drawer');
-  const overlay = document.getElementById('drawerOverlay');
-  const body    = document.getElementById('drawerBody');
-  const header  = document.getElementById('drawerHeader');
+  const drawerEl = document.getElementById('drawer');
+  const body     = document.getElementById('drawerBody');
+  const header   = document.getElementById('drawerHeader');
 
-  body.innerHTML   = '<p class="empty-state">⏳ Laden…</p>';
-  header.innerHTML = '<div class="meta"><h2>…</h2></div><button type="button" class="drawer-close-btn" aria-label="Sluit">×</button>';
-  header.querySelector('.drawer-close-btn').addEventListener('click', closeDrawer);
+  body.innerHTML   = '<p class="sp-empty-state">⏳ Laden…</p>';
+  header.innerHTML = `
+    <div class="flex-grow-1">
+      <h5 class="offcanvas-title mb-0" id="drawerHeaderTitle">…</h5>
+    </div>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Sluit"></button>
+  `;
 
-  drawer.classList.add('open');
-  overlay.classList.add('open');
-  drawer.setAttribute('aria-hidden', 'false');
+  bootstrap.Offcanvas.getOrCreateInstance(drawerEl).show();
 
-  try {
-    const project = await getProject(projectId);
+  getProject(projectId).then(project => {
     if (!project || project.deletedAt) {
-      body.innerHTML = '<div class="alert alert-error">Project niet gevonden of verwijderd.</div>';
+      body.innerHTML = '<div class="alert alert-danger">Project niet gevonden of verwijderd.</div>';
       return;
     }
     _currentDrawerProject = project;
     renderDrawer(project);
     // Load comments + photos in parallel.
-    const [comments, photos] = await Promise.all([
+    return Promise.all([
       listComments(projectId).catch(e => { console.warn('listComments failed', e); return []; }),
       listProjectPhotos(projectId).catch(e => { console.warn('listProjectPhotos failed', e); return []; }),
-    ]);
-    renderComments(project, comments);
-    renderPhotos(project, photos);
-    // Mark read (non-blocking). Refresh list so the pulse dot disappears.
-    markCommentsRead(projectId).then(() => {
-      setTimeout(refreshProjectList, 400);
-    }).catch(err => console.warn('markCommentsRead failed', err));
-  } catch (e) {
-    body.innerHTML = `<div class="alert alert-error">Kon project niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
-  }
+    ]).then(([comments, photos]) => {
+      renderComments(project, comments);
+      renderPhotos(project, photos);
+      // Mark read (non-blocking). Refresh list so the pulse dot disappears.
+      markCommentsRead(projectId).then(() => {
+        setTimeout(refreshProjectList, 400);
+      }).catch(err => console.warn('markCommentsRead failed', err));
+    });
+  }).catch(e => {
+    body.innerHTML = `<div class="alert alert-danger">Kon project niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+  });
 }
 
 function closeDrawer() {
-  const drawer  = document.getElementById('drawer');
-  const overlay = document.getElementById('drawerOverlay');
-  drawer.classList.remove('open');
-  overlay.classList.remove('open');
-  drawer.setAttribute('aria-hidden', 'true');
-  _drawerProjectId = null;
-  _currentDrawerProject = null;
+  const el = document.getElementById('drawer');
+  bootstrap.Offcanvas.getOrCreateInstance(el).hide();
 }
+
+// Reset drawer state when Bootstrap hides it (backdrop click, Escape key, data-bs-dismiss)
+document.addEventListener('DOMContentLoaded', () => {
+  const drawerEl = document.getElementById('drawer');
+  if (drawerEl) {
+    drawerEl.addEventListener('hidden.bs.offcanvas', () => {
+      _drawerProjectId = null;
+      _currentDrawerProject = null;
+    });
+  }
+});
 
 function renderDrawerOffertes(project) {
   const types = (project.lastCalcRun && project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
@@ -1208,8 +774,8 @@ function renderDrawerOffertes(project) {
   ` : '';
 
   return `
-    <section class="drawer-section drawer-configs">
-      <h3>Configs</h3>
+    <section class="border-bottom pb-3 mb-3 drawer-configs">
+      <h6 class="mb-2 text-uppercase text-muted">Configs</h6>
       ${activeRows}
       ${inactiveRows}
     </section>
@@ -1222,16 +788,12 @@ function renderDrawer(project) {
   const m      = mergeProjectMetadata(project);
 
   header.innerHTML = `
-    <div class="meta">
-      <h2>${escapeHtml(project.projectName || '(zonder naam)')}</h2>
-      <div class="customer">${escapeHtml(project.customerName || '')} · ${statusChipHTML(project.status, project.id)}</div>
+    <div class="flex-grow-1">
+      <h5 class="offcanvas-title mb-0" id="drawerHeaderTitle">${escapeHtml(project.projectName || '(zonder naam)')}</h5>
+      <div class="text-muted small mt-1">${escapeHtml(project.customerName || '')} · ${statusChipHTML(project.status, project.id)}</div>
     </div>
-    <button type="button" class="drawer-close-btn" aria-label="Sluit">×</button>
+    <button type="button" class="btn-close ms-2" data-bs-dismiss="offcanvas" aria-label="Sluit"></button>
   `;
-  header.querySelector('.drawer-close-btn').addEventListener('click', closeDrawer);
-  header.querySelectorAll('.status-chip.editable').forEach(chip => {
-    chip.addEventListener('click', (e) => { e.stopPropagation(); openStatusPopover(chip); });
-  });
 
   // Build sections conditionally.
   const sections = [];
@@ -1239,8 +801,9 @@ function renderDrawer(project) {
   // Ground-fault warning banner (top-of-drawer, if applicable)
   if (needsGroundFaultCheck(project)) {
     sections.push(`
-      <div class="alert alert-warning" style="margin-bottom:14px;">
-        <i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i> <div><strong>Controleer fase↔aarde meting voor Zendure.</strong>
+      <div class="alert alert-warning d-flex gap-2 mb-3">
+        <i class="fa-solid fa-triangle-exclamation icon-warn flex-shrink-0 mt-1" aria-hidden="true"></i>
+        <div><strong>Controleer fase↔aarde meting voor Zendure.</strong>
           Nog niet aangevinkt in dit project. Meet het spanningsverschil vóór installatie en vink aan in <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Bewerk project om een ground fault te voorkomen.</div>
       </div>
     `);
@@ -1250,8 +813,8 @@ function renderDrawer(project) {
       ? project.lastCalcRun.inputs.selectedConfigTypes.filter(t => !(project.dismissedConfigs || []).includes(t) && !(project.offertes || {})[t]).length
       : 0;
     sections.push(`
-      <div class="alert alert-warning" style="margin-bottom:14px;">
-        <i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i>
+      <div class="alert alert-warning d-flex gap-2 mb-3">
+        <i class="fa-solid fa-triangle-exclamation icon-warn flex-shrink-0 mt-1" aria-hidden="true"></i>
         <div>
           <strong>Offertes ontbreken.</strong>
           Dit project staat in offerte-fase maar ${missingCount} config(s) hebben nog geen offerte PDF.
@@ -1262,11 +825,16 @@ function renderDrawer(project) {
 
   // Contact
   const contactLines = [];
-  if (m.customer.address) contactLines.push(`<div class="contact-line" style="white-space:pre-wrap;">📍 ${escapeHtml(m.customer.address)}</div>`);
-  if (m.customer.phone)   contactLines.push(`<div class="contact-line">📞 <a href="tel:${escapeHtml(m.customer.phone)}">${escapeHtml(m.customer.phone)}</a></div>`);
-  if (m.customer.email)   contactLines.push(`<div class="contact-line">✉️ <a href="mailto:${escapeHtml(m.customer.email)}">${escapeHtml(m.customer.email)}</a></div>`);
+  if (m.customer.address) contactLines.push(`<div class="mb-1" style="white-space:pre-wrap;">📍 ${escapeHtml(m.customer.address)}</div>`);
+  if (m.customer.phone)   contactLines.push(`<div class="mb-1">📞 <a href="tel:${escapeHtml(m.customer.phone)}">${escapeHtml(m.customer.phone)}</a></div>`);
+  if (m.customer.email)   contactLines.push(`<div class="mb-1">✉️ <a href="mailto:${escapeHtml(m.customer.email)}">${escapeHtml(m.customer.email)}</a></div>`);
   if (contactLines.length > 0) {
-    sections.push(`<div class="drawer-section"><h3>Contact</h3>${contactLines.join('')}</div>`);
+    sections.push(`
+      <section class="border-bottom pb-3 mb-3">
+        <h6 class="mb-2 text-uppercase text-muted">Contact</h6>
+        ${contactLines.join('')}
+      </section>
+    `);
   }
 
   // Actions
@@ -1274,13 +842,13 @@ function renderDrawer(project) {
     ? `index.html?project=${project.id}#results`
     : `index.html?project=${project.id}`;
   sections.push(`
-    <div class="drawer-section">
-      <div class="drawer-actions">
-        <a class="btn" href="${calcHref}"><i class="fa-solid fa-calculator" aria-hidden="true"></i> Open berekening</a>
-        <a class="btn btn-secondary" href="project-edit.html?project=${project.id}"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Bewerk project</a>
-        <button type="button" class="btn btn-secondary" id="drawerDeleteBtn" style="background:#fde8e8;color:var(--danger);"><i class="fa-solid fa-trash" aria-hidden="true"></i> Verwijderen</button>
+    <section class="border-bottom pb-3 mb-3">
+      <div class="d-grid d-md-flex gap-2">
+        <a class="btn btn-primary flex-md-grow-1" href="${calcHref}"><i class="fa-solid fa-calculator me-1" aria-hidden="true"></i> Open berekening</a>
+        <a class="btn btn-outline-primary flex-md-grow-1" href="project-edit.html?project=${project.id}"><i class="fa-solid fa-pen-to-square me-1" aria-hidden="true"></i> Bewerk project</a>
+        <button type="button" class="btn btn-outline-danger flex-md-grow-1" id="drawerDeleteBtn"><i class="fa-solid fa-trash me-1" aria-hidden="true"></i> Verwijderen</button>
       </div>
-    </div>
+    </section>
   `);
 
   // Configs / offertes per type
@@ -1288,39 +856,47 @@ function renderDrawer(project) {
 
   // Situation
   if (m.situation) {
-    sections.push(`<div class="drawer-section"><h3>Situatie</h3><div class="free-text">${escapeHtml(m.situation)}</div></div>`);
+    sections.push(`
+      <section class="border-bottom pb-3 mb-3">
+        <h6 class="mb-2 text-uppercase text-muted">Situatie</h6>
+        <div style="white-space:pre-wrap;font-size:0.92rem;line-height:1.4;">${escapeHtml(m.situation)}</div>
+      </section>
+    `);
   }
   // Notes
   if (m.notes) {
-    sections.push(`<div class="drawer-section"><h3>Notities</h3><div class="free-text">${escapeHtml(m.notes)}</div></div>`);
+    sections.push(`
+      <section class="border-bottom pb-3 mb-3">
+        <h6 class="mb-2 text-uppercase text-muted">Notities</h6>
+        <div style="white-space:pre-wrap;font-size:0.92rem;line-height:1.4;">${escapeHtml(m.notes)}</div>
+      </section>
+    `);
   }
 
   // Photos placeholder (filled by renderPhotos after async listProjectPhotos)
   sections.push(`
-    <div class="drawer-section" id="drawerPhotosSection">
-      <h3><i class="fa-solid fa-images" aria-hidden="true"></i> Foto's <span id="drawerPhotosCount" style="font-weight:400;color:var(--muted);"></span></h3>
-      <div class="photo-grid" id="drawerPhotoGrid"><p class="empty-state">⏳ Laden…</p></div>
-      <div class="photo-uploader">
-        <input type="file" id="drawerPhotoInput" accept="image/*" multiple />
-        <button type="button" class="btn btn-secondary" id="drawerPhotoUploadBtn" style="font-size:0.85rem;padding:6px 10px;">📤 Upload</button>
+    <section class="border-bottom pb-3 mb-3" id="drawerPhotosSection">
+      <h6 class="mb-2 text-uppercase text-muted"><i class="fa-solid fa-images" aria-hidden="true"></i> Foto's <span id="drawerPhotosCount" class="text-muted fw-normal"></span></h6>
+      <div class="photo-grid" id="drawerPhotoGrid"><p class="sp-empty-state">⏳ Laden…</p></div>
+      <div class="d-flex align-items-center gap-2 mt-2">
+        <input type="file" id="drawerPhotoInput" accept="image/*" multiple class="form-control form-control-sm" />
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="drawerPhotoUploadBtn">📤 Upload</button>
       </div>
-      <div class="err" id="drawerPhotoErr" style="color:var(--danger);font-size:0.82rem;margin-top:4px;"></div>
-    </div>
+      <div class="text-danger small mt-1" id="drawerPhotoErr"></div>
+    </section>
   `);
 
   // Comments placeholder (filled by renderComments)
   sections.push(`
-    <div class="drawer-section" id="drawerCommentsSection">
-      <h3><i class="fa-solid fa-comments" aria-hidden="true"></i> Opmerkingen <span id="drawerCommentsCount" style="font-weight:400;color:var(--muted);"></span></h3>
-      <div class="comments-list" id="drawerCommentsList"><p class="empty-state">⏳ Laden…</p></div>
-      <div class="composer">
-        <textarea id="drawerCommentInput" placeholder="Plaats een opmerking…" maxlength="4000"></textarea>
-        <div class="composer-row">
-          <div class="err" id="drawerCommentErr"></div>
-          <button type="button" class="btn" id="drawerCommentSubmit">Plaats opmerking</button>
-        </div>
+    <section id="drawerCommentsSection">
+      <h6 class="mb-2 text-uppercase text-muted"><i class="fa-solid fa-comments" aria-hidden="true"></i> Opmerkingen <span id="drawerCommentsCount" class="text-muted fw-normal"></span></h6>
+      <div class="d-flex flex-column gap-2 mb-3" id="drawerCommentsList"><p class="sp-empty-state">⏳ Laden…</p></div>
+      <div class="input-group mt-2">
+        <textarea id="drawerCommentInput" class="form-control" rows="2" placeholder="Opmerking toevoegen…" maxlength="4000"></textarea>
+        <button type="button" class="btn btn-primary" id="drawerCommentSubmit">Versturen</button>
       </div>
-    </div>
+      <div class="text-danger small mt-1" id="drawerCommentErr"></div>
+    </section>
   `);
 
   body.innerHTML = sections.join('');
@@ -1380,7 +956,7 @@ function renderDrawer(project) {
     } catch (e) {
       errEl.textContent = e && e.message ? e.message : String(e);
     } finally {
-      btn.disabled = false; btn.textContent = 'Plaats opmerking';
+      btn.disabled = false; btn.textContent = 'Versturen';
     }
   });
 }
@@ -1391,16 +967,16 @@ function renderComments(project, comments) {
   if (!list) return;
   count.textContent = comments.length > 0 ? `(${comments.length})` : '';
   if (comments.length === 0) {
-    list.innerHTML = '<p class="empty-state" style="font-style:italic;color:var(--muted);">Nog geen opmerkingen. Plaats er één hieronder.</p>';
+    list.innerHTML = '<p class="sp-empty-state">Nog geen opmerkingen. Plaats er één hieronder.</p>';
     return;
   }
   list.innerHTML = comments.map(c => `
-    <div class="comment">
-      <div class="meta">
-        <span class="author">${escapeHtml(shortName(c.author))}</span>
-        <span>${fmtRelTime(c.createdAt)}</span>
+    <div class="bg-light rounded p-2">
+      <div class="d-flex justify-content-between gap-2 mb-1">
+        <span class="fw-semibold text-primary-emphasis small">${escapeHtml(shortName(c.author))}</span>
+        <span class="text-muted small">${fmtRelTime(c.createdAt)}</span>
       </div>
-      <div class="text">${escapeHtml(c.text || '')}</div>
+      <div style="white-space:pre-wrap;font-size:0.92rem;line-height:1.35;">${escapeHtml(c.text || '')}</div>
     </div>
   `).join('');
   // Scroll last comment into view if the newest is below the fold.
@@ -1419,7 +995,7 @@ function renderPhotos(project, photos) {
   if (!grid) return;
   count.textContent = _drawerPhotos.length > 0 ? `(${_drawerPhotos.length})` : '';
   if (_drawerPhotos.length === 0) {
-    grid.innerHTML = '<p class="empty-state" style="font-style:italic;color:var(--muted);">Nog geen foto\u2019s geüpload.</p>';
+    grid.innerHTML = '<p class="sp-empty-state">Nog geen foto’s geüpload.</p>';
     return;
   }
   grid.innerHTML = _drawerPhotos.map((p, i) => {
@@ -1439,12 +1015,12 @@ function openLightbox(idx) {
   if (!lb) {
     lb = document.createElement('div');
     lb.id = 'dashLightbox';
-    lb.className = 'lightbox-dash';
+    lb.className = 'sp-lightbox';
     lb.innerHTML = `
-      <button type="button" class="lightbox-dash-btn close" title="Sluit">×</button>
-      <button type="button" class="lightbox-dash-btn prev" title="Vorige">‹</button>
-      <button type="button" class="lightbox-dash-btn next" title="Volgende">›</button>
-      <button type="button" class="lightbox-dash-btn del" title="Verwijder foto"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+      <button type="button" class="sp-lightbox-btn close" title="Sluit">×</button>
+      <button type="button" class="sp-lightbox-btn prev" title="Vorige">‹</button>
+      <button type="button" class="sp-lightbox-btn next" title="Volgende">›</button>
+      <button type="button" class="sp-lightbox-btn del" title="Verwijder foto"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
       <img id="dashLightboxImg" alt="" />
     `;
     document.body.appendChild(lb);
@@ -1495,16 +1071,7 @@ function closeLightbox() {
   if (lb) lb.classList.remove('open');
 }
 
-// Drawer close hooks
-document.addEventListener('DOMContentLoaded', () => {
-  const overlay = document.getElementById('drawerOverlay');
-  if (overlay) overlay.addEventListener('click', closeDrawer);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && _drawerProjectId) closeDrawer();
-  });
-});
-
-// Offerte-row button delegation
+// Offerte-row button delegation (inside drawer)
 (function bindOfferteRowActions() {
   const drawer = document.getElementById('drawer');
   if (!drawer) return;
@@ -1545,19 +1112,26 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 })();
 
-// Modal close bindings (generic — works for any modal-overlay)
-(function bindModalCloseActions() {
-  const modal = document.getElementById('offerteModal');
-  if (!modal) return;
-  // click-outside
-  modal.addEventListener('click', (e) => {
-    if (e.target.id === 'offerteModal') closeModal('offerteModal');
+// Status-dropdown delegation (Bootstrap dropdown-items for status change)
+document.addEventListener('click', (ev) => {
+  const opt = ev.target.closest('.dropdown-menu .dropdown-item[data-status][data-project-id]');
+  if (!opt) return;
+  const statusKey = opt.getAttribute('data-status');
+  const projectId = opt.getAttribute('data-project-id');
+  updateProjectStatus(projectId, statusKey).then(() => refreshProjectList()).catch(err => {
+    alert('Kon status niet wijzigen: ' + (err && err.message ? err.message : err));
   });
-  const closeBtn  = document.getElementById('offerteModalClose');
-  const cancelBtn = document.getElementById('offerteModalCancel');
-  if (closeBtn)  closeBtn.addEventListener('click',  () => closeModal('offerteModal'));
-  if (cancelBtn) cancelBtn.addEventListener('click', () => closeModal('offerteModal'));
-})();
+});
+
+// Responsive view: re-render on breakpoint cross (992px)
+let _wasDesktop = window.innerWidth >= 992;
+window.addEventListener('resize', () => {
+  const nowDesktop = window.innerWidth >= 992;
+  if (nowDesktop !== _wasDesktop) {
+    _wasDesktop = nowDesktop;
+    renderCurrent();
+  }
+});
 </script>
 
 </body>
