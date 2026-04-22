@@ -276,7 +276,7 @@ function rowHTML(p, isDeleted) {
     : '';
   const action  = isDeleted
     ? `<button type="button" class="btn btn-sm btn-outline-secondary restoreBtn" data-id="${p.id}" title="Herstellen"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
-       <button type="button" class="btn btn-sm btn-outline-danger permdelBtn"   data-id="${p.id}" data-name="${escapeHtml(p.projectName || '')}" title="Definitief verwijderen"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i></button>`
+       <button type="button" class="btn btn-sm btn-outline-danger permdelBtn"   data-id="${p.id}" data-name="${escapeHtml(getProjectLabel(p))}" title="Definitief verwijderen"><i class="fa-solid fa-circle-xmark" aria-hidden="true"></i></button>`
     : `<button type="button" class="btn btn-sm btn-outline-danger deleteBtn"    data-id="${p.id}" title="Verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
   const email  = currentUserEmail();
   const chat   = hasAnyComments(p)
@@ -290,7 +290,7 @@ function rowHTML(p, isDeleted) {
     : '';
   return `
     <tr class="${isDeleted ? 'text-muted opacity-50' : ''}" data-id="${p.id}">
-      <td>${chat}${warn}${warnOfferte}<button type="button" class="btn btn-link p-0 text-decoration-none fw-semibold projectNameBtn" data-id="${p.id}">${escapeHtml(p.projectName || '')}</button></td>
+      <td>${chat}${warn}${warnOfferte}<button type="button" class="btn btn-link p-0 text-decoration-none fw-semibold projectNameBtn" data-id="${p.id}">${escapeHtml(getProjectLabel(p))}</button></td>
       <td class="d-none d-sm-table-cell">${escapeHtml(p.customerName || '')}</td>
       <td>${statusChipHTML(p.status, p.id)}</td>
       <td class="d-none d-sm-table-cell text-muted small">${updated}</td>
@@ -445,7 +445,7 @@ function kanbanCardHTML(p) {
     : '';
   return `
     <div class="kanban-card" draggable="true" data-id="${p.id}">
-      <div class="kanban-card-title" data-id="${p.id}">${chat}${warn}${warnOfferte}${escapeHtml(p.projectName || '')}</div>
+      <div class="kanban-card-title" data-id="${p.id}">${chat}${warn}${warnOfferte}${escapeHtml(getProjectLabel(p))}</div>
       <div class="kanban-card-customer">${escapeHtml(p.customerName || '')}</div>
       <div class="kanban-card-footer">
         ${statusChipHTML(p.status, p.id)}
@@ -824,7 +824,7 @@ function renderDrawer(project) {
 
   header.innerHTML = `
     <div class="flex-grow-1">
-      <h5 class="offcanvas-title mb-0" id="drawerHeaderTitle">${escapeHtml(project.projectName || '(zonder naam)')}</h5>
+      <h5 class="offcanvas-title mb-0" id="drawerHeaderTitle">${escapeHtml(getProjectLabel(project))}</h5>
       <div class="text-muted small mt-1">${escapeHtml(project.customerName || '')} · ${statusChipHTML(project.status, project.id)}</div>
     </div>
     <button type="button" class="btn-close ms-2" data-bs-dismiss="offcanvas" aria-label="Sluit"></button>

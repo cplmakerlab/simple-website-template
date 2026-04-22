@@ -160,6 +160,16 @@ function getStatusMeta(key) {
   return PROJECT_STATUSES.find(s => s.key === key) || { key, label: key, color: '#9aa3b2' };
 }
 
+// Label helper: projectName has priority, else customerName, else placeholder.
+// Used on dashboard (list/board/drawer), index.html project-banner, and project-edit page title.
+function getProjectLabel(project) {
+  const pn = (project && project.projectName || '').trim();
+  if (pn) return pn;
+  const cn = (project && project.customerName || '').trim();
+  if (cn) return cn;
+  return '(zonder naam)';
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 let _firebaseApp = null;
 let _firebaseDb  = null;

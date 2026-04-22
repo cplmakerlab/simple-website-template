@@ -191,7 +191,7 @@ async function bootstrap() {
       ...proj,
       ...mergeProjectMetadata(proj),
     };
-    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary" aria-hidden="true"></i> ' + escapeHtml(proj.projectName || 'Project');
+    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary" aria-hidden="true"></i> ' + escapeHtml(getProjectLabel(proj));
   }
   renderSections();
   wireActions();

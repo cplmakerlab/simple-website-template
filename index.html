@@ -2431,7 +2431,7 @@ async function loadProjectIntoUI(id) {
   if (csvCard) csvCard.style.display = 'none';
 
   // Render banner
-  document.getElementById('pbName').textContent     = proj.projectName || '(zonder naam)';
+  document.getElementById('pbName').textContent     = getProjectLabel(proj);
   document.getElementById('pbCustomer').textContent = proj.customerName || '—';
   renderProjectStatusChip();
   document.getElementById('projectBanner').style.display = '';
