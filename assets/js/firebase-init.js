@@ -114,6 +114,7 @@ function newEmptyProjectMetadata() {
       btw:     null,
       keuring: 'yes',
     },
+    serialNumbers: [],
   };
 }
 
@@ -136,6 +137,7 @@ function mergeProjectMetadata(project) {
   merged.offertes         = project.offertes         || {};
   merged.dismissedConfigs = Array.isArray(project.dismissedConfigs)
                               ? project.dismissedConfigs : [];
+  merged.serialNumbers = Array.isArray(project.serialNumbers) ? project.serialNumbers : [];
   return merged;
 }
 
@@ -626,6 +628,99 @@ async function restoreProjectConfig(projectId, configType) {
     dismissedConfigs: firebase.firestore.FieldValue.arrayRemove(configType),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
+}
+
+// ─── SERIAL NUMBERS (batterij/omvormer tracking) ─────────────────────────────
+//
+// project.serialNumbers is a top-level array of entries:
+//   { id, value, photoStoragePath, photoDownloadUrl (runtime only), uploadedAt, uploadedBy }
+// photoStoragePath/uploadedAt/uploadedBy are null if no photo attached.
+
+function _genSerialId() {
+  return 'sn_' + Math.random().toString(36).slice(2, 10);
+}
+
+async function addProjectSerial(projectId, value) {
+  const email = currentUserEmail();
+  if (!email) throw new Error('Niet ingelogd');
+  const entry = {
+    id:               _genSerialId(),
+    value:            (value || '').trim(),
+    photoStoragePath: null,
+    uploadedAt:       null,
+    uploadedBy:       null,
+  };
+  await projectDoc(projectId).update({
+    serialNumbers: firebase.firestore.FieldValue.arrayUnion(entry),
+    updatedAt:     firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  return entry;
+}
+
+async function updateProjectSerial(projectId, serialId, patch) {
+  // arrayUnion/arrayRemove can't mutate in place, so read-modify-write.
+  const snap = await projectDoc(projectId).get();
+  const list = Array.isArray(snap.data().serialNumbers) ? snap.data().serialNumbers : [];
+  const updated = list.map(e => e.id === serialId ? { ...e, ...patch } : e);
+  await projectDoc(projectId).update({
+    serialNumbers: updated,
+    updatedAt:     firebase.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
+async function deleteProjectSerial(projectId, serialId) {
+  const snap = await projectDoc(projectId).get();
+  const list = Array.isArray(snap.data().serialNumbers) ? snap.data().serialNumbers : [];
+  const entry = list.find(e => e.id === serialId);
+  const updated = list.filter(e => e.id !== serialId);
+  await projectDoc(projectId).update({
+    serialNumbers: updated,
+    updatedAt:     firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  if (entry && entry.photoStoragePath) {
+    try { await getStorage().ref(entry.photoStoragePath).delete(); }
+    catch (e) { console.warn('Serial photo verwijderen mislukt', e); }
+  }
+}
+
+async function uploadProjectSerialPhoto(projectId, serialId, file) {
+  const email = currentUserEmail();
+  if (!email) throw new Error('Niet ingelogd');
+  if (!file || !file.type.startsWith('image/')) throw new Error('Alleen afbeeldingen.');
+  const MAX_BYTES = 15 * 1024 * 1024;
+  if (file.size > MAX_BYTES) throw new Error('Te groot (max 15 MB).');
+
+  const ts = Date.now();
+  const storagePath = `projects/${projectId}/serials/${serialId}_${ts}.jpg`;
+
+  // Read existing entry to replace its photo (delete old blob after success).
+  const snap = await projectDoc(projectId).get();
+  const list = Array.isArray(snap.data().serialNumbers) ? snap.data().serialNumbers : [];
+  const oldEntry = list.find(e => e.id === serialId);
+
+  await getStorage().ref(storagePath).put(file, { contentType: file.type });
+
+  const patch = {
+    photoStoragePath: storagePath,
+    uploadedAt:       new Date(),
+    uploadedBy:       email,
+  };
+  const updated = list.map(e => e.id === serialId ? { ...e, ...patch } : e);
+  await projectDoc(projectId).update({
+    serialNumbers: updated,
+    updatedAt:     firebase.firestore.FieldValue.serverTimestamp(),
+  });
+
+  if (oldEntry && oldEntry.photoStoragePath && oldEntry.photoStoragePath !== storagePath) {
+    try { await getStorage().ref(oldEntry.photoStoragePath).delete(); }
+    catch (e) { console.warn('Oude serial photo verwijderen mislukt', e); }
+  }
+}
+
+async function getSerialPhotoUrl(storagePath) {
+  if (!storagePath) return null;
+  try { return await getStorage().ref(storagePath).getDownloadURL(); }
+  catch (e) { console.warn('Serial photo URL ophalen mislukt', e); return null; }
 }
 
 // ─── OFFERTE WARNING PREDICATE ────────────────────────────────────────────────
