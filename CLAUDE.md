@@ -29,6 +29,54 @@ The default branch is `gh-pages`; the site is published directly from it via Git
 - **`style.css`, `script.js`** — **dead code from the upstream template** (jQuery hash-based menu navigation). The calculator does not load them. Don't add app logic here; either edit `index.html` directly or extract into a new file and `<link>`/`<script src>` it from `index.html`.
 - **`docs/superpowers/specs/`, `docs/superpowers/plans/`** — design specs and implementation plans for past feature work, kept for traceability. Read the spec when touching a feature it covers; the plan documents the exact edits already made.
 
+## Styling stack (2026-04-22 migration)
+
+The three backoffice pages (`dashboard.html`, `project-edit.html`, `producten.html`)
+use **Bootstrap 5.3.3** as the primary layout/component system, loaded via
+cdnjs CDN (no build step). All SmartPeak brand overrides and app-specific
+components live in **`assets/css/smartpeak.css`** — this is the single CSS
+source of truth for the backoffice.
+
+- Bootstrap CSS loads first, then `smartpeak.css` (which contains
+  `--bs-primary: #2c7be5`, `--bs-border-radius: 12px`, and other brand tokens).
+- Inline `<style>` blocks in the three HTML files contain only page-specific
+  one-offs; anything shared lives in `smartpeak.css`.
+- `bootstrap.bundle.min.js` (at the end of each `<body>`, before the inline
+  script) provides Offcanvas, Modal, Dropdown, Toast, Accordion, Carousel,
+  Collapse. Instantiate via `bootstrap.X.getOrCreateInstance(el)` or rely on
+  `data-bs-toggle` attributes.
+- `index.html` (calculator) is OUT of scope for this migration and keeps its
+  own embedded styling.
+- Font Awesome 6.5.2 remains the icon library (FA was migrated separately on
+  2026-04-21); we do NOT use Bootstrap Icons.
+
+**Component conventions:**
+- Project-drawer → `.offcanvas.offcanvas-end` with ID `#drawer`
+- Offerte-modal → `.modal.fade` with ID `#offerteModal`
+- Status chip → `.badge.status-chip` (inline-style color from `getStatusMeta()`)
+  inside a `.dropdown` for pick-to-change
+- Toast feedback → `.toast-container` with `showToast(msg, variant)` helper
+  (variants: `success` / `danger` / `warning` / `primary`)
+- Kanban board, lightbox, photo-grid, drop-zone → app-specific CSS in
+  `smartpeak.css` (no Bootstrap equivalents)
+- Accordion sections in `project-edit.html` → no `data-bs-parent` (multiple
+  sections open simultaneously for long-form UX)
+- Form validation → `.is-invalid` + `.invalid-feedback` via `showFieldError(id, msg)`
+  / `clearFieldError(id)` helpers; `collectFromForm()` throws errors with a
+  `.fieldErrors` map so the save flow can highlight per-field + `scrollIntoView`
+  the first invalid field
+- Photo upload progress → Bootstrap `.progress` + `.progress-bar` (width %)
+
+**Responsive breakpoints (hard-coded gates):**
+- `< md` (< 768px): hamburger navbar, minimal table columns, full-width offcanvas
+- `md – lg` (768–991px): tablets portrait, view-toggle still hidden
+- `≥ lg` (≥ 992px): kanban-toggle visible (JS force-downgrades to list view
+  under this threshold via `currentView()` + `resize` listener), 420px offcanvas
+
+**SRI hashes for Bootstrap 5.3.3 (cdnjs):**
+- CSS: `sha512-jnSuA4Ss2PkkikSOLtYs8BlYIeeIK1h99ty4YfvRPAlzr377vr3CXDb7sb7eEEBYjDtcYj+AjBH3FLv5uSJuSg==`
+- JS:  `sha512-1/RvZTcCDEUjY/CypiMz+iqqtaoQfAITmNSJY17Myp4Ms5mdxPS5UV7iOfdZoxcGhzFbOm6sntTKJppjvuhg4g==`
+
 ## How to work on it
 
 - **Run locally:** open `index.html` directly in a browser, or `python3 -m http.server` from the repo root and visit `http://localhost:8000`. A local server is needed if you want the URL `?data=...` share-link flow to behave like production.
