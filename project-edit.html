@@ -269,9 +269,8 @@ function sectionBasisgegevens() {
         <div class="accordion-body">
           <div class="row g-3">
             <div class="col-12 col-md-6">
-              <label for="fProjectName" class="form-label">Projectnaam <span class="text-danger">*</span></label>
-              <input type="text" id="fProjectName" class="form-control" maxlength="120" value="${escapeHtml(p.projectName)}" />
-              <div class="invalid-feedback">Projectnaam is verplicht.</div>
+              <label for="fProjectName" class="form-label">Projectnaam <span class="text-muted small fw-normal">(optioneel)</span></label>
+              <input type="text" id="fProjectName" class="form-control" maxlength="120" placeholder="Leeg = klantnaam wordt gebruikt" value="${escapeHtml(p.projectName)}" />
             </div>
             <div class="col-12 col-md-6">
               <label for="fCustomerName" class="form-label">Klantnaam <span class="text-danger">*</span></label>
@@ -1068,7 +1067,6 @@ function collectFromForm() {
   const customerName = (_project.customerName || '').trim();
 
   const errors = {};  // { fieldId-or-key: { msg, invId? } }
-  if (!projectName)  errors.fProjectName  = { msg: 'Projectnaam is verplicht.' };
   if (!customerName) errors.fCustomerName = { msg: 'Klantnaam is verplicht.' };
 
   // Inverter-verplichting (ingevuld in Task 7): elk inverter-kaartje moet powerKw > 0 hebben.
