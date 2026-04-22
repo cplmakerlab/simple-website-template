@@ -36,7 +36,7 @@
 <body>
 
 <!-- State 1: not logged in -->
-<div class="card mx-auto mt-5" id="stateLoggedOut" style="max-width:480px">
+<div class="card mx-auto mt-5 hide" id="stateLoggedOut" style="max-width:480px">
   <div class="card-body text-center p-4">
     <h1 class="h4 mb-2"><i class="fa-solid fa-bolt text-primary"></i> SmartPeak — Projecten</h1>
     <p class="text-muted mb-3">Alleen voor Bloxit medewerkers.</p>
@@ -284,6 +284,7 @@ function rowHTML(p, isDeleted) {
       <td class="d-none d-sm-table-cell">${escapeHtml(p.customerName || '')}</td>
       <td>${statusChipHTML(p.status, p.id)}</td>
       <td class="d-none d-sm-table-cell text-muted small">${updated}</td>
+      <td class="d-none d-md-table-cell text-muted small">${p.lastCalcRun ? fmtDate(p.lastCalcRun.calculatedAt) : '—'}</td>
       <td class="text-end">
         <div class="d-flex gap-1 justify-content-end">
           ${calcBtn}
@@ -383,6 +384,7 @@ function renderList(active, deleted, el) {
             <th class="d-none d-sm-table-cell">Klant</th>
             <th>Status</th>
             <th class="d-none d-sm-table-cell">Gewijzigd</th>
+            <th class="d-none d-md-table-cell">Laatste calc</th>
             <th class="text-end">Acties</th>
           </tr>
         </thead>
