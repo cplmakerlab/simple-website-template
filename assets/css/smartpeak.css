@@ -112,7 +112,7 @@
   border-radius: 10px;
 }
 .kanban-col-body { display: flex; flex-direction: column; gap: 6px; min-height: 20px; }
-.kanban-col.drop-target { background: #dce8fa; }
+.kanban-col.drag-over { background: #dce8fa; }
 .kanban-card {
   background: #fff;
   border: 1px solid var(--bs-border-color);

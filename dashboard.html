@@ -412,7 +412,7 @@ function renderBoard(active, el) {
               <span class="count">${items.length}</span>
             </div>
             <div class="kanban-col-body">
-              ${items.map(p => kanbanCardHTML(p)).join('') || '<p class="empty-state" style="font-size:0.82rem;color:var(--muted);">—</p>'}
+              ${items.map(p => kanbanCardHTML(p)).join('') || '<p class="sp-empty-state" style="font-size:0.82rem;">—</p>'}
             </div>
           </div>
         `;
@@ -453,13 +453,13 @@ function wireRowActions(el) {
     btn.addEventListener('click', async () => {
       if (!confirm('Project verwijderen? Het wordt soft-deleted en blijft herstelbaar via "Toon verwijderde".')) return;
       try { await softDeleteProject(btn.dataset.id); await refreshProjectList(); }
-      catch (err) { alert('Kon niet verwijderen: ' + (err && err.message ? err.message : err)); }
+      catch (err) { showToast('Kon niet verwijderen: ' + (err && err.message ? err.message : err), 'danger'); }
     });
   });
   el.querySelectorAll('.restoreBtn').forEach(btn => {
     btn.addEventListener('click', async () => {
       try { await restoreProject(btn.dataset.id); await refreshProjectList(); }
-      catch (err) { alert('Kon niet herstellen: ' + (err && err.message ? err.message : err)); }
+      catch (err) { showToast('Kon niet herstellen: ' + (err && err.message ? err.message : err), 'danger'); }
     });
   });
   el.querySelectorAll('.permdelBtn').forEach(btn => {
@@ -472,7 +472,7 @@ function wireRowActions(el) {
         await hardDeleteProject(id);
         await refreshProjectList();
       } catch (err) {
-        alert('Definitief verwijderen mislukt: ' + (err && err.message ? err.message : err));
+        showToast('Definitief verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
         btn.disabled = false;
       }
     });
@@ -514,7 +514,7 @@ function wireBoard(el) {
         await updateProjectStatus(id, phase.statuses[0]);
         await refreshProjectList();
       } catch (err) {
-        alert('Status wijzigen mislukt: ' + (err && err.message ? err.message : err));
+        showToast('Status wijzigen mislukt: ' + (err && err.message ? err.message : err), 'danger');
       }
     });
   });
@@ -737,13 +737,13 @@ function renderDrawerOffertes(project) {
       : '<i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i>';
     const fileRow = pdf
       ? `<div class="offerte-row-pdf"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> ${escapeHtml(pdf.filename || '')}</div>`
-      : `<div class="offerte-row-pdf" style="color:var(--muted);">Offerte nog niet toegevoegd</div>`;
+      : `<div class="offerte-row-pdf" style="color:var(--sp-muted);">Offerte nog niet toegevoegd</div>`;
     const actions = pdf
-      ? `<button class="btn-icon offerte-download-btn" data-type="${escapeHtml(t)}" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
-         <button class="btn-icon offerte-replace-btn"  data-type="${escapeHtml(t)}" title="Vervangen"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
-         <button class="btn-icon offerte-trash-btn"    data-type="${escapeHtml(t)}" data-has-pdf="1" title="Verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`
-      : `<button class="btn-icon offerte-upload-btn"   data-type="${escapeHtml(t)}" title="Upload"><i class="fa-solid fa-upload" aria-hidden="true"></i></button>
-         <button class="btn-icon offerte-trash-btn"    data-type="${escapeHtml(t)}" data-has-pdf="0" title="Niet geoffreerd"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
+      ? `<button class="btn btn-sm btn-outline-secondary offerte-download-btn" data-offerte-action data-type="${escapeHtml(t)}" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
+         <button class="btn btn-sm btn-outline-secondary offerte-replace-btn"  data-offerte-action data-type="${escapeHtml(t)}" title="Vervangen"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
+         <button class="btn btn-sm btn-outline-danger offerte-trash-btn"       data-offerte-action data-type="${escapeHtml(t)}" data-has-pdf="1" title="Verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`
+      : `<button class="btn btn-sm btn-outline-primary offerte-upload-btn"     data-offerte-action data-type="${escapeHtml(t)}" title="Upload"><i class="fa-solid fa-upload" aria-hidden="true"></i></button>
+         <button class="btn btn-sm btn-outline-danger offerte-trash-btn"       data-offerte-action data-type="${escapeHtml(t)}" data-has-pdf="0" title="Niet geoffreerd"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
 
     return `
       <div class="offerte-row ${pdf ? 'has-pdf' : 'missing-pdf'}">
@@ -767,7 +767,7 @@ function renderDrawerOffertes(project) {
       return `
         <div class="offerte-row dismissed">
           <span class="offerte-row-title">${escapeHtml(cfg.type)} · ${escapeHtml(cfg.omschrijving || '')}</span>
-          <button class="btn-icon offerte-restore-btn" data-type="${escapeHtml(t)}" title="Terugzetten">
+          <button class="btn btn-sm btn-outline-secondary offerte-restore-btn" data-offerte-action data-type="${escapeHtml(t)}" title="Terugzetten">
             <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
           </button>
         </div>
@@ -913,7 +913,7 @@ function renderDrawer(project) {
         closeDrawer();
         await refreshProjectList();
       } catch (err) {
-        alert('Verwijderen mislukt: ' + (err && err.message ? err.message : err));
+        showToast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
       }
     });
   }
@@ -1041,7 +1041,7 @@ function openLightbox(idx) {
         if (fresh.length === 0) closeLightbox();
         else { _lightboxIdx = Math.min(_lightboxIdx, fresh.length - 1); refreshLightboxImage(); }
       } catch (err) {
-        alert('Verwijderen mislukt: ' + (err && err.message ? err.message : err));
+        showToast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
       }
     });
     lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
@@ -1078,7 +1078,7 @@ function closeLightbox() {
   const drawer = document.getElementById('drawer');
   if (!drawer) return;
   drawer.addEventListener('click', async (e) => {
-    const btn = e.target.closest('button.btn-icon');
+    const btn = e.target.closest('button[data-offerte-action]');
     if (!btn) return;
     const type = btn.getAttribute('data-type');
     const project = _currentDrawerProject;
@@ -1109,7 +1109,7 @@ function closeLightbox() {
         await _refreshCurrentDrawer();
       }
     } catch (err) {
-      alert('Er ging iets mis: ' + (err.message || err));
+      showToast('Er ging iets mis: ' + (err.message || err), 'danger');
     }
   });
 })();
@@ -1121,7 +1121,7 @@ document.addEventListener('click', (ev) => {
   const statusKey = opt.getAttribute('data-status');
   const projectId = opt.getAttribute('data-project-id');
   updateProjectStatus(projectId, statusKey).then(() => refreshProjectList()).catch(err => {
-    alert('Kon status niet wijzigen: ' + (err && err.message ? err.message : err));
+    showToast('Kon status niet wijzigen: ' + (err && err.message ? err.message : err), 'danger');
   });
 });
 
