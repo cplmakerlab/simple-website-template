@@ -202,11 +202,13 @@ async function bootstrap() {
 }
 
 function renderSections() {
-  // Phase 1: skeleton only. Blok-specific render functions land in Tasks 6-10.
-  document.getElementById('blokA-slot').innerHTML = '<div class="card"><div class="card-body">Blok A — Voor de berekening <em class="text-muted">(wordt opgebouwd in Task 6)</em></div></div>';
+  // Blok A — Voor de berekening (Task 6)
+  document.getElementById('blokA-slot').innerHTML = sectionBlokA();
+  wireBlokA();
   document.getElementById('blokB-slot').innerHTML = '<div class="card"><div class="card-body">Blok B — Klant &amp; situatie <em class="text-muted">(Task 7)</em></div></div>';
   document.getElementById('blokC-slot').innerHTML = '<div class="card"><div class="card-body">Blok C — Technische opmeting <em class="text-muted">(Task 8)</em></div></div>';
   document.getElementById('blokD-slot').innerHTML = '<div class="card"><div class="card-body">Blok D — Foto\'s &amp; serienummers <em class="text-muted">(Task 9)</em></div></div>';
+  updateSaveCalcEnabled();
 }
 
 // Helper — replaces one accordion-item element in place without losing state of others.
@@ -234,6 +236,243 @@ function rerenderSection(id, renderFn, wireFn) {
     existing.replaceWith(freshItem);
   }
   wireFn();
+}
+
+function sectionBlokA() {
+  const p = _project;
+  const site = p.site || { houseAgeOver10Years: null };
+  const sup  = p.supplier || { isSingleTariff: false, priceDay: null, priceNight: null };
+  const calcD = p.calcDefaults || { btw: null, keuring: 'yes' };
+  const invs = (p.solar && p.solar.inverters) || [];
+  const totalKw = invs.reduce((s, i) => s + (Number(i.powerKw) || 0), 0);
+
+  const ageRadio = (v, label) => {
+    const match = (v === null ? site.houseAgeOver10Years === null : site.houseAgeOver10Years === v);
+    const strV = v === null ? 'unknown' : String(v);
+    const id = 'fAge_' + strV;
+    return `<div class="form-check form-check-inline">
+      <input class="form-check-input" type="radio" name="fHouseAge" value="${strV}" id="${id}" ${match ? 'checked' : ''}/>
+      <label class="form-check-label" for="${id}">${label}</label>
+    </div>`;
+  };
+
+  let inverterFieldHtml;
+  if (invs.length >= 2) {
+    inverterFieldHtml = `
+      <label class="form-label">Totaal omvormer-vermogen</label>
+      <div class="input-group">
+        <input type="text" class="form-control" value="${totalKw} kW — som van ${invs.length} omvormers" readonly />
+        <button type="button" class="btn btn-outline-secondary" id="fInverterDeeplink">Beheer per omvormer →</button>
+      </div>
+    `;
+  } else {
+    const val = invs.length === 1 && invs[0].powerKw != null ? invs[0].powerKw : '';
+    inverterFieldHtml = `
+      <label for="fTotalKw" class="form-label">Omvormer-vermogen (kW) <span class="text-danger">*</span></label>
+      <input type="number" id="fTotalKw" class="form-control" min="0" step="0.1" value="${val}" placeholder="bv. 5.0" />
+      <div class="form-text">Eén omvormer? Vul hier in. Meer? Voeg details toe in "Technische opmeting".</div>
+    `;
+  }
+
+  const priceNightHtml = sup.isSingleTariff === false ? `
+    <div class="col-12 col-md-4">
+      <label for="fPriceNight" class="form-label">Prijs nacht (€/kWh)</label>
+      <input type="number" id="fPriceNight" class="form-control" min="0" step="0.001" value="${sup.priceNight != null ? sup.priceNight : ''}" />
+    </div>
+  ` : '';
+
+  return `
+    <div class="card border-primary">
+      <div class="card-header bg-primary-subtle">
+        <h5 class="mb-0"><i class="fa-solid fa-bolt text-primary me-2"></i>Voor de berekening</h5>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label for="fCustomerName" class="form-label">Klantnaam <span class="text-danger">*</span></label>
+            <input type="text" id="fCustomerName" class="form-control" maxlength="120" value="${escapeHtml(p.customerName || '')}" required />
+          </div>
+          <div class="col-12 col-md-6">
+            <label for="fProjectName" class="form-label">Projectnaam <span class="text-muted small fw-normal">(optioneel)</span></label>
+            <input type="text" id="fProjectName" class="form-control" maxlength="120" placeholder="Leeg = klantnaam wordt gebruikt" value="${escapeHtml(p.projectName || '')}" />
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Leeftijd woning (bepaalt BTW)</label>
+            <div>
+              ${ageRadio(true,  '≥ 10 jaar (6%)')}
+              ${ageRadio(false, '< 10 jaar (21%)')}
+              ${ageRadio(null,  'Onbekend')}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Tarief-type</label>
+            <div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="fTariffMode" value="single" id="fTariffSingle" ${sup.isSingleTariff === true ? 'checked' : ''}/>
+                <label class="form-check-label" for="fTariffSingle">Enkel tarief</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="fTariffMode" value="dual" id="fTariffDual" ${sup.isSingleTariff !== true ? 'checked' : ''}/>
+                <label class="form-check-label" for="fTariffDual">Dag/nacht</label>
+              </div>
+            </div>
+          </div>
+          <div class="col-12 col-md-4">
+            <label for="fPriceDay" class="form-label">Prijs ${sup.isSingleTariff === true ? '' : 'dag '}(€/kWh)</label>
+            <input type="number" id="fPriceDay" class="form-control" min="0" step="0.001" value="${sup.priceDay != null ? sup.priceDay : ''}" />
+          </div>
+          ${priceNightHtml}
+
+          <div class="col-12">
+            ${inverterFieldHtml}
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">CSV Fluvius</label>
+            <input type="file" id="fCsv" class="form-control" accept=".csv" />
+            <div class="form-text" id="fCsvStatus">${_csvStatusLine()}</div>
+          </div>
+
+          <div class="col-12">
+            <details class="mt-2">
+              <summary class="text-muted small">Extra opties (BTW handmatig, keuring, leverancier-naam)</summary>
+              <div class="row g-3 mt-1">
+                <div class="col-12 col-md-4">
+                  <label for="fBtwManual" class="form-label">BTW handmatig</label>
+                  <select id="fBtwManual" class="form-select" ${site.houseAgeOver10Years !== null ? 'disabled' : ''}>
+                    <option value="">— Nog niet bepaald —</option>
+                    <option value="6"  ${calcD.btw === 6  ? 'selected' : ''}>6%</option>
+                    <option value="21" ${calcD.btw === 21 ? 'selected' : ''}>21%</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="fKeuring" class="form-label">Keuring</label>
+                  <select id="fKeuring" class="form-select">
+                    <option value="yes" ${calcD.keuring === 'yes' ? 'selected' : ''}>Ja</option>
+                    <option value="no"  ${calcD.keuring === 'no'  ? 'selected' : ''}>Nee</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label for="fSupplierName" class="form-label">Leverancier-naam</label>
+                  <input type="text" id="fSupplierName" class="form-control" maxlength="80" value="${escapeHtml(sup.name || '')}" />
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function _csvStatusLine() {
+  if (_pendingCsv) return `Klaar om op te slaan: ${escapeHtml(_pendingCsv.eanCode || 'nieuw CSV')}`;
+  if (!_project.csvUpload) return 'Nog geen CSV geüpload.';
+  const u = _project.csvUpload;
+  return `Vorige upload: ${escapeHtml(u.meterNr || u.eanCode || 'onbekend')}`;
+}
+
+function wireBlokA() {
+  document.getElementById('fCustomerName').addEventListener('input', e => {
+    _project.customerName = e.target.value;
+  });
+  document.getElementById('fProjectName').addEventListener('input', e => {
+    _project.projectName = e.target.value;
+  });
+
+  document.querySelectorAll('input[name="fHouseAge"]').forEach(r => {
+    r.addEventListener('change', e => {
+      const v = e.target.value;
+      _project.site = _project.site || {};
+      _project.site.houseAgeOver10Years =
+        v === 'true'  ? true  :
+        v === 'false' ? false :
+                        null;
+      if (_project.site.houseAgeOver10Years !== null) {
+        _project.calcDefaults = _project.calcDefaults || {};
+        _project.calcDefaults.btw = null;
+      }
+      rerenderBlokA();
+      updateSaveCalcEnabled();
+    });
+  });
+
+  document.querySelectorAll('input[name="fTariffMode"]').forEach(r => {
+    r.addEventListener('change', e => {
+      _project.supplier = _project.supplier || {};
+      _project.supplier.isSingleTariff = (e.target.value === 'single');
+      rerenderBlokA();
+      updateSaveCalcEnabled();
+    });
+  });
+  document.getElementById('fPriceDay').addEventListener('input', e => {
+    _project.supplier = _project.supplier || {};
+    _project.supplier.priceDay = e.target.value === '' ? null : parseFloat(e.target.value);
+    updateSaveCalcEnabled();
+  });
+  const pn = document.getElementById('fPriceNight');
+  if (pn) pn.addEventListener('input', e => {
+    _project.supplier = _project.supplier || {};
+    _project.supplier.priceNight = e.target.value === '' ? null : parseFloat(e.target.value);
+    updateSaveCalcEnabled();
+  });
+
+  const totalKwInput = document.getElementById('fTotalKw');
+  if (totalKwInput) {
+    totalKwInput.addEventListener('input', e => {
+      _project.solar = _project.solar || { inverters: [] };
+      const invs = _project.solar.inverters;
+      const v = e.target.value === '' ? null : parseFloat(e.target.value);
+      if (invs.length === 0) {
+        invs.push({ id: genInverterId(), powerKw: v, brand: '', model: '', panelCount: null, circuitCount: null, orientation: '' });
+      } else {
+        invs[0].powerKw = v;
+      }
+      updateSaveCalcEnabled();
+    });
+  }
+  const dlBtn = document.getElementById('fInverterDeeplink');
+  if (dlBtn) dlBtn.addEventListener('click', () => {
+    document.getElementById('blokC-slot').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  document.getElementById('fCsv').addEventListener('change', async e => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const csvText = await file.text();
+      const parsed  = parseCSV(csvText);
+      _pendingCsv   = extractCsvForStorage(parsed, file.name);
+      document.getElementById('fCsvStatus').textContent = _csvStatusLine();
+      updateSaveCalcEnabled();
+    } catch (err) {
+      document.getElementById('fCsvStatus').textContent = 'CSV-fout: ' + (err && err.message ? err.message : String(err));
+    }
+  });
+
+  const btwSel = document.getElementById('fBtwManual');
+  if (btwSel) btwSel.addEventListener('change', e => {
+    _project.calcDefaults = _project.calcDefaults || {};
+    _project.calcDefaults.btw = e.target.value === '' ? null : Number(e.target.value);
+    updateSaveCalcEnabled();
+  });
+  const keur = document.getElementById('fKeuring');
+  if (keur) keur.addEventListener('change', e => {
+    _project.calcDefaults = _project.calcDefaults || {};
+    _project.calcDefaults.keuring = e.target.value;
+  });
+  const supN = document.getElementById('fSupplierName');
+  if (supN) supN.addEventListener('input', e => {
+    _project.supplier = _project.supplier || {};
+    _project.supplier.name = e.target.value;
+  });
+}
+
+function rerenderBlokA() {
+  document.getElementById('blokA-slot').innerHTML = sectionBlokA();
+  wireBlokA();
 }
 
 function sectionBasisgegevens() {
@@ -1040,6 +1279,10 @@ function wireSectionCsv() {
 function wireActions() {
   document.getElementById('btnSave').addEventListener('click', () => save({ andCalc: false }));
   document.getElementById('btnSaveAndCalc').addEventListener('click', () => save({ andCalc: true }));
+}
+
+function updateSaveCalcEnabled() {
+  /* stub — vervangen door echte implementatie in Task 10 */
 }
 
 // Gather the save payload from _project. Extracted so later sections all just
