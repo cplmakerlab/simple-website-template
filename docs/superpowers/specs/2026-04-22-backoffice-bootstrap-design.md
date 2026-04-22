@@ -153,10 +153,12 @@ page-specifieke one-offs (als die nodig zijn) blijven inline.
   </main>
 
   <!-- Offcanvas drawer -->
-  <div class="offcanvas offcanvas-end" tabindex="-1" id="drawer" style="--bs-offcanvas-width:420px">
+  <div class="offcanvas offcanvas-end" tabindex="-1" id="drawer">
     <div class="offcanvas-header border-bottom" id="drawerHeader"></div>
     <div class="offcanvas-body" id="drawerBody"></div>
   </div>
+
+  <!-- (breedte via smartpeak.css: default 420px op ≥ md, 100vw op < md) -->
 
   <!-- Modal offerte upload -->
   <div class="modal fade" id="offerteModal" tabindex="-1">
@@ -285,8 +287,7 @@ Helper `showToast(message, {variant})`: genereert `.toast.text-bg-{variant}` in
       <i class="fa-solid fa-id-card me-2"></i> Basisgegevens
     </button>
   </h2>
-  <div id="secBasis" class="accordion-collapse collapse show"
-       data-bs-parent="#projectEditAccordion">
+  <div id="secBasis" class="accordion-collapse collapse show">
     <div class="accordion-body">
       <div class="row g-3">
         <div class="col-12 col-md-6">
@@ -301,9 +302,10 @@ Helper `showToast(message, {variant})`: genereert `.toast.text-bg-{variant}` in
 </div>
 ```
 
-**Let op:** `data-bs-parent` kan weg als we willen dat meerdere secties tegelijk open
-kunnen blijven (typisch beter bij een lang formulier). Standaard: geen `data-bs-parent`
-zodat user meerdere secties open kan houden.
+**Let op:** geen `data-bs-parent` op de `.accordion-collapse` — dat houdt het
+gedrag open (meerdere secties tegelijk uitgeklapt), wat bij een lang
+formulier gebruiksvriendelijker is dan single-open. Alle 11 secties starten
+met `.collapse.show`.
 
 ### De 11 secties blijven:
 
@@ -433,7 +435,7 @@ product (zoals nu). Config-banners worden `.alert.alert-warning` /
 
 | Range | Gedrag |
 |---|---|
-| **< md** (< 768px) | Portrait/landscape telefoons. Navbar hamburger. Tabel: naam/klant/status/acties. Action-bar knoppen full-width. Accordion 1 kolom. View-toggle verborgen → list forceren. Offcanvas full-width via `--bs-offcanvas-width: 100vw`. |
+| **< md** (< 768px) | Portrait/landscape telefoons. Navbar hamburger. Tabel: naam/klant/status/acties. Action-bar knoppen full-width. Accordion 1 kolom. View-toggle verborgen → list forceren. Offcanvas full-width (via `smartpeak.css` media query, `--bs-offcanvas-width: 100vw` onder `md`). |
 | **md – lg** (768–991px) | Tablet portrait. Extra tabel-kolom "Laatst gewijzigd". Action-bar knoppen horizontaal. Accordion 2 kolommen (`col-md-6`). View-toggle nog verborgen. |
 | **≥ lg** (≥ 992px) | Tablet landscape / laptop / desktop. Kanban-toggle zichtbaar. Tabel alle kolommen. Accordion tot 3 kolommen (`col-lg-4`). Navbar expanded. Offcanvas 420px breed. |
 | **≥ xl** (≥ 1200px) | Meer whitespace via `container-fluid` + eventueel `max-width` op main. Geen aparte layout-shift. |
