@@ -207,7 +207,8 @@ function renderSections() {
   wireBlokA();
   document.getElementById('blokB-slot').innerHTML = sectionBlokB();
   wireBlokB();
-  document.getElementById('blokC-slot').innerHTML = '<div class="card"><div class="card-body">Blok C — Technische opmeting <em class="text-muted">(Task 8)</em></div></div>';
+  document.getElementById('blokC-slot').innerHTML = sectionBlokC();
+  wireBlokC();
   document.getElementById('blokD-slot').innerHTML = '<div class="card"><div class="card-body">Blok D — Foto\'s &amp; serienummers <em class="text-muted">(Task 9)</em></div></div>';
   updateSaveCalcEnabled();
 }
@@ -570,6 +571,211 @@ function _setCardCollapsed(blok, collapsed) {
     current[blok] = collapsed;
     localStorage.setItem(_CARD_COLLAPSE_KEY, JSON.stringify(current));
   } catch {}
+}
+
+function sectionBlokC() {
+  const el = _project.electrical || {};
+  const c  = _project.cabinet    || {};
+  const invs = (_project.solar && _project.solar.inverters) || [];
+
+  const connTypes = ['', ...CONNECTION_TYPES].map(t =>
+    `<option value="${t}" ${t === (el.connectionType || '') ? 'selected' : ''}>${t === '' ? '— Niet bepaald —' : t}</option>`
+  ).join('');
+
+  const triRow = (label, key, value) => `
+    <div class="col-12 col-md-6">
+      <label class="form-label">${label}</label>
+      ${triStateHtml('fCab_' + key, value)}
+    </div>
+  `;
+
+  const inverterCards = invs.map((inv, idx) => `
+    <div class="card mb-2" data-inv-id="${inv.id}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="mb-0">Omvormer ${idx + 1}</h6>
+          <button type="button" class="btn-close" aria-label="Verwijder" data-remove-inv="${inv.id}"></button>
+        </div>
+        <div class="row g-2">
+          <div class="col-12 col-md-4">
+            <label class="form-label">Vermogen (kW) <span class="text-danger">*</span></label>
+            <input type="number" data-inv-field="powerKw" data-inv-id="${inv.id}" class="form-control" min="0" step="0.1" value="${inv.powerKw != null ? inv.powerKw : ''}" required />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Merk</label>
+            <input type="text" data-inv-field="brand" data-inv-id="${inv.id}" class="form-control" maxlength="60" value="${escapeHtml(inv.brand || '')}" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Model</label>
+            <input type="text" data-inv-field="model" data-inv-id="${inv.id}" class="form-control" maxlength="60" value="${escapeHtml(inv.model || '')}" />
+          </div>
+          <div class="col-6 col-md-4">
+            <label class="form-label">Panelen</label>
+            <input type="number" data-inv-field="panelCount" data-inv-id="${inv.id}" class="form-control" min="0" step="1" value="${inv.panelCount != null ? inv.panelCount : ''}" />
+          </div>
+          <div class="col-6 col-md-4">
+            <label class="form-label">Kringen</label>
+            <input type="number" data-inv-field="circuitCount" data-inv-id="${inv.id}" class="form-control" min="0" step="1" value="${inv.circuitCount != null ? inv.circuitCount : ''}" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Ligging</label>
+            <input type="text" data-inv-field="orientation" data-inv-id="${inv.id}" class="form-control" maxlength="40" value="${escapeHtml(inv.orientation || '')}" />
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <div class="card collapsible-card">
+      <div class="card-header" data-bs-toggle="collapse" data-bs-target="#blokC-body" aria-expanded="true" aria-controls="blokC-body">
+        <h5 class="mb-0"><i class="fa-solid fa-screwdriver-wrench text-primary me-2"></i>Technische opmeting</h5>
+        <i class="fa-solid fa-chevron-down chev" aria-hidden="true"></i>
+      </div>
+      <div id="blokC-body" class="collapse show">
+        <div class="card-body">
+          <h6 class="text-muted mb-2">Aansluiting</h6>
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <label for="fConnectionType" class="form-label">Type aansluiting</label>
+              <select id="fConnectionType" class="form-select">${connTypes}</select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fFuseRating" class="form-label">Zekeringsterkte Fluvius-zijde (A)</label>
+              <input type="number" id="fFuseRating" class="form-control" min="0" step="1" value="${el.fuseRatingA != null ? el.fuseRatingA : ''}" />
+            </div>
+          </div>
+
+          <h6 class="text-muted mb-2">Zekeringkast</h6>
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <label for="fFreeUnits" class="form-label">Vrije modules</label>
+              <input type="number" id="fFreeUnits" class="form-control" min="0" step="1" value="${c.freeUnits != null ? c.freeUnits : ''}" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fWiringDiameter" class="form-label">Diameter bekabeling (mm²)</label>
+              <input type="number" id="fWiringDiameter" class="form-control" min="0" step="0.5" value="${c.wiringDiameterMm2 != null ? c.wiringDiameterMm2 : ''}" />
+            </div>
+            ${triRow('Rem-automaat aanwezig?',          'hasRemAutomaat',        c.hasRemAutomaat)}
+            ${triRow('Stopcontact bij Fluvius?',        'hasOutletNearFluvius',  c.hasOutletNearFluvius)}
+            ${triRow('Wifi bij Fluvius?',               'hasWifiNearFluvius',    c.hasWifiNearFluvius)}
+            ${triRow('Plaats voor batterijen?',         'batteryPlacementRoom',  c.batteryPlacementRoom)}
+            ${triRow('Wifi bij zekeringkast?',          'hasWifiNearCabinet',    c.hasWifiNearCabinet)}
+            <div class="col-12">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="fLineGroundChecked" ${c.lineGroundChecked === true ? 'checked' : ''} />
+                <label class="form-check-label" for="fLineGroundChecked">
+                  Meting fase ↔ aarde uitgevoerd én onder 30 V
+                  <span class="d-block form-text">Verplicht bij Zendure-installaties.</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <h6 class="text-muted mb-2">Omvormer(s)</h6>
+          <div id="peInverterList">${inverterCards}</div>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="fAddInverter"><i class="fa-solid fa-plus me-1"></i>Omvormer toevoegen</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function wireBlokC() {
+  // Aansluiting
+  document.getElementById('fConnectionType').addEventListener('change', e => {
+    _project.electrical = _project.electrical || {};
+    _project.electrical.connectionType = e.target.value || null;
+  });
+  document.getElementById('fFuseRating').addEventListener('input', e => {
+    _project.electrical = _project.electrical || {};
+    const v = parseFloat(e.target.value);
+    _project.electrical.fuseRatingA = isNaN(v) ? null : v;
+  });
+
+  // Zekeringkast
+  document.getElementById('fFreeUnits').addEventListener('input', e => {
+    _project.cabinet = _project.cabinet || {};
+    const v = parseFloat(e.target.value);
+    _project.cabinet.freeUnits = isNaN(v) ? null : v;
+  });
+  document.getElementById('fWiringDiameter').addEventListener('input', e => {
+    _project.cabinet = _project.cabinet || {};
+    const v = parseFloat(e.target.value);
+    _project.cabinet.wiringDiameterMm2 = isNaN(v) ? null : v;
+  });
+  ['hasRemAutomaat','hasOutletNearFluvius','hasWifiNearFluvius','batteryPlacementRoom','hasWifiNearCabinet'].forEach(key => {
+    document.querySelectorAll(`input[name="fCab_${key}"]`).forEach(r => {
+      r.addEventListener('change', e => {
+        _project.cabinet = _project.cabinet || {};
+        _project.cabinet[key] = parseTriState(e.target.value);
+      });
+    });
+  });
+  document.getElementById('fLineGroundChecked').addEventListener('change', e => {
+    _project.cabinet = _project.cabinet || {};
+    _project.cabinet.lineGroundChecked = e.target.checked ? true : null;
+  });
+
+  // Omvormer-lijst — per-entry input handlers
+  document.querySelectorAll('[data-inv-field]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const invId = e.target.getAttribute('data-inv-id');
+      const field = e.target.getAttribute('data-inv-field');
+      const inv = _project.solar.inverters.find(i => i.id === invId);
+      if (!inv) return;
+      if (field === 'powerKw' || field === 'panelCount' || field === 'circuitCount') {
+        const v = parseFloat(e.target.value);
+        inv[field] = isNaN(v) ? null : v;
+      } else {
+        inv[field] = e.target.value;
+      }
+      if (field === 'powerKw') {
+        rerenderBlokA();
+        updateSaveCalcEnabled();
+      }
+    });
+  });
+
+  // Remove-inverter buttons
+  document.querySelectorAll('[data-remove-inv]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const invId = e.currentTarget.getAttribute('data-remove-inv');
+      _project.solar.inverters = _project.solar.inverters.filter(i => i.id !== invId);
+      rerenderBlokC();
+      rerenderBlokA();
+      updateSaveCalcEnabled();
+    });
+  });
+
+  // Add-inverter
+  document.getElementById('fAddInverter').addEventListener('click', () => {
+    _project.solar = _project.solar || { inverters: [] };
+    _project.solar.inverters.push({
+      id: genInverterId(), powerKw: null, brand: '', model: '',
+      panelCount: null, circuitCount: null, orientation: '',
+    });
+    rerenderBlokC();
+    rerenderBlokA();
+  });
+
+  // Collapse-state restoration + persistence (same pattern as Blok B)
+  const header = document.querySelector('#blokC-slot .card-header');
+  const body   = document.getElementById('blokC-body');
+  if (_getCardCollapsed('C') === true) {
+    body.classList.remove('show');
+    header.setAttribute('aria-expanded', 'false');
+  }
+  header.addEventListener('click', () => {
+    setTimeout(() => {
+      _setCardCollapsed('C', !body.classList.contains('show'));
+    }, 0);
+  });
+}
+
+function rerenderBlokC() {
+  document.getElementById('blokC-slot').innerHTML = sectionBlokC();
+  wireBlokC();
 }
 
 function sectionBasisgegevens() {
