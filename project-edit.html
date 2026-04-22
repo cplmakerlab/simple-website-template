@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" integrity="sha512-jnSuA4Ss2PkkikSOLtYs8BlYIeeIK1h99ty4YfvRPAlzr377vr3CXDb7sb7eEEBYjDtcYj+AjBH3FLv5uSJuSg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <link rel="stylesheet" href="assets/css/smartpeak.css" />
   <title>SmartPeak — Project bewerken</title>
 
   <!-- Firebase compat SDK (same versions as dashboard.html) -->
@@ -16,210 +18,75 @@
   <script src="assets/js/firebase-init.js"></script>
 
   <style>
-    :root {
-      --primary:#2c7be5; --primary-dark:#1e5fb8;
-      --bg:#f4f7fc; --card:#fff; --text:#1c2939;
-      --muted:#6b7589; --danger:#e54545; --success:#00b478;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin:0; padding:0 16px 120px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg); color: var(--text);
-    }
-    .topbar {
-      position: sticky; top:0; background: var(--bg); padding:12px 0;
-      display:flex; gap:12px; align-items:center; justify-content:space-between;
-      border-bottom: 1px solid #e4e9f2; z-index:10;
-    }
-    .topbar h1 { font-size:1.1rem; margin:0; }
-    .topbar .right { display:flex; gap:8px; align-items:center; font-size:0.9rem; color:var(--muted); }
-    main { max-width: 1200px; margin: 0 auto; padding-top: 12px; }
-    #formSections {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-    #formSections > details.card { margin-bottom: 0; }
-    #formSections > details.card.span-2 { grid-column: 1 / -1; }
-    @media (max-width: 760px) {
-      #formSections { grid-template-columns: 1fr; }
-    }
-
-    /* Drag-drop zone for photo uploads */
-    .pe-drop-zone {
-      border: 2px dashed #c4cadb;
-      border-radius: 10px;
-      padding: 24px 16px;
-      text-align: center;
-      cursor: pointer;
-      transition: background 0.12s, border-color 0.12s;
-      background: #f7f9fd;
-      font-size: 0.9rem;
-      margin-top: 8px;
-      user-select: none;
-    }
-    .pe-drop-zone:hover { background: #eef4ff; border-color: var(--primary); }
-    .pe-drop-zone.drag-over { background: #dcebff; border-color: var(--primary); border-style: solid; }
-    .pe-drop-zone.uploading { cursor: progress; border-color: var(--primary); background: #f7f9fd; }
-    .pe-drop-zone input[type=file] { display: none; }
-    .pe-drop-zone-progress { color: var(--primary-dark); font-weight: 600; }
-    .pe-spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid #d4dae5;
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: pe-spin 0.8s linear infinite;
-      vertical-align: -2px;
-      margin-right: 6px;
-    }
-    @keyframes pe-spin { to { transform: rotate(360deg); } }
-
-    /* Photo grid + lightbox (same pattern as dashboard) */
-    .photo-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-      gap: 6px;
-    }
-    .photo-tile {
-      aspect-ratio: 1 / 1;
-      overflow: hidden;
-      border-radius: 6px;
-      background: #f7f9fd;
-      cursor: zoom-in;
-      position: relative;
-    }
-    .photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .photo-tile.broken {
-      display: flex; align-items: center; justify-content: center;
-      color: var(--muted); font-size: 0.72rem; text-align: center; padding: 4px; cursor: help;
-    }
-    .lightbox-pe {
-      position: fixed; inset: 0;
-      background: rgba(0, 0, 0, 0.92);
-      display: none;
-      align-items: center; justify-content: center;
-      z-index: 300;
-      padding: 24px;
-    }
-    .lightbox-pe.open { display: flex; }
-    .lightbox-pe img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
-    .lightbox-pe-btn {
-      position: absolute;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      color: #fff;
-      width: 44px; height: 44px; border-radius: 50%;
-      font-size: 1.4rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .lightbox-pe-btn:hover { background: rgba(255, 255, 255, 0.25); }
-    .lightbox-pe .close { top: 14px; right: 14px; }
-    .lightbox-pe .prev  { left: 14px;  top: 50%; transform: translateY(-50%); }
-    .lightbox-pe .next  { right: 14px; top: 50%; transform: translateY(-50%); }
-    .lightbox-pe .del   { bottom: 14px; right: 14px; background: rgba(229,69,69,0.85); }
-    .lightbox-pe .del:hover { background: rgba(229,69,69,1); }
-    .card {
-      background: var(--card); border-radius: 10px; padding: 16px;
-      margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    }
-    .card > summary { list-style: none; cursor: pointer;
-      display:flex; align-items:center; justify-content:space-between;
-      font-weight: 600; font-size: 1.05rem; }
-    .card > summary::-webkit-details-marker { display:none; }
-    .card > summary::after { content: "▼"; font-size:0.7rem; color: var(--muted); transition: transform 0.15s; }
-    .card[open] > summary::after { transform: rotate(180deg); }
-    .section-body { padding-top: 14px; }
-    .form-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-    .form-row label { font-size: 0.85rem; font-weight: 600; color: #4a5568; }
-    .form-row input, .form-row select, .form-row textarea {
-      border: 1.5px solid #d4dae5; border-radius: 8px; padding: 10px 12px;
-      font-size: 0.95rem; background: #f7f9fd; transition: border-color 0.15s;
-    }
-    .form-row input:focus, .form-row select:focus, .form-row textarea:focus {
-      outline: none; border-color: var(--primary); background: #fff;
-    }
-    .form-row .help, .help { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
-    .form-row .error { color: var(--danger); font-size: 0.85rem; margin-top: 4px; }
-    .required::after { content: " *"; color: var(--danger); }
-    .tri-state { display:flex; gap:8px; flex-wrap:wrap; }
-    .tri-state label { display:flex; align-items:center; gap:6px; font-weight:400; cursor:pointer; }
-    .action-bar {
-      position: fixed; bottom:0; left:0; right:0; background:#fff;
-      padding: 12px 16px; border-top: 1px solid #e4e9f2; z-index:20;
-      display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap;
-    }
-    .btn {
-      display:inline-flex; align-items:center; gap:6px;
-      padding:10px 16px; border-radius:8px; border:none;
-      background: var(--primary); color:#fff; font-weight:600; cursor:pointer;
-      font-size: 0.95rem; text-decoration:none;
-    }
-    .btn:hover { background: var(--primary-dark); }
-    .btn:disabled { opacity:0.6; cursor:not-allowed; }
-    .btn-secondary { background:#e4e9f2; color: var(--text); }
-    .btn-secondary:hover { background:#d4dae5; }
-    .btn-danger { background: var(--danger); }
-    .alert { padding:10px 12px; border-radius:8px; font-size:0.9rem; margin-top:10px; }
-    .alert-error { background:#fde8e8; color:#a00; }
-    .alert-warning { background:#fff4dc; color:#8a6000; }
-    .alert-success { background:#def5ea; color:#0a6e4a; }
-    .hide { display:none !important; }
-    .center-card { max-width: 480px; margin: 60px auto; text-align: center; }
-    .toast {
-      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
-      background: var(--success); color:#fff; padding:10px 18px; border-radius:8px;
-      font-size:0.9rem; z-index: 30; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    }
-    @media (min-width: 768px) {
-      body { padding: 0 24px 100px; }
-      .topbar h1 { font-size: 1.3rem; }
-    }
-
-    .icon-ok    { color: #16a34a; }
-    .icon-warn  { color: #f59e0b; }
-    .icon-danger{ color: #dc2626; }
+    /* Page-specific rules only. Globals live in assets/css/smartpeak.css. */
   </style>
 </head>
 <body>
 
 <!-- State 1: not logged in -->
-<div class="card center-card" id="stateLoggedOut">
-  <h1><i class="fa-solid fa-bolt" aria-hidden="true"></i> SmartPeak — Project bewerken</h1>
-  <p class="help">Alleen voor Bloxit medewerkers.</p>
-  <button type="button" class="btn" id="btnSignIn">Log in met Google</button>
-  <p id="signInError" class="alert alert-error hide" style="margin-top:16px;"></p>
+<div class="card mx-auto mt-5 hide" id="stateLoggedOut" style="max-width:480px">
+  <div class="card-body text-center p-4">
+    <h1 class="h4 mb-2"><i class="fa-solid fa-bolt text-primary"></i> SmartPeak — Project bewerken</h1>
+    <p class="text-muted mb-3">Alleen voor Bloxit medewerkers.</p>
+    <button type="button" class="btn btn-primary" id="btnSignIn">Log in met Google</button>
+    <p id="signInError" class="alert alert-danger mt-3 hide"></p>
+  </div>
 </div>
 
 <!-- State 2: logged in but not whitelisted -->
-<div class="card center-card hide" id="stateNotWhitelisted">
-  <h1><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i> Geen toegang</h1>
-  <p class="help">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
-  <button type="button" class="btn btn-secondary" id="btnSignOutNW">Uitloggen</button>
+<div class="card mx-auto mt-5 hide" id="stateNotWhitelisted" style="max-width:480px">
+  <div class="card-body text-center p-4">
+    <h1 class="h4 mb-2"><i class="fa-solid fa-triangle-exclamation icon-danger"></i> Geen toegang</h1>
+    <p class="text-muted mb-3">Je bent ingelogd als <strong id="notWhitelistedEmail">…</strong> maar dit account heeft geen toegang tot SmartPeak Projecten.</p>
+    <button type="button" class="btn btn-outline-secondary" id="btnSignOutNW">Uitloggen</button>
+  </div>
 </div>
 
 <!-- State 3: logged in + whitelisted -->
 <div class="hide" id="stateAuthorized">
-  <div class="topbar">
-    <h1 id="pageTitle"><i class="fa-solid fa-bolt" aria-hidden="true"></i> Nieuw project</h1>
-    <div class="right">
-      <a href="dashboard.html" class="btn btn-secondary">← Dashboard</a>
+  <nav class="navbar navbar-expand-lg bg-white border-bottom sticky-top">
+    <div class="container-fluid">
+      <span class="navbar-brand mb-0 h1" id="pageTitle"><i class="fa-solid fa-bolt text-primary"></i> Nieuw project</span>
+      <div class="ms-auto">
+        <a href="dashboard.html" class="btn btn-sm btn-outline-secondary">
+          <i class="fa-solid fa-arrow-left me-1"></i> Dashboard
+        </a>
+      </div>
     </div>
-  </div>
+  </nav>
 
-  <main id="form">
-    <div id="formSections"></div>
-    <div id="globalError" class="alert alert-error hide"></div>
+  <main class="container-fluid py-3 pb-5">
+    <div class="accordion" id="projectEditAccordion">
+      <!-- 11 accordion items injected by renderSections() -->
+    </div>
+    <div id="globalError" class="alert alert-danger mt-3 hide"></div>
   </main>
 
-  <div class="action-bar">
-    <button type="button" class="btn btn-secondary" id="btnCancel">Annuleren</button>
-    <button type="button" class="btn" id="btnSave">Opslaan</button>
-    <button type="button" class="btn" id="btnSaveAndCalc">Opslaan &amp; Bereken</button>
-  </div>
+  <nav class="navbar fixed-bottom bg-white border-top shadow-sm">
+    <div class="container-fluid justify-content-end gap-2 flex-wrap">
+      <button type="button" class="btn btn-outline-secondary flex-grow-1 flex-md-grow-0" id="btnCancel">Annuleren</button>
+      <button type="button" class="btn btn-primary flex-grow-1 flex-md-grow-0" id="btnSave">Opslaan</button>
+      <button type="button" class="btn btn-success flex-grow-1 flex-md-grow-0" id="btnSaveAndCalc">
+        <i class="fa-solid fa-calculator me-1"></i> Opslaan &amp; Bereken
+      </button>
+    </div>
+  </nav>
 </div>
 
+<!-- Lightbox -->
+<div class="sp-lightbox" id="peLightbox" role="dialog" aria-modal="true" aria-label="Foto vergroten">
+  <button type="button" class="sp-lightbox-btn close" id="peLightboxClose" aria-label="Sluiten">×</button>
+  <button type="button" class="sp-lightbox-btn prev"  id="peLightboxPrev"  aria-label="Vorige foto">◀</button>
+  <img id="peLightboxImg" src="" alt="" />
+  <button type="button" class="sp-lightbox-btn next"  id="peLightboxNext"  aria-label="Volgende foto">▶</button>
+  <button type="button" class="sp-lightbox-btn del"   id="peLightboxDel"   aria-label="Verwijder foto"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+  <div class="counter" id="peLightboxCounter">1 / 1</div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index:1090"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js" integrity="sha512-1/RvZTcCDEUjY/CypiMz+iqqtaoQfAITmNSJY17Myp4Ms5mdxPS5UV7iOfdZoxcGhzFbOm6sntTKJppjvuhg4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const URL_PARAMS = new URLSearchParams(window.location.search);
@@ -243,13 +110,35 @@ function showError(msg) {
 }
 function clearError() { document.getElementById('globalError').classList.add('hide'); }
 
-function showToast(msg, kind) {
-  const t = document.createElement('div');
-  t.className = 'toast';
-  if (kind === 'error') t.style.background = 'var(--danger)';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
+function showToast(message, variant = 'primary') {
+  const container = document.getElementById('toastContainer');
+  const id = 't_' + Date.now();
+  const html = `
+    <div id="${id}" class="toast text-bg-${variant} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body">${escapeHtml(message)}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Sluiten"></button>
+      </div>
+    </div>
+  `;
+  container.insertAdjacentHTML('beforeend', html);
+  const el = document.getElementById(id);
+  const t = bootstrap.Toast.getOrCreateInstance(el, { delay: 4000 });
+  el.addEventListener('hidden.bs.toast', () => el.remove());
+  t.show();
+}
+
+function showFieldError(fieldId, msg) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+  el.classList.add('is-invalid');
+  const fb = el.parentElement.querySelector('.invalid-feedback');
+  if (fb) fb.textContent = msg;
+}
+function clearFieldError(fieldId) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+  el.classList.remove('is-invalid');
 }
 
 function escapeHtml(s) {
@@ -293,7 +182,7 @@ async function bootstrap() {
       ...newEmptyProjectMetadata(),
       csvUpload: null,
     };
-    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-bolt" aria-hidden="true"></i> Nieuw project';
+    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-bolt text-primary" aria-hidden="true"></i> Nieuw project';
   } else {
     if (!PROJECT_ID) { showError('Geen project-id opgegeven.'); return; }
     const proj = await getProject(PROJECT_ID);
@@ -302,14 +191,15 @@ async function bootstrap() {
       ...proj,
       ...mergeProjectMetadata(proj),
     };
-    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> ' + escapeHtml(proj.projectName || 'Project');
+    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary" aria-hidden="true"></i> ' + escapeHtml(proj.projectName || 'Project');
   }
   renderSections();
   wireActions();
+  wireLightbox();
 }
 
 function renderSections() {
-  const host = document.getElementById('formSections');
+  const host = document.getElementById('projectEditAccordion');
   host.innerHTML = [
     sectionBasisgegevens(),
     sectionCustomer(),
@@ -336,29 +226,66 @@ function renderSections() {
   wireSectionCsv();
 }
 
+// Helper — replaces one accordion-item element in place without losing state of others.
+// For accordion items the "open" state is controlled by Bootstrap collapse classes.
+function rerenderSection(id, renderFn, wireFn) {
+  const existing = document.getElementById(id);
+  // Check if the collapse panel is currently shown
+  const collapseEl = existing ? existing.closest('.accordion-item') : null;
+  const collapsePanel = collapseEl ? collapseEl.querySelector('.accordion-collapse') : null;
+  const wasShown = collapsePanel ? collapsePanel.classList.contains('show') : true;
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = renderFn();
+  const freshItem = wrap.firstElementChild; // the new accordion-item
+  // Sync collapse state
+  if (!wasShown) {
+    const newPanel = freshItem.querySelector('.accordion-collapse');
+    const newBtn   = freshItem.querySelector('.accordion-button');
+    if (newPanel) { newPanel.classList.remove('show'); }
+    if (newBtn)   { newBtn.classList.add('collapsed'); newBtn.setAttribute('aria-expanded', 'false'); }
+  }
+  if (collapseEl) {
+    collapseEl.replaceWith(freshItem);
+  } else if (existing) {
+    existing.replaceWith(freshItem);
+  }
+  wireFn();
+}
+
 function sectionBasisgegevens() {
   const p = _project;
   const statusOpts = PROJECT_STATUSES.map(s =>
     `<option value="${s.key}" ${s.key === (p.status || DEFAULT_STATUS) ? 'selected' : ''}>${escapeHtml(s.label)}</option>`
   ).join('');
   return `
-    <details class="card span-2" id="secBasis" open>
-      <summary><i class="fa-solid fa-id-card" aria-hidden="true"></i> Basisgegevens</summary>
-      <div class="section-body">
-        <div class="form-row">
-          <label class="required" for="fProjectName">Projectnaam</label>
-          <input type="text" id="fProjectName" maxlength="120" value="${escapeHtml(p.projectName)}" />
-        </div>
-        <div class="form-row">
-          <label class="required" for="fCustomerName">Klantnaam</label>
-          <input type="text" id="fCustomerName" maxlength="120" value="${escapeHtml(p.customerName)}" />
-        </div>
-        <div class="form-row">
-          <label for="fStatus">Status</label>
-          <select id="fStatus">${statusOpts}</select>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secBasis" aria-expanded="true" aria-controls="secBasis">
+          <i class="fa-solid fa-id-card me-2" aria-hidden="true"></i> Basisgegevens
+        </button>
+      </h2>
+      <div id="secBasis" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label for="fProjectName" class="form-label">Projectnaam <span class="text-danger">*</span></label>
+              <input type="text" id="fProjectName" class="form-control" maxlength="120" value="${escapeHtml(p.projectName)}" />
+              <div class="invalid-feedback">Projectnaam is verplicht.</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fCustomerName" class="form-label">Klantnaam <span class="text-danger">*</span></label>
+              <input type="text" id="fCustomerName" class="form-control" maxlength="120" value="${escapeHtml(p.customerName)}" />
+              <div class="invalid-feedback">Klantnaam is verplicht.</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fStatus" class="form-label">Status</label>
+              <select id="fStatus" class="form-select">${statusOpts}</select>
+            </div>
+          </div>
         </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -372,24 +299,32 @@ function wireSectionBasisgegevens() {
 function sectionCustomer() {
   const c = _project.customer;
   return `
-    <details class="card" id="secCustomer" open>
-      <summary>👤 Klantcontact</summary>
-      <div class="section-body">
-        <div class="form-row">
-          <label for="fAddress">Adres <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-          <textarea id="fAddress" rows="2" maxlength="400">${escapeHtml(c.address)}</textarea>
-          <div class="help">Straat + nummer, postcode, stad. Lijnen afbreken indien nodig.</div>
-        </div>
-        <div class="form-row">
-          <label for="fPhone">Telefoon <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-          <input type="tel" inputmode="tel" id="fPhone" maxlength="60" value="${escapeHtml(c.phone)}" />
-        </div>
-        <div class="form-row">
-          <label for="fEmail">E-mail <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-          <input type="email" inputmode="email" id="fEmail" maxlength="200" value="${escapeHtml(c.email)}" />
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secCustomer" aria-expanded="true" aria-controls="secCustomer">
+          <i class="fa-solid fa-user me-2" aria-hidden="true"></i> Klantcontact
+        </button>
+      </h2>
+      <div id="secCustomer" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="fAddress" class="form-label">Adres <span class="text-muted small fw-normal">(optioneel)</span></label>
+              <textarea id="fAddress" class="form-control" rows="2" maxlength="400">${escapeHtml(c.address)}</textarea>
+              <div class="form-text">Straat + nummer, postcode, stad. Lijnen afbreken indien nodig.</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fPhone" class="form-label">Telefoon <span class="text-muted small fw-normal">(optioneel)</span></label>
+              <input type="tel" inputmode="tel" id="fPhone" class="form-control" maxlength="60" value="${escapeHtml(c.phone)}" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fEmail" class="form-label">E-mail <span class="text-muted small fw-normal">(optioneel)</span></label>
+              <input type="email" inputmode="email" id="fEmail" class="form-control" maxlength="200" value="${escapeHtml(c.email)}" />
+            </div>
+          </div>
         </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -407,21 +342,29 @@ function wireSectionCustomer() {
 
 function sectionSituationNotes() {
   return `
-    <details class="card span-2" id="secSituation" open>
-      <summary><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> Situatie &amp; notities</summary>
-      <div class="section-body">
-        <div class="form-row">
-          <label for="fSituation">Situatie</label>
-          <textarea id="fSituation" rows="4" maxlength="4000">${escapeHtml(_project.situation)}</textarea>
-          <div class="help">Vrije beschrijving: context, bestaande apparaten, klantwensen — alles wat handig is voor een collega om te lezen vóór een bezoek.</div>
-        </div>
-        <div class="form-row">
-          <label for="fNotes">Notities</label>
-          <textarea id="fNotes" rows="3" maxlength="2000">${escapeHtml(_project.notes)}</textarea>
-          <div class="help">Korte interne notities voor jezelf.</div>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secSituation" aria-expanded="true" aria-controls="secSituation">
+          <i class="fa-solid fa-clipboard me-2" aria-hidden="true"></i> Situatie &amp; notities
+        </button>
+      </h2>
+      <div id="secSituation" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="fSituation" class="form-label">Situatie</label>
+              <textarea id="fSituation" class="form-control" rows="4" maxlength="4000">${escapeHtml(_project.situation)}</textarea>
+              <div class="form-text">Vrije beschrijving: context, bestaande apparaten, klantwensen — alles wat handig is voor een collega om te lezen vóór een bezoek.</div>
+            </div>
+            <div class="col-12">
+              <label for="fNotes" class="form-label">Notities</label>
+              <textarea id="fNotes" class="form-control" rows="3" maxlength="2000">${escapeHtml(_project.notes)}</textarea>
+              <div class="form-text">Korte interne notities voor jezelf.</div>
+            </div>
+          </div>
         </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -438,30 +381,38 @@ function sectionSupplier() {
   const s = _project.supplier;
   const single = s.isSingleTariff === true;
   return `
-    <details class="card" id="secSupplier" open>
-      <summary><i class="fa-solid fa-lightbulb" aria-hidden="true"></i> Leverancier &amp; tarieven</summary>
-      <div class="section-body">
-        <div class="form-row">
-          <label for="fSupplierName">Naam leverancier <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-          <input type="text" id="fSupplierName" maxlength="120" value="${escapeHtml(s.name)}" />
-        </div>
-        <div class="form-row">
-          <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;">
-            <input type="checkbox" id="fSingleTariff" ${single ? 'checked' : ''} />
-            Enkelvoudig tarief (geen dag/nacht onderscheid)
-          </label>
-        </div>
-        <div class="form-row">
-          <label for="fPriceDay">${single ? 'Tarief (€ / kWh)' : 'Dagtarief (€ / kWh)'}</label>
-          <input type="number" id="fPriceDay" min="0" step="0.001" value="${s.priceDay != null ? s.priceDay : ''}" />
-        </div>
-        <div class="form-row" id="rowPriceNight" ${single ? 'style="display:none;"' : ''}>
-          <label for="fPriceNight">Nachttarief (€ / kWh)</label>
-          <input type="number" id="fPriceNight" min="0" step="0.001" value="${s.priceNight != null ? s.priceNight : ''}" />
-          <div class="help">ma–vr 22:00–07:00, hele weekend.</div>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secSupplier" aria-expanded="true" aria-controls="secSupplier">
+          <i class="fa-solid fa-plug-circle-bolt me-2" aria-hidden="true"></i> Leverancier &amp; tarieven
+        </button>
+      </h2>
+      <div id="secSupplier" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label for="fSupplierName" class="form-label">Naam leverancier <span class="text-muted small fw-normal">(optioneel)</span></label>
+              <input type="text" id="fSupplierName" class="form-control" maxlength="120" value="${escapeHtml(s.name)}" />
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-end">
+              <div class="form-check form-switch">
+                <input type="checkbox" class="form-check-input" id="fSingleTariff" ${single ? 'checked' : ''} />
+                <label class="form-check-label" for="fSingleTariff">Enkelvoudig tarief (geen dag/nacht onderscheid)</label>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fPriceDay" class="form-label">${single ? 'Tarief (€ / kWh)' : 'Dagtarief (€ / kWh)'}</label>
+              <input type="number" id="fPriceDay" class="form-control" min="0" step="0.001" value="${s.priceDay != null ? s.priceDay : ''}" />
+            </div>
+            <div class="col-12 col-md-6" id="rowPriceNight" ${single ? 'style="display:none;"' : ''}>
+              <label for="fPriceNight" class="form-label">Nachttarief (€ / kWh)</label>
+              <input type="number" id="fPriceNight" class="form-control" min="0" step="0.001" value="${s.priceNight != null ? s.priceNight : ''}" />
+              <div class="form-text">ma–vr 22:00–07:00, hele weekend.</div>
+            </div>
+          </div>
         </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -494,35 +445,43 @@ function sectionWoning() {
   const radioId = (v, label) => {
     const checked = (ageVal === v);
     const strV = v === null ? 'unknown' : String(v);
-    return `<label><input type="radio" name="fHouseAge" value="${strV}" ${checked ? 'checked' : ''} /> ${label}</label>`;
+    return `<div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="fHouseAge" value="${strV}" id="fHouseAge_${strV}" ${checked ? 'checked' : ''} /><label class="form-check-label" for="fHouseAge_${strV}">${label}</label></div>`;
   };
   return `
-    <details class="card" id="secWoning" open>
-      <summary><i class="fa-solid fa-house" aria-hidden="true"></i> Woning</summary>
-      <div class="section-body">
-        <div class="form-row">
-          <label>Leeftijd woning</label>
-          <div class="tri-state">
-            ${radioId(true,  '10 jaar of ouder')}
-            ${radioId(false, 'Jonger dan 10 jaar')}
-            ${radioId(null,  'Onbekend')}
-          </div>
-          <div class="help">10 jaar of ouder → BTW 6%. Jonger → BTW 21%.</div>
-        </div>
-        <div class="form-row">
-          <label for="fBtwManual">Effectief BTW-tarief</label>
-          <select id="fBtwManual" ${ageDisabled ? 'disabled' : ''}>
-            <option value="">— Nog niet bepaald —</option>
-            <option value="6"  ${effective === 6  ? 'selected' : ''}>6%</option>
-            <option value="21" ${effective === 21 ? 'selected' : ''}>21%</option>
-          </select>
-          <div class="help">${ageDisabled
-            ? 'Afgeleid uit de leeftijd van de woning. Kies "Onbekend" om zelf te kiezen.'
-            : 'Vul in als de leeftijd onbekend is.'}
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secWoning" aria-expanded="true" aria-controls="secWoning">
+          <i class="fa-solid fa-house me-2" aria-hidden="true"></i> Woning
+        </button>
+      </h2>
+      <div id="secWoning" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Leeftijd woning</label>
+              <div>
+                ${radioId(true,  '10 jaar of ouder')}
+                ${radioId(false, 'Jonger dan 10 jaar')}
+                ${radioId(null,  'Onbekend')}
+              </div>
+              <div class="form-text">10 jaar of ouder → BTW 6%. Jonger → BTW 21%.</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fBtwManual" class="form-label">Effectief BTW-tarief</label>
+              <select id="fBtwManual" class="form-select" ${ageDisabled ? 'disabled' : ''}>
+                <option value="">— Nog niet bepaald —</option>
+                <option value="6"  ${effective === 6  ? 'selected' : ''}>6%</option>
+                <option value="21" ${effective === 21 ? 'selected' : ''}>21%</option>
+              </select>
+              <div class="form-text">${ageDisabled
+                ? 'Afgeleid uit de leeftijd van de woning. Kies "Onbekend" om zelf te kiezen.'
+                : 'Vul in als de leeftijd onbekend is.'}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -554,19 +513,27 @@ function sectionElectrical() {
     `<option value="${t}" ${t === (e.connectionType || '') ? 'selected' : ''}>${t === '' ? '— Niet bepaald —' : t}</option>`
   ).join('');
   return `
-    <details class="card" id="secElectrical" open>
-      <summary><i class="fa-solid fa-plug" aria-hidden="true"></i> Elektrische aansluiting</summary>
-      <div class="section-body">
-        <div class="form-row">
-          <label for="fConnectionType">Type aansluiting</label>
-          <select id="fConnectionType">${opts}</select>
-        </div>
-        <div class="form-row">
-          <label for="fFuseRating">Zekeringsterkte Fluvius-zijde (A)</label>
-          <input type="number" id="fFuseRating" min="0" step="1" value="${e.fuseRatingA != null ? e.fuseRatingA : ''}" />
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secElectrical" aria-expanded="true" aria-controls="secElectrical">
+          <i class="fa-solid fa-bolt me-2" aria-hidden="true"></i> Elektrische aansluiting
+        </button>
+      </h2>
+      <div id="secElectrical" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-4">
+              <label for="fConnectionType" class="form-label">Type aansluiting</label>
+              <select id="fConnectionType" class="form-select">${opts}</select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label for="fFuseRating" class="form-label">Zekeringsterkte Fluvius-zijde (A)</label>
+              <input type="number" id="fFuseRating" class="form-control" min="0" step="1" value="${e.fuseRatingA != null ? e.fuseRatingA : ''}" />
+            </div>
+          </div>
         </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -586,10 +553,11 @@ function triStateHtml(name, value) {
   const mk = (v, label) => {
     const match = (v === null ? value === null : value === v);
     const strV = v === null ? 'unknown' : String(v);
-    return `<label><input type="radio" name="${name}" value="${strV}" ${match ? 'checked' : ''} /> ${label}</label>`;
+    const fid = `${name}_${strV}`;
+    return `<div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="${name}" value="${strV}" id="${fid}" ${match ? 'checked' : ''} /><label class="form-check-label" for="${fid}">${label}</label></div>`;
   };
   return `
-    <div class="tri-state">
+    <div>
       ${mk(true,  'Ja')}
       ${mk(false, 'Nee')}
       ${mk(null,  'Onbekend')}
@@ -606,40 +574,49 @@ function parseTriState(strVal) {
 function sectionCabinet() {
   const c = _project.cabinet;
   const row = (label, fieldKey, help) => `
-    <div class="form-row">
-      <label>${label}</label>
+    <div class="col-12 col-md-6">
+      <label class="form-label">${label}</label>
       ${triStateHtml('fCab_' + fieldKey, c[fieldKey])}
-      ${help ? `<div class="help">${help}</div>` : ''}
+      ${help ? `<div class="form-text">${help}</div>` : ''}
     </div>
   `;
   return `
-    <details class="card" id="secCabinet" open>
-      <summary><i class="fa-solid fa-server" aria-hidden="true"></i> Zekeringkast</summary>
-      <div class="section-body">
-        <div class="form-row">
-          <label for="fFreeUnits">Vrije modules in de kast</label>
-          <input type="number" id="fFreeUnits" min="0" step="1" value="${c.freeUnits != null ? c.freeUnits : ''}" />
-          <div class="help">Aantal DIN-rail units dat nog vrij is voor extra zekeringen.</div>
-        </div>
-        ${row('Rem-automaat aanwezig?', 'hasRemAutomaat', '')}
-        <div class="form-row">
-          <label for="fWiringDiameter">Diameter bekabeling in kast (mm²) <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-          <input type="number" id="fWiringDiameter" min="0" step="0.5" value="${c.wiringDiameterMm2 != null ? c.wiringDiameterMm2 : ''}" />
-        </div>
-        ${row('Stopcontact in de omgeving van de Fluvius-aansluiting?', 'hasOutletNearFluvius', '')}
-        ${row('Wifi-bereik bij Fluvius-aansluiting?', 'hasWifiNearFluvius', '')}
-        ${row('Plaats om batterijen te plaatsen bij zekeringkast?', 'batteryPlacementRoom', '')}
-        ${row('Wifi-bereik bij zekeringkast?', 'hasWifiNearCabinet', '')}
-        <div class="form-row">
-          <label style="display:flex;align-items:flex-start;gap:8px;font-weight:400;cursor:pointer;">
-            <input type="checkbox" id="fLineGroundChecked" ${c.lineGroundChecked === true ? 'checked' : ''} style="margin-top:2px;" />
-            <span>Meting fase ↔ aarde uitgevoerd én onder 30 V
-              <span class="help" style="font-weight:400;text-transform:none;display:block;">Verplicht bij Zendure-installaties om een ground fault te voorkomen. Vink aan nadat je gemeten hebt.</span>
-            </span>
-          </label>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secCabinet" aria-expanded="true" aria-controls="secCabinet">
+          <i class="fa-solid fa-box me-2" aria-hidden="true"></i> Zekeringkast
+        </button>
+      </h2>
+      <div id="secCabinet" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label for="fFreeUnits" class="form-label">Vrije modules in de kast</label>
+              <input type="number" id="fFreeUnits" class="form-control" min="0" step="1" value="${c.freeUnits != null ? c.freeUnits : ''}" />
+              <div class="form-text">Aantal DIN-rail units dat nog vrij is voor extra zekeringen.</div>
+            </div>
+            ${row('Rem-automaat aanwezig?', 'hasRemAutomaat', '')}
+            <div class="col-12 col-md-6">
+              <label for="fWiringDiameter" class="form-label">Diameter bekabeling in kast (mm²) <span class="text-muted small fw-normal">(optioneel)</span></label>
+              <input type="number" id="fWiringDiameter" class="form-control" min="0" step="0.5" value="${c.wiringDiameterMm2 != null ? c.wiringDiameterMm2 : ''}" />
+            </div>
+            ${row('Stopcontact in de omgeving van de Fluvius-aansluiting?', 'hasOutletNearFluvius', '')}
+            ${row('Wifi-bereik bij Fluvius-aansluiting?', 'hasWifiNearFluvius', '')}
+            ${row('Plaats om batterijen te plaatsen bij zekeringkast?', 'batteryPlacementRoom', '')}
+            ${row('Wifi-bereik bij zekeringkast?', 'hasWifiNearCabinet', '')}
+            <div class="col-12">
+              <div class="form-check">
+                <input type="checkbox" class="form-check-input" id="fLineGroundChecked" ${c.lineGroundChecked === true ? 'checked' : ''} />
+                <label class="form-check-label" for="fLineGroundChecked">
+                  Meting fase ↔ aarde uitgevoerd én onder 30 V
+                  <span class="d-block form-text">Verplicht bij Zendure-installaties om een ground fault te voorkomen. Vink aan nadat je gemeten hebt.</span>
+                </label>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -670,55 +647,67 @@ function sectionSolar() {
   const invs = _project.solar.inverters;
   const total = totalInverterPowerKw(_project);
   const cardHtml = (inv, idx) => `
-    <div class="card" data-inv-id="${inv.id}" style="background:#f4f7fc;margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <strong>Omvormer ${idx + 1}</strong>
-        <button type="button" class="btn btn-danger" data-remove="${inv.id}" style="padding:4px 10px;font-size:0.85rem;"><i class="fa-solid fa-trash" aria-hidden="true"></i> Verwijderen</button>
-      </div>
-      <div class="form-row">
-        <label class="required">Vermogen omvormer (kW)</label>
-        <input type="number" data-inv-field="powerKw" data-inv-id="${inv.id}" min="0" step="0.1" value="${inv.powerKw != null ? inv.powerKw : ''}" />
-      </div>
-      <div class="form-row">
-        <label>Merk <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-        <input type="text" data-inv-field="brand" data-inv-id="${inv.id}" maxlength="60" value="${escapeHtml(inv.brand)}" />
-      </div>
-      <div class="form-row">
-        <label>Model <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-        <input type="text" data-inv-field="model" data-inv-id="${inv.id}" maxlength="60" value="${escapeHtml(inv.model)}" />
-      </div>
-      <div class="form-row">
-        <label>Aantal zonnepanelen <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-        <input type="number" data-inv-field="panelCount" data-inv-id="${inv.id}" min="0" step="1" value="${inv.panelCount != null ? inv.panelCount : ''}" />
-      </div>
-      <div class="form-row">
-        <label>Vermogen per paneel (Wp) <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-        <input type="number" data-inv-field="panelPowerWp" data-inv-id="${inv.id}" min="0" step="1" value="${inv.panelPowerWp != null ? inv.panelPowerWp : ''}" />
-      </div>
-      <div class="form-row">
-        <label>Aantal kringen aan deze omvormer <span class="help" style="font-weight:400;text-transform:none;">(optioneel)</span></label>
-        <input type="number" data-inv-field="circuitCount" data-inv-id="${inv.id}" min="0" step="1" value="${inv.circuitCount != null ? inv.circuitCount : ''}" />
-      </div>
-      <div class="form-row">
-        <label>Ligging van de panelen <span class="help" style="font-weight:400;text-transform:none;">(vrij veld, optioneel)</span></label>
-        <textarea data-inv-field="orientation" data-inv-id="${inv.id}" rows="2" maxlength="300">${escapeHtml(inv.orientation)}</textarea>
-        <div class="help">Bv. "zuid 30°, 2 panelen oost, 1 paneel west".</div>
+    <div class="card mb-2" data-inv-id="${inv.id}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h6 class="mb-0">Omvormer ${idx + 1}</h6>
+          <button type="button" class="btn-close" aria-label="Verwijder" data-remove="${inv.id}"></button>
+        </div>
+        <div class="row g-2">
+          <div class="col-12 col-md-4">
+            <label class="form-label">Vermogen omvormer (kW) <span class="text-danger">*</span></label>
+            <input type="number" data-inv-field="powerKw" data-inv-id="${inv.id}" class="form-control" min="0" step="0.1" value="${inv.powerKw != null ? inv.powerKw : ''}" required />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Merk <span class="text-muted small fw-normal">(optioneel)</span></label>
+            <input type="text" data-inv-field="brand" data-inv-id="${inv.id}" class="form-control" maxlength="60" value="${escapeHtml(inv.brand)}" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Model <span class="text-muted small fw-normal">(optioneel)</span></label>
+            <input type="text" data-inv-field="model" data-inv-id="${inv.id}" class="form-control" maxlength="60" value="${escapeHtml(inv.model)}" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Aantal zonnepanelen <span class="text-muted small fw-normal">(optioneel)</span></label>
+            <input type="number" data-inv-field="panelCount" data-inv-id="${inv.id}" class="form-control" min="0" step="1" value="${inv.panelCount != null ? inv.panelCount : ''}" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Vermogen per paneel (Wp) <span class="text-muted small fw-normal">(optioneel)</span></label>
+            <input type="number" data-inv-field="panelPowerWp" data-inv-id="${inv.id}" class="form-control" min="0" step="1" value="${inv.panelPowerWp != null ? inv.panelPowerWp : ''}" />
+          </div>
+          <div class="col-12 col-md-4">
+            <label class="form-label">Aantal kringen aan deze omvormer <span class="text-muted small fw-normal">(optioneel)</span></label>
+            <input type="number" data-inv-field="circuitCount" data-inv-id="${inv.id}" class="form-control" min="0" step="1" value="${inv.circuitCount != null ? inv.circuitCount : ''}" />
+          </div>
+          <div class="col-12">
+            <label class="form-label">Ligging van de panelen <span class="text-muted small fw-normal">(vrij veld, optioneel)</span></label>
+            <textarea data-inv-field="orientation" data-inv-id="${inv.id}" class="form-control" rows="2" maxlength="300">${escapeHtml(inv.orientation)}</textarea>
+            <div class="form-text">Bv. "zuid 30°, 2 panelen oost, 1 paneel west".</div>
+          </div>
+        </div>
       </div>
     </div>
   `;
   const emptyMsg = invs.length === 0
-    ? '<p class="help" style="margin:8px 0;">Nog geen omvormer toegevoegd.</p>'
+    ? '<p class="text-muted fst-italic" style="margin:8px 0;">Nog geen omvormer toegevoegd.</p>'
     : '';
   return `
-    <details class="card span-2" id="secSolar" open>
-      <summary><i class="fa-solid fa-solar-panel" aria-hidden="true"></i> Zonnepanelen &amp; omvormer(s)</summary>
-      <div class="section-body">
-        ${emptyMsg}
-        <div id="invList">${invs.map(cardHtml).join('')}</div>
-        <button type="button" class="btn btn-secondary" id="btnAddInv">+ Omvormer toevoegen</button>
-        <p style="margin-top:16px;font-weight:600;" id="invTotal">Totaal omvormervermogen: ${total.toFixed(1)} kW</p>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secSolar" aria-expanded="true" aria-controls="secSolar">
+          <i class="fa-solid fa-solar-panel me-2" aria-hidden="true"></i> Zonnepanelen &amp; omvormer(s)
+        </button>
+      </h2>
+      <div id="secSolar" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          ${emptyMsg}
+          <div id="invList">${invs.map(cardHtml).join('')}</div>
+          <button type="button" class="btn btn-outline-secondary mt-2" id="btnAddInv">
+            <i class="fa-solid fa-plus me-1"></i> Omvormer toevoegen
+          </button>
+          <p class="mt-3 fw-semibold" id="invTotal">Totaal omvormervermogen: ${total.toFixed(1)} kW</p>
+        </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -767,16 +756,24 @@ function sectionCalcDefaults() {
     { v: 'yes', label: 'Met keuring' },
   ].map(o => `<option value="${o.v}" ${o.v === (k || '') ? 'selected' : ''}>${o.label}</option>`).join('');
   return `
-    <details class="card" id="secCalc" open>
-      <summary><i class="fa-solid fa-calculator" aria-hidden="true"></i> Voorkeuren berekening</summary>
-      <div class="section-body">
-        <div class="form-row">
-          <label for="fKeuring">Voorkeur keuring</label>
-          <select id="fKeuring">${opts}</select>
-          <div class="help">Op de berekenpagina blijft deze keuze nog aanpasbaar. Wijzigt men daar de waarde, dan wordt die hier opgeslagen.</div>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secCalc" aria-expanded="true" aria-controls="secCalc">
+          <i class="fa-solid fa-calculator me-2" aria-hidden="true"></i> Voorkeuren berekening
+        </button>
+      </h2>
+      <div id="secCalc" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label for="fKeuring" class="form-label">Voorkeur keuring</label>
+              <select id="fKeuring" class="form-select">${opts}</select>
+              <div class="form-text">Op de berekenpagina blijft deze keuze nog aanpasbaar. Wijzigt men daar de waarde, dan wordt die hier opgeslagen.</div>
+            </div>
+          </div>
         </div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -794,32 +791,45 @@ let _photoLightboxIdx = 0;
 function sectionPhotos() {
   if (IS_NEW) {
     return `
-      <details class="card" id="secPhotos">
-        <summary><i class="fa-solid fa-images" aria-hidden="true"></i> Foto's</summary>
-        <div class="section-body">
-          <p class="help">Maak het project eerst aan (Opslaan). Daarna kan je hier foto's uploaden.</p>
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secPhotos" aria-expanded="false" aria-controls="secPhotos">
+            <i class="fa-solid fa-images me-2" aria-hidden="true"></i> Foto's
+          </button>
+        </h2>
+        <div id="secPhotos" class="accordion-collapse collapse">
+          <div class="accordion-body">
+            <p class="text-muted fst-italic">Maak het project eerst aan (Opslaan). Daarna kan je hier foto's uploaden.</p>
+          </div>
         </div>
-      </details>
+      </div>
     `;
   }
   return `
-    <details class="card span-2" id="secPhotos" open>
-      <summary><i class="fa-solid fa-images" aria-hidden="true"></i> Foto's <span id="pePhotosCount" style="font-weight:400;color:var(--muted);"></span></summary>
-      <div class="section-body">
-        <div class="photo-grid" id="pePhotoGrid"><p class="help">⏳ Laden…</p></div>
-        <div class="pe-drop-zone" id="peDropZone">
-          <input type="file" id="pePhotoInput" accept="image/*" multiple />
-          <div class="pe-drop-zone-prompt" id="peDropPrompt">
-            <i class="fa-solid fa-folder-open" aria-hidden="true"></i> <strong>Sleep foto's hier</strong> <span style="color:var(--muted)">of klik om te selecteren</span>
-            <div class="help" style="margin-top:4px;">Meerdere tegelijk is OK (max 15 MB per foto).</div>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secPhotos" aria-expanded="true" aria-controls="secPhotos">
+          <i class="fa-solid fa-images me-2" aria-hidden="true"></i> Foto's <span id="pePhotosCount" class="ms-2 text-muted small"></span>
+        </button>
+      </h2>
+      <div id="secPhotos" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          <div class="photo-grid" id="pePhotoGrid"><p class="sp-empty-state">⏳ Laden…</p></div>
+          <div class="sp-drop-zone" id="peDropZone">
+            <input type="file" id="pePhotoInput" accept="image/*" multiple />
+            <div id="peDropPrompt">
+              <i class="fa-solid fa-cloud-arrow-up me-1" aria-hidden="true"></i>
+              <strong>Sleep foto's hierheen</strong> <span class="text-muted">of klik om te selecteren</span>
+              <div class="text-muted small mt-1">Meerdere tegelijk is OK (max 15 MB per foto).</div>
+            </div>
+            <div class="hide" id="peDropProgress">
+              <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Uploaden <span id="peUploadCount">0/0</span>…
+            </div>
           </div>
-          <div class="pe-drop-zone-progress hide" id="peDropProgress">
-            <span class="pe-spinner"></span>Uploaden <span id="peUploadCount">0/0</span>…
-          </div>
+          <div id="pePhotoErr" class="alert alert-danger mt-2 d-none"></div>
         </div>
-        <div id="pePhotoErr" class="alert alert-error" style="display:none;font-size:0.85rem;margin-top:8px;"></div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -829,7 +839,7 @@ function wireSectionPhotos() {
   listProjectPhotos(PROJECT_ID).then(photos => { _photos = photos; renderPhotoGrid(); })
     .catch(e => {
       const grid = document.getElementById('pePhotoGrid');
-      if (grid) grid.innerHTML = `<p class="help" style="color:var(--danger)">Kon foto's niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</p>`;
+      if (grid) grid.innerHTML = `<p class="text-danger small">Kon foto's niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</p>`;
     });
 
   const zone  = document.getElementById('peDropZone');
@@ -870,7 +880,7 @@ async function runPeUpload(files) {
   const progEl   = document.getElementById('peDropProgress');
   const countEl  = document.getElementById('peUploadCount');
   const errEl    = document.getElementById('pePhotoErr');
-  errEl.style.display = 'none'; errEl.textContent = '';
+  errEl.classList.add('d-none'); errEl.textContent = '';
   promptEl.classList.add('hide');
   progEl.classList.remove('hide');
   zone.classList.add('uploading');
@@ -889,7 +899,7 @@ async function runPeUpload(files) {
   }
   if (failMsg) {
     errEl.textContent = `Fout na ${done}/${files.length}: ${failMsg}`;
-    errEl.style.display = '';
+    errEl.classList.remove('d-none');
   }
   try { _photos = await listProjectPhotos(PROJECT_ID); renderPhotoGrid(); } catch {}
   progEl.classList.add('hide');
@@ -903,7 +913,7 @@ function renderPhotoGrid() {
   if (!grid) return;
   if (count) count.textContent = _photos.length > 0 ? `(${_photos.length})` : '';
   if (_photos.length === 0) {
-    grid.innerHTML = '<p class="help" style="font-style:italic;">Nog geen foto\u2019s geüpload.</p>';
+    grid.innerHTML = '<p class="sp-empty-state">Nog geen foto’s geüpload.</p>';
     return;
   }
   grid.innerHTML = _photos.map((p, i) => {
@@ -917,54 +927,51 @@ function renderPhotoGrid() {
   });
 }
 
+function wireLightbox() {
+  const lb     = document.getElementById('peLightbox');
+  const closeBtn = document.getElementById('peLightboxClose');
+  const prevBtn  = document.getElementById('peLightboxPrev');
+  const nextBtn  = document.getElementById('peLightboxNext');
+  const delBtn   = document.getElementById('peLightboxDel');
+
+  closeBtn.addEventListener('click', () => lb.classList.remove('open'));
+  prevBtn.addEventListener('click', e => { e.stopPropagation(); navPeLightbox(-1); });
+  nextBtn.addEventListener('click', e => { e.stopPropagation(); navPeLightbox(+1); });
+  delBtn.addEventListener('click', async e => {
+    e.stopPropagation();
+    const photo = _photos[_photoLightboxIdx];
+    if (!photo) return;
+    if (!confirm('Deze foto verwijderen?')) return;
+    try {
+      await deleteProjectPhoto(PROJECT_ID, photo.id, photo.storagePath);
+      _photos = await listProjectPhotos(PROJECT_ID);
+      renderPhotoGrid();
+      if (_photos.length === 0) lb.classList.remove('open');
+      else { _photoLightboxIdx = Math.min(_photoLightboxIdx, _photos.length - 1); refreshPeLightboxImage(); }
+    } catch (err) {
+      showToast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
+    }
+  });
+  lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
+  document.addEventListener('keydown', e => {
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') lb.classList.remove('open');
+    else if (e.key === 'ArrowLeft')  navPeLightbox(-1);
+    else if (e.key === 'ArrowRight') navPeLightbox(+1);
+  });
+}
+
 function openPeLightbox(idx) {
   _photoLightboxIdx = idx;
-  let lb = document.getElementById('peLightbox');
-  if (!lb) {
-    lb = document.createElement('div');
-    lb.id = 'peLightbox';
-    lb.className = 'lightbox-pe';
-    lb.innerHTML = `
-      <button type="button" class="lightbox-pe-btn close" title="Sluit">×</button>
-      <button type="button" class="lightbox-pe-btn prev" title="Vorige">‹</button>
-      <button type="button" class="lightbox-pe-btn next" title="Volgende">›</button>
-      <button type="button" class="lightbox-pe-btn del" title="Verwijder foto"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
-      <img id="peLightboxImg" alt="" />
-    `;
-    document.body.appendChild(lb);
-    lb.querySelector('.close').addEventListener('click', () => lb.classList.remove('open'));
-    lb.querySelector('.prev').addEventListener('click', e => { e.stopPropagation(); navPeLightbox(-1); });
-    lb.querySelector('.next').addEventListener('click', e => { e.stopPropagation(); navPeLightbox(+1); });
-    lb.querySelector('.del').addEventListener('click', async e => {
-      e.stopPropagation();
-      const photo = _photos[_photoLightboxIdx];
-      if (!photo) return;
-      if (!confirm('Deze foto verwijderen?')) return;
-      try {
-        await deleteProjectPhoto(PROJECT_ID, photo.id, photo.storagePath);
-        _photos = await listProjectPhotos(PROJECT_ID);
-        renderPhotoGrid();
-        if (_photos.length === 0) lb.classList.remove('open');
-        else { _photoLightboxIdx = Math.min(_photoLightboxIdx, _photos.length - 1); refreshPeLightboxImage(); }
-      } catch (err) {
-        alert('Verwijderen mislukt: ' + (err && err.message ? err.message : err));
-      }
-    });
-    lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
-    document.addEventListener('keydown', e => {
-      if (!lb.classList.contains('open')) return;
-      if (e.key === 'Escape') lb.classList.remove('open');
-      else if (e.key === 'ArrowLeft')  navPeLightbox(-1);
-      else if (e.key === 'ArrowRight') navPeLightbox(+1);
-    });
-  }
   refreshPeLightboxImage();
-  lb.classList.add('open');
+  document.getElementById('peLightbox').classList.add('open');
 }
 function refreshPeLightboxImage() {
   const img = document.getElementById('peLightboxImg');
+  const counter = document.getElementById('peLightboxCounter');
   const photo = _photos[_photoLightboxIdx];
   if (img && photo && photo.downloadUrl) img.src = photo.downloadUrl;
+  if (counter) counter.textContent = `${_photoLightboxIdx + 1} / ${_photos.length}`;
 }
 function navPeLightbox(delta) {
   if (!_photos.length) return;
@@ -980,25 +987,33 @@ function sectionCsv() {
   const cu = _project.csvUpload;
   const hasCsv = !!cu;
   const lastInfo = hasCsv
-    ? `<p class="help"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> <strong>${escapeHtml(cu.eanCode || 'onbekend')}</strong> — geüpload op ${formatTs(cu.uploadedAt)} door ${escapeHtml(shortEmail(cu.uploadedBy))}</p>`
+    ? `<p class="text-muted small"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> <strong>${escapeHtml(cu.eanCode || 'onbekend')}</strong> — geüpload op ${formatTs(cu.uploadedAt)} door ${escapeHtml(shortEmail(cu.uploadedBy))}</p>`
     : '';
   const pendingInfo = _pendingCsv
-    ? `<p class="help"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Nieuwe CSV klaar voor opslaan (${escapeHtml(_pendingCsv.eanCode || 'onbekend')}). Wordt samen met dit project bewaard.</p>`
+    ? `<p class="text-muted small"><i class="fa-solid fa-file-lines" aria-hidden="true"></i> Nieuwe CSV klaar voor opslaan (${escapeHtml(_pendingCsv.eanCode || 'onbekend')}). Wordt samen met dit project bewaard.</p>`
     : '';
   return `
-    <details class="card span-2" id="secCsv" open>
-      <summary><i class="fa-solid fa-chart-line" aria-hidden="true"></i> Verbruikshistoriek (CSV)</summary>
-      <div class="section-body">
-        ${lastInfo}
-        ${pendingInfo}
-        <div class="form-row">
-          <label for="fCsv">${hasCsv ? 'CSV vervangen' : 'CSV uploaden'}</label>
-          <input type="file" id="fCsv" accept=".csv" />
-          <div class="help">Optioneel bij aanmaken. Kan ook later via deze pagina toegevoegd/vervangen worden.</div>
+    <div class="accordion-item">
+      <h2 class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secCsv" aria-expanded="true" aria-controls="secCsv">
+          <i class="fa-solid fa-file-csv me-2" aria-hidden="true"></i> Verbruikshistoriek (CSV)
+        </button>
+      </h2>
+      <div id="secCsv" class="accordion-collapse collapse show">
+        <div class="accordion-body">
+          ${lastInfo}
+          ${pendingInfo}
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label for="fCsv" class="form-label">${hasCsv ? 'CSV vervangen' : 'CSV uploaden'}</label>
+              <input type="file" id="fCsv" class="form-control" accept=".csv" />
+              <div class="form-text">Optioneel bij aanmaken. Kan ook later via deze pagina toegevoegd/vervangen worden.</div>
+            </div>
+          </div>
+          <div id="csvErr" class="alert alert-danger mt-2 hide"></div>
         </div>
-        <div id="csvErr" class="alert alert-error hide"></div>
       </div>
-    </details>
+    </div>
   `;
 }
 
@@ -1023,7 +1038,7 @@ function wireSectionCsv() {
         await setProjectCsv(PROJECT_ID, csvData);
         const proj = await getProject(PROJECT_ID);
         _project.csvUpload = proj.csvUpload;
-        showToast('CSV opgeslagen');
+        showToast('CSV opgeslagen', 'success');
       }
       rerenderSection('secCsv', sectionCsv, wireSectionCsv);
     } catch (err) {
@@ -1031,18 +1046,6 @@ function wireSectionCsv() {
       errEl.classList.remove('hide');
     }
   });
-}
-
-// Helper — replaces one <details> element in place without losing scroll/state of others.
-function rerenderSection(id, renderFn, wireFn) {
-  const existing = document.getElementById(id);
-  const wasOpen = existing ? existing.hasAttribute('open') : true;
-  const wrap = document.createElement('div');
-  wrap.innerHTML = renderFn();
-  const fresh = wrap.firstElementChild;
-  if (!wasOpen) fresh.removeAttribute('open');
-  existing.replaceWith(fresh);
-  wireFn();
 }
 
 function wireActions() {
