@@ -257,6 +257,7 @@ async function createProject({ projectName, customerName, status, csvData, metad
     if (metadata.solar)        doc.solar        = metadata.solar;
     if (metadata.supplier)     doc.supplier     = metadata.supplier;
     if (metadata.calcDefaults) doc.calcDefaults = metadata.calcDefaults;
+    if (Array.isArray(metadata.serialNumbers)) doc.serialNumbers = metadata.serialNumbers;
   }
   return projectsCol().add(doc);
 }

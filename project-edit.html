@@ -209,7 +209,8 @@ function renderSections() {
   wireBlokB();
   document.getElementById('blokC-slot').innerHTML = sectionBlokC();
   wireBlokC();
-  document.getElementById('blokD-slot').innerHTML = '<div class="card"><div class="card-body">Blok D — Foto\'s &amp; serienummers <em class="text-muted">(Task 9)</em></div></div>';
+  document.getElementById('blokD-slot').innerHTML = sectionBlokD();
+  wireBlokD();
   updateSaveCalcEnabled();
 }
 
@@ -777,6 +778,186 @@ function rerenderBlokC() {
   document.getElementById('blokC-slot').innerHTML = sectionBlokC();
   wireBlokC();
 }
+
+function sectionBlokD() {
+  const serials = _project.serialNumbers || [];
+  const serialRowsHtml = serials.map(s => _renderSerialRow(s)).join('')
+                      + _renderSerialRow({ id: '_new', value: '', photoStoragePath: null }); // trailing empty
+
+  return `
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="fa-solid fa-images text-primary me-2"></i>Foto's &amp; serienummers</h5>
+      </div>
+      <div class="card-body">
+        <h6 class="text-muted mb-2">Algemene foto's (plaatsbezoek)</h6>
+        <div class="upload-buttons mb-2">
+          <label class="btn btn-outline-primary mb-0" for="pePhotoCamera">
+            <i class="fa-solid fa-camera me-1"></i> Foto maken
+          </label>
+          <input type="file" id="pePhotoCamera" accept="image/*" capture="environment" class="d-none" />
+          <label class="btn btn-outline-secondary mb-0" for="pePhotoGallery">
+            <i class="fa-solid fa-folder-open me-1"></i> Uit galerij kiezen
+          </label>
+          <input type="file" id="pePhotoGallery" accept="image/*" multiple class="d-none" />
+        </div>
+        <div class="photo-grid mb-3" id="pePhotoGrid"><p class="sp-empty-state">&#x23F3; Laden&hellip;</p></div>
+        <!-- Drop-zone: alleen op >= md (desktop/tablet landscape) — mobiel gebruikt bovenstaande buttons. -->
+        <div class="sp-drop-zone d-none d-md-block mb-4" id="peDropZone">
+          <input type="file" id="pePhotoInput" accept="image/*" multiple />
+          <div id="peDropPrompt">
+            <i class="fa-solid fa-cloud-arrow-up me-1"></i>
+            <strong>Sleep foto's hierheen</strong> <span class="text-muted">of klik om te selecteren</span>
+            <div class="text-muted small mt-1">Meerdere tegelijk OK (max 15 MB per foto).</div>
+          </div>
+          <div class="d-none" id="peDropProgress">
+            <div class="progress mt-1" style="height:6px;">
+              <div class="progress-bar" role="progressbar" style="width:0%"></div>
+            </div>
+            <div class="text-muted small mt-1">Uploaden <span id="peUploadCount">0/0</span>&hellip;</div>
+          </div>
+        </div>
+        <div id="pePhotoErr" class="alert alert-danger mt-2 d-none"></div>
+
+        <h6 class="text-muted mb-2">Serienummers batterijen / omvormers</h6>
+        <div id="peSerialList">${serialRowsHtml}</div>
+      </div>
+    </div>
+  `;
+}
+
+function _renderSerialRow(s) {
+  const hasPhoto = s.photoStoragePath != null;
+  const isNew = s.id === '_new';
+  return `
+    <div class="serial-row" data-serial-id="${s.id}">
+      <input type="text" class="form-control" placeholder="Serienummer&hellip;" value="${escapeHtml(s.value || '')}" data-serial-field="value" />
+      <div class="serial-actions">
+        ${hasPhoto ? `<button type="button" class="btn btn-sm btn-outline-secondary" title="Foto bekijken" data-serial-view="${s.id}"><i class="fa-solid fa-eye"></i></button>` : ''}
+        ${isNew ? '' : `<label class="btn btn-sm btn-outline-primary mb-0" title="Foto nemen/kiezen"><input type="file" accept="image/*" capture="environment" class="d-none" data-serial-photo="${s.id}" /><i class="fa-solid fa-camera"></i></label>`}
+        ${isNew ? '' : `<button type="button" class="btn btn-sm btn-outline-danger" title="Verwijderen" data-serial-delete="${s.id}"><i class="fa-solid fa-xmark"></i></button>`}
+      </div>
+    </div>
+  `;
+}
+
+function wireBlokD() {
+  // Photo camera + gallery inputs (general photos)
+  const cam = document.getElementById('pePhotoCamera');
+  const gal = document.getElementById('pePhotoGallery');
+  const onPhotoFiles = async (files) => {
+    if (!PROJECT_ID) { showToast('Sla het project eerst op.', 'warning'); return; }
+    for (const file of files) {
+      try { await uploadProjectPhoto(PROJECT_ID, file); }
+      catch (err) { showToast('Foto upload mislukt: ' + (err && err.message ? err.message : String(err)), 'danger'); }
+    }
+    _photos = await listProjectPhotos(PROJECT_ID);
+    renderPhotoGrid();
+  };
+  cam.addEventListener('change', e => { if (e.target.files.length) onPhotoFiles([...e.target.files]); cam.value = ''; });
+  gal.addEventListener('change', e => { if (e.target.files.length) onPhotoFiles([...e.target.files]); gal.value = ''; });
+
+  // Initial photos render + drop-zone wiring — reuse existing wireSectionPhotos().
+  wireSectionPhotos();
+
+  // Serials — value typing
+  document.querySelectorAll('[data-serial-field="value"]').forEach(inp => {
+    inp.addEventListener('input', async e => {
+      const row = e.target.closest('.serial-row');
+      const id  = row.getAttribute('data-serial-id');
+      const val = e.target.value;
+      if (id === '_new' && val.trim().length > 0) {
+        // Promote trailing empty to a real entry + add new trailing.
+        if (!PROJECT_ID) {
+          // New-project mode: stash on _project, save at createProject-time.
+          _project.serialNumbers = _project.serialNumbers || [];
+          const entry = { id: _genSerialId(), value: val, photoStoragePath: null, uploadedAt: null, uploadedBy: null };
+          _project.serialNumbers.push(entry);
+          rerenderBlokD();
+          // Focus what used to be the trailing input (now the last real row)
+          setTimeout(() => {
+            const rows = document.querySelectorAll('#peSerialList .serial-row');
+            const last = rows[rows.length - 2];
+            if (last) last.querySelector('input').focus();
+          }, 0);
+        } else {
+          try {
+            const entry = await addProjectSerial(PROJECT_ID, val);
+            _project.serialNumbers = _project.serialNumbers || [];
+            _project.serialNumbers.push(entry);
+            rerenderBlokD();
+          } catch (err) {
+            showToast('Serienummer toevoegen mislukt: ' + (err && err.message ? err.message : String(err)), 'danger');
+          }
+        }
+      } else if (id !== '_new') {
+        if (!_serialSaveTimer) _serialSaveTimer = {};
+        clearTimeout(_serialSaveTimer[id]);
+        _serialSaveTimer[id] = setTimeout(async () => {
+          const entry = (_project.serialNumbers || []).find(x => x.id === id);
+          if (entry) entry.value = val;
+          if (PROJECT_ID) {
+            try { await updateProjectSerial(PROJECT_ID, id, { value: val }); }
+            catch (err) { showToast('Opslaan mislukt: ' + (err && err.message ? err.message : String(err)), 'danger'); }
+          }
+        }, 600);
+      }
+    });
+  });
+
+  // Serial photo upload
+  document.querySelectorAll('[data-serial-photo]').forEach(inp => {
+    inp.addEventListener('change', async e => {
+      const id = e.target.getAttribute('data-serial-photo');
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      if (!PROJECT_ID) {
+        showToast("Sla het project eerst op voor je serial-foto's toevoegt.", 'warning');
+        return;
+      }
+      try {
+        await uploadProjectSerialPhoto(PROJECT_ID, id, file);
+        const snap = await projectDoc(PROJECT_ID).get();
+        _project.serialNumbers = snap.data().serialNumbers || [];
+        rerenderBlokD();
+      } catch (err) {
+        showToast('Foto upload mislukt: ' + (err && err.message ? err.message : String(err)), 'danger');
+      }
+    });
+  });
+
+  // Serial delete
+  document.querySelectorAll('[data-serial-delete]').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      const id = e.currentTarget.getAttribute('data-serial-delete');
+      if (!confirm('Dit serienummer verwijderen?')) return;
+      if (PROJECT_ID) {
+        try { await deleteProjectSerial(PROJECT_ID, id); }
+        catch (err) { showToast('Verwijderen mislukt: ' + (err && err.message ? err.message : String(err)), 'danger'); return; }
+      }
+      _project.serialNumbers = (_project.serialNumbers || []).filter(x => x.id !== id);
+      rerenderBlokD();
+    });
+  });
+
+  // Serial photo view
+  document.querySelectorAll('[data-serial-view]').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      const id = e.currentTarget.getAttribute('data-serial-view');
+      const entry = (_project.serialNumbers || []).find(x => x.id === id);
+      if (!entry || !entry.photoStoragePath) return;
+      const url = await getSerialPhotoUrl(entry.photoStoragePath);
+      if (url) window.open(url, '_blank');
+    });
+  });
+}
+
+function rerenderBlokD() {
+  document.getElementById('blokD-slot').innerHTML = sectionBlokD();
+  wireBlokD();
+}
+
+let _serialSaveTimer = null;
 
 function sectionBasisgegevens() {
   const p = _project;
@@ -1616,15 +1797,16 @@ function collectFromForm() {
   }
 
   const metadata = {
-    customer:     _project.customer,
-    situation:    _project.situation,
-    notes:        _project.notes,
-    site:         _project.site,
-    electrical:   _project.electrical,
-    cabinet:      _project.cabinet,
-    solar:        _project.solar,
-    supplier:     _project.supplier,
-    calcDefaults: _project.calcDefaults,
+    customer:      _project.customer,
+    situation:     _project.situation,
+    notes:         _project.notes,
+    site:          _project.site,
+    electrical:    _project.electrical,
+    cabinet:       _project.cabinet,
+    solar:         _project.solar,
+    supplier:      _project.supplier,
+    calcDefaults:  _project.calcDefaults,
+    serialNumbers: _project.serialNumbers || [],
   };
   return { projectName, customerName, status: _project.status || DEFAULT_STATUS, metadata };
 }
