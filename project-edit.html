@@ -69,7 +69,7 @@
     <div class="container-fluid justify-content-end gap-2 flex-wrap">
       <button type="button" class="btn btn-outline-secondary flex-grow-1 flex-md-grow-0" id="btnCancel">Annuleren</button>
       <button type="button" class="btn btn-primary flex-grow-1 flex-md-grow-0" id="btnSave">Opslaan</button>
-      <button type="button" class="btn btn-success flex-grow-1 flex-md-grow-0" id="btnSaveAndCalc">
+      <button type="button" class="btn btn-success flex-grow-1 flex-md-grow-0" id="btnSaveAndCalc" disabled title="Vul eerst de benodigde velden in">
         <i class="fa-solid fa-calculator me-1"></i> Opslaan &amp; Bereken
       </button>
     </div>
@@ -997,7 +997,10 @@ function sectionBasisgegevens() {
 function wireSectionBasisgegevens() {
   // Live-update _project on input so other sections reading _project stay in sync.
   document.getElementById('fProjectName').addEventListener('input', e => { _project.projectName = e.target.value; });
-  document.getElementById('fCustomerName').addEventListener('input', e => { _project.customerName = e.target.value; });
+  document.getElementById('fCustomerName').addEventListener('input', e => {
+    _project.customerName = e.target.value;
+    updateSaveCalcEnabled();
+  });
   document.getElementById('fStatus').addEventListener('change', e => { _project.status = e.target.value; });
 }
 
@@ -1766,7 +1769,30 @@ function wireActions() {
 }
 
 function updateSaveCalcEnabled() {
-  /* stub — vervangen door echte implementatie in Task 10 */
+  const missing = _missingCalcFields();
+  const btn = document.getElementById('btnSaveAndCalc');
+  if (!btn) return;
+  btn.disabled = missing.length > 0;
+  btn.title = missing.length === 0
+    ? 'Alles aanwezig — klaar om te berekenen'
+    : 'Nog ontbreekt: ' + missing.join(', ');
+}
+
+function _missingCalcFields() {
+  const miss = [];
+  if (!((_project.customerName || '').trim())) miss.push('klantnaam');
+  const totalKw = ((_project.solar && _project.solar.inverters) || [])
+    .reduce((s, i) => s + (Number(i.powerKw) || 0), 0);
+  if (totalKw <= 0) miss.push('omvormer-vermogen');
+  const site = _project.site || {};
+  const cd   = _project.calcDefaults || {};
+  if (site.houseAgeOver10Years == null && cd.btw == null) miss.push('BTW-tarief');
+  const sup = _project.supplier || {};
+  if (!(sup.priceDay > 0)) miss.push('prijs dag');
+  if (sup.isSingleTariff === false && !(sup.priceNight > 0)) miss.push('prijs nacht');
+  const hasCsv = _pendingCsv || (_project.csvUpload && _project.csvUpload.dailyCompact);
+  if (!hasCsv) miss.push('CSV');
+  return miss;
 }
 
 // Gather the save payload from _project. Extracted so later sections all just
