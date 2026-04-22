@@ -750,10 +750,14 @@ function renderDrawerOffertes(project) {
     ? project.lastCalcRun.inputs.selectedConfigTypes : [];
   const offertes  = project.offertes || {};
   const dismissed = new Set(project.dismissedConfigs || []);
-  if (types.length === 0) return '';
-
+  // Active = configs still in selectedConfigTypes (calc includes them).
+  // Inactive = all dismissed entries (kept visible so the user can restore them).
+  // New data: dismiss removes from selectedConfigTypes + adds to dismissedConfigs, so
+  // the two sets are disjoint. Legacy pre-fix data may have overlap — inactive
+  // deliberately shows everything in dismissedConfigs regardless.
   const active   = types.filter(t => !dismissed.has(t));
-  const inactive = types.filter(t =>  dismissed.has(t));
+  const inactive = Array.from(dismissed);
+  if (active.length === 0 && inactive.length === 0) return '';
 
   const activeCards = active.map(t => {
     const cfg = _findConfigByType(project, t);

@@ -617,7 +617,13 @@ async function hardDeleteProjectConfig(projectId, configType) {
 
 async function dismissProjectConfig(projectId, configType) {
   const projRef = firebase.firestore().collection('projects').doc(projectId);
+  const snap = await projRef.get();
+  const data = snap.data() || {};
+  const types = (data.lastCalcRun && data.lastCalcRun.inputs && Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
+    ? data.lastCalcRun.inputs.selectedConfigTypes.filter(t => t !== configType)
+    : [];
   await projRef.update({
+    'lastCalcRun.inputs.selectedConfigTypes': types,
     dismissedConfigs: firebase.firestore.FieldValue.arrayUnion(configType),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
@@ -625,7 +631,13 @@ async function dismissProjectConfig(projectId, configType) {
 
 async function restoreProjectConfig(projectId, configType) {
   const projRef = firebase.firestore().collection('projects').doc(projectId);
+  const snap = await projRef.get();
+  const data = snap.data() || {};
+  const existing = (data.lastCalcRun && data.lastCalcRun.inputs && Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
+    ? data.lastCalcRun.inputs.selectedConfigTypes : [];
+  const types = existing.includes(configType) ? existing : [...existing, configType];
   await projRef.update({
+    'lastCalcRun.inputs.selectedConfigTypes': types,
     dismissedConfigs: firebase.firestore.FieldValue.arrayRemove(configType),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
