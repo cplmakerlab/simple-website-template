@@ -60,13 +60,11 @@
 .badge.status-chip.readonly { cursor: default; }
 .badge.status-chip:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
 
-/* Offcanvas drawer: default 420px on ≥ md, full-width on < md */
-@media (min-width: 768px) {
-  #drawer { --bs-offcanvas-width: 420px; }
-}
-@media (max-width: 767.98px) {
-  #drawer { --bs-offcanvas-width: 100vw; }
-}
+/* Offcanvas drawer: wider on large screens so the config grid (1/2/3 cols) fits. */
+@media (max-width: 767.98px) { #drawer { --bs-offcanvas-width: 100vw; } }
+@media (min-width: 768px)    { #drawer { --bs-offcanvas-width: 420px; } }
+@media (min-width: 992px)    { #drawer { --bs-offcanvas-width: 560px; } }
+@media (min-width: 1200px)   { #drawer { --bs-offcanvas-width: 840px; } }
 
 /* ── Kanban board ────────────────────────────────────────────────────── */
 
@@ -75,6 +73,9 @@
   gap: 12px;
   overflow-x: auto;
   padding-bottom: 8px;
+  /* Fill the viewport so columns feel grounded and dropdowns near the bottom
+     of a column have visual room even when the column content is short. */
+  min-height: calc(100vh - 240px);
 }
 .kanban-col {
   flex: 1 1 0;

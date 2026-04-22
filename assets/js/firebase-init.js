@@ -31,6 +31,7 @@ const PROJECT_STATUSES = [
   { key: 'klaar_voor_bezoek',     label: 'Klaar voor bezoek',             color: '#7eb6e8' }, // lichtblauw
   { key: 'bezoek_gepland',        label: 'Bezoek gepland',                color: '#2c7be5' }, // blauw
   { key: 'bezoek_gedaan',         label: 'Bezoek gedaan / link verstuurd',color: '#2c7be5' }, // blauw
+  { key: 'klaar_voor_offerte',    label: 'Klaar voor offerte',            color: '#ffcf80' }, // lichtoranje
   { key: 'offerte_uit',           label: 'Offerte verzonden',             color: '#f6a623' }, // geel
   { key: 'wacht_op_beslissing',   label: 'Wacht op beslissing',           color: '#f6a623' }, // geel
   { key: 'akkoord',               label: 'Akkoord (go)',                  color: '#00b478' }, // groen
@@ -52,7 +53,7 @@ const DEFAULT_STATUS = 'nieuw_contact';
 const PROJECT_PHASES = [
   { key: 'nieuw',      label: 'Nieuw',       color: '#9aa3b2', statuses: ['nieuw_contact', 'wachten_op_data'] },
   { key: 'bezoek',     label: 'Bezoek',      color: '#7eb6e8', statuses: ['klaar_voor_bezoek', 'bezoek_gepland', 'bezoek_gedaan'] },
-  { key: 'offerte',    label: 'Offerte',     color: '#f6a623', statuses: ['offerte_uit', 'wacht_op_beslissing'] },
+  { key: 'offerte',    label: 'Offerte',     color: '#f6a623', statuses: ['klaar_voor_offerte', 'offerte_uit', 'wacht_op_beslissing'] },
   { key: 'uitvoering', label: 'Uitvoering',  color: '#00b478', statuses: ['akkoord', 'installatie_gepland', 'in_uitvoering', 'keuring_aangevraagd', 'keuring_gepland', 'keuring_gedaan'] },
   { key: 'afgesloten', label: 'Afgesloten',  color: '#0a6e4a', statuses: ['facturatie', 'afgesloten', 'niet_akkoord'] },
 ];

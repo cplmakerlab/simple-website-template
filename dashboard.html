@@ -20,17 +20,27 @@
      * unless a rule is truly only relevant for dashboard.html.
      */
 
-    /* Offerte-modal body styles (rendered by renderOfferteModalBody) */
+    /* Offerte-modal body styles (rendered by openOfferteModal) */
     .offerte-cfg-header { margin-bottom: 10px; }
     .offerte-existing { padding: 10px; background: #f8fafc; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; }
-    .offerte-row { padding: 10px 0; border-bottom: 1px solid var(--bs-border-color); }
-    .offerte-row.dismissed { opacity: 0.55; }
-    .offerte-row:last-child { border-bottom: 0; }
+
+    /* Offerte config cards inside the drawer grid (row-cols-1/md-2/xl-3) */
+    .offerte-row {
+      display: flex;
+      flex-direction: column;
+      padding: 10px 12px;
+      border: 1px solid var(--bs-border-color);
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .offerte-row.dismissed { opacity: 0.6; }
     .offerte-row-head { display: flex; align-items: center; gap: 8px; }
     .offerte-row-title { font-weight: 600; font-size: 0.92rem; }
-    .offerte-row-meta, .offerte-row-pdf { font-size: 0.85rem; color: var(--sp-muted); margin-top: 4px; }
-    .offerte-row-actions { display: flex; gap: 6px; margin-top: 6px; }
-    .offerte-divider { text-align: center; color: var(--sp-muted); font-size: 0.82rem; margin: 16px 0 8px; }
+    .offerte-row-desc { font-size: 0.85rem; color: var(--sp-muted); margin-top: 2px; }
+    .offerte-row-meta, .offerte-row-pdf { font-size: 0.82rem; color: var(--sp-muted); margin-top: 4px; word-break: break-all; }
+    .offerte-row-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
+    .offerte-divider { text-align: center; color: var(--sp-muted); font-size: 0.82rem; margin: 14px 0 6px; }
   </style>
 </head>
 <body>
@@ -248,7 +258,7 @@ function statusChipHTML(statusKey, projectId) {
   return `
     <div class="dropdown d-inline-block">
       <button type="button" class="badge status-chip border-0" style="background:${meta.color};color:#fff;"
-              id="${dropdownId}" data-bs-toggle="dropdown" aria-expanded="false">
+              id="${dropdownId}" data-bs-toggle="dropdown" data-bs-strategy="fixed" aria-expanded="false">
         ${escapeHtml(meta.label)} <i class="fa-solid fa-caret-down ms-1"></i>
       </button>
       <ul class="dropdown-menu" aria-labelledby="${dropdownId}">${options}</ul>
@@ -661,6 +671,18 @@ async function _refreshCurrentDrawer() {
   const fresh = mergeProjectMetadata(Object.assign({ id: snap.id }, snap.data()));
   _currentDrawerProject = fresh;
   renderDrawer(fresh);
+  // Re-populate the async sections (photos + comments) that renderDrawer reset
+  // to their loading placeholders. Without this the drawer is stuck mid-reload.
+  try {
+    const [comments, photos] = await Promise.all([
+      listComments(id).catch(err => { console.warn('listComments failed', err); return []; }),
+      listProjectPhotos(id).catch(err => { console.warn('listProjectPhotos failed', err); return []; }),
+    ]);
+    renderComments(fresh, comments);
+    renderPhotos(fresh, photos);
+  } catch (err) {
+    console.warn('drawer refresh async sections failed', err);
+  }
 }
 
 function openDrawer(projectId) {
@@ -729,7 +751,7 @@ function renderDrawerOffertes(project) {
   const active   = types.filter(t => !dismissed.has(t));
   const inactive = types.filter(t =>  dismissed.has(t));
 
-  const activeRows = active.map(t => {
+  const activeCards = active.map(t => {
     const cfg = _findConfigByType(project, t);
     const pdf = offertes[t];
     const iconState = pdf
@@ -737,7 +759,7 @@ function renderDrawerOffertes(project) {
       : '<i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i>';
     const fileRow = pdf
       ? `<div class="offerte-row-pdf"><i class="fa-solid fa-file-pdf" aria-hidden="true"></i> ${escapeHtml(pdf.filename || '')}</div>`
-      : `<div class="offerte-row-pdf" style="color:var(--sp-muted);">Offerte nog niet toegevoegd</div>`;
+      : `<div class="offerte-row-pdf" style="color:var(--sp-muted);">Nog geen offerte</div>`;
     const actions = pdf
       ? `<button class="btn btn-sm btn-outline-secondary offerte-download-btn" data-offerte-action data-type="${escapeHtml(t)}" title="Download"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
          <button class="btn btn-sm btn-outline-secondary offerte-replace-btn"  data-offerte-action data-type="${escapeHtml(t)}" title="Vervangen"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
@@ -746,40 +768,51 @@ function renderDrawerOffertes(project) {
          <button class="btn btn-sm btn-outline-danger offerte-trash-btn"       data-offerte-action data-type="${escapeHtml(t)}" data-has-pdf="0" title="Niet geoffreerd"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
 
     return `
-      <div class="offerte-row ${pdf ? 'has-pdf' : 'missing-pdf'}">
-        <div class="offerte-row-head">
-          ${iconState}
-          <span class="offerte-row-title">${escapeHtml(cfg.type)} · ${escapeHtml(cfg.omschrijving || '')}</span>
+      <div class="col">
+        <div class="offerte-row h-100 ${pdf ? 'has-pdf' : 'missing-pdf'}">
+          <div class="offerte-row-head">
+            ${iconState}
+            <span class="offerte-row-title">${escapeHtml(cfg.type)}</span>
+          </div>
+          <div class="offerte-row-desc">${escapeHtml(cfg.omschrijving || '')}</div>
+          <div class="offerte-row-meta">
+            € ${_formatEuros(cfg.priceEur)}${cfg.batCap ? ' · ' + escapeHtml(String(cfg.batCap)) + ' kWh' : ''}${cfg.batInv ? ' · ' + escapeHtml(String(cfg.batInv)) + ' kW' : ''}
+          </div>
+          ${fileRow}
+          <div class="offerte-row-actions">${actions}</div>
         </div>
-        <div class="offerte-row-meta">
-          € ${_formatEuros(cfg.priceEur)}${cfg.batCap ? ' · ' + escapeHtml(String(cfg.batCap)) + ' kWh' : ''}${cfg.batInv ? ' · ' + escapeHtml(String(cfg.batInv)) + ' kW' : ''}
-        </div>
-        ${fileRow}
-        <div class="offerte-row-actions">${actions}</div>
       </div>
     `;
   }).join('');
 
-  const inactiveRows = inactive.length ? `
+  const inactiveCards = inactive.length ? `
     <div class="offerte-divider">── Niet geoffreerd ──</div>
-    ${inactive.map(t => {
-      const cfg = _findConfigByType(project, t);
-      return `
-        <div class="offerte-row dismissed">
-          <span class="offerte-row-title">${escapeHtml(cfg.type)} · ${escapeHtml(cfg.omschrijving || '')}</span>
-          <button class="btn btn-sm btn-outline-secondary offerte-restore-btn" data-offerte-action data-type="${escapeHtml(t)}" title="Terugzetten">
-            <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
-          </button>
-        </div>
-      `;
-    }).join('')}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">
+      ${inactive.map(t => {
+        const cfg = _findConfigByType(project, t);
+        return `
+          <div class="col">
+            <div class="offerte-row dismissed h-100 d-flex justify-content-between align-items-center gap-2">
+              <span class="offerte-row-title text-truncate">${escapeHtml(cfg.type)}</span>
+              <button class="btn btn-sm btn-outline-secondary offerte-restore-btn flex-shrink-0" data-offerte-action data-type="${escapeHtml(t)}" title="Terugzetten">
+                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
   ` : '';
+
+  const activeBlock = activeCards
+    ? `<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">${activeCards}</div>`
+    : '';
 
   return `
     <section class="border-bottom pb-3 mb-3 drawer-configs">
       <h6 class="mb-2 text-uppercase text-muted">Configs</h6>
-      ${activeRows}
-      ${inactiveRows}
+      ${activeBlock}
+      ${inactiveCards}
     </section>
   `;
 }
