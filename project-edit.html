@@ -56,8 +56,11 @@
   </nav>
 
   <main class="container-fluid py-3 pb-5">
-    <div class="accordion" id="projectEditAccordion">
-      <!-- 11 accordion items injected by renderSections() -->
+    <div class="row g-3" id="peCardGrid">
+      <div class="col-12" id="blokA-slot"></div>
+      <div class="col-12 col-lg-6" id="blokB-slot"></div>
+      <div class="col-12 col-lg-6" id="blokC-slot"></div>
+      <div class="col-12" id="blokD-slot"></div>
     </div>
     <div id="globalError" class="alert alert-danger mt-3 hide"></div>
   </main>
@@ -199,31 +202,11 @@ async function bootstrap() {
 }
 
 function renderSections() {
-  const host = document.getElementById('projectEditAccordion');
-  host.innerHTML = [
-    sectionBasisgegevens(),
-    sectionCustomer(),
-    sectionSituationNotes(),
-    sectionSupplier(),
-    sectionWoning(),
-    sectionElectrical(),
-    sectionCabinet(),
-    sectionSolar(),
-    sectionCalcDefaults(),
-    sectionPhotos(),
-    sectionCsv(),
-  ].join('');
-  wireSectionBasisgegevens();
-  wireSectionCustomer();
-  wireSectionSituationNotes();
-  wireSectionSupplier();
-  wireSectionWoning();
-  wireSectionElectrical();
-  wireSectionCabinet();
-  wireSectionSolar();
-  wireSectionCalcDefaults();
-  wireSectionPhotos();
-  wireSectionCsv();
+  // Phase 1: skeleton only. Blok-specific render functions land in Tasks 6-10.
+  document.getElementById('blokA-slot').innerHTML = '<div class="card"><div class="card-body">Blok A — Voor de berekening <em class="text-muted">(wordt opgebouwd in Task 6)</em></div></div>';
+  document.getElementById('blokB-slot').innerHTML = '<div class="card"><div class="card-body">Blok B — Klant &amp; situatie <em class="text-muted">(Task 7)</em></div></div>';
+  document.getElementById('blokC-slot').innerHTML = '<div class="card"><div class="card-body">Blok C — Technische opmeting <em class="text-muted">(Task 8)</em></div></div>';
+  document.getElementById('blokD-slot').innerHTML = '<div class="card"><div class="card-body">Blok D — Foto\'s &amp; serienummers <em class="text-muted">(Task 9)</em></div></div>';
 }
 
 // Helper — replaces one accordion-item element in place without losing state of others.
