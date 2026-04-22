@@ -205,7 +205,8 @@ function renderSections() {
   // Blok A — Voor de berekening (Task 6)
   document.getElementById('blokA-slot').innerHTML = sectionBlokA();
   wireBlokA();
-  document.getElementById('blokB-slot').innerHTML = '<div class="card"><div class="card-body">Blok B — Klant &amp; situatie <em class="text-muted">(Task 7)</em></div></div>';
+  document.getElementById('blokB-slot').innerHTML = sectionBlokB();
+  wireBlokB();
   document.getElementById('blokC-slot').innerHTML = '<div class="card"><div class="card-body">Blok C — Technische opmeting <em class="text-muted">(Task 8)</em></div></div>';
   document.getElementById('blokD-slot').innerHTML = '<div class="card"><div class="card-body">Blok D — Foto\'s &amp; serienummers <em class="text-muted">(Task 9)</em></div></div>';
   updateSaveCalcEnabled();
@@ -473,6 +474,102 @@ function wireBlokA() {
 function rerenderBlokA() {
   document.getElementById('blokA-slot').innerHTML = sectionBlokA();
   wireBlokA();
+}
+
+function sectionBlokB() {
+  const c = _project.customer || {};
+  const status = _project.status || DEFAULT_STATUS;
+  const statusOptions = PROJECT_STATUSES.map(s =>
+    `<option value="${s.key}" ${s.key === status ? 'selected' : ''}>${escapeHtml(s.label)}</option>`
+  ).join('');
+  return `
+    <div class="card collapsible-card">
+      <div class="card-header" data-bs-toggle="collapse" data-bs-target="#blokB-body" aria-expanded="true" aria-controls="blokB-body">
+        <h5 class="mb-0"><i class="fa-solid fa-user text-primary me-2"></i>Klant &amp; situatie</h5>
+        <i class="fa-solid fa-chevron-down chev" aria-hidden="true"></i>
+      </div>
+      <div id="blokB-body" class="collapse show">
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label for="fStatus" class="form-label">Status</label>
+              <select id="fStatus" class="form-select">${statusOptions}</select>
+            </div>
+            <div class="col-12">
+              <label for="fAddress" class="form-label">Adres</label>
+              <input type="text" id="fAddress" class="form-control" maxlength="200" placeholder="Straat + nr, postcode gemeente" value="${escapeHtml(c.address || '')}" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fPhone" class="form-label">Telefoon</label>
+              <input type="tel" id="fPhone" class="form-control" maxlength="40" value="${escapeHtml(c.phone || '')}" />
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="fEmail" class="form-label">E-mail</label>
+              <input type="email" id="fEmail" class="form-control" maxlength="120" value="${escapeHtml(c.email || '')}" />
+            </div>
+            <div class="col-12">
+              <label for="fSituation" class="form-label">Situatie</label>
+              <textarea id="fSituation" class="form-control" rows="2" maxlength="500">${escapeHtml(_project.situation || '')}</textarea>
+            </div>
+            <div class="col-12">
+              <label for="fNotes" class="form-label">Notities</label>
+              <textarea id="fNotes" class="form-control" rows="3" maxlength="2000">${escapeHtml(_project.notes || '')}</textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function wireBlokB() {
+  document.getElementById('fStatus').addEventListener('change', e => {
+    _project.status = e.target.value;
+  });
+  document.getElementById('fAddress').addEventListener('input', e => {
+    _project.customer = _project.customer || {};
+    _project.customer.address = e.target.value;
+  });
+  document.getElementById('fPhone').addEventListener('input', e => {
+    _project.customer = _project.customer || {};
+    _project.customer.phone = e.target.value;
+  });
+  document.getElementById('fEmail').addEventListener('input', e => {
+    _project.customer = _project.customer || {};
+    _project.customer.email = e.target.value;
+  });
+  document.getElementById('fSituation').addEventListener('input', e => {
+    _project.situation = e.target.value;
+  });
+  document.getElementById('fNotes').addEventListener('input', e => {
+    _project.notes = e.target.value;
+  });
+
+  // Collapse-toggle: restore persisted state + wire persistence on click.
+  const header = document.querySelector('#blokB-slot .card-header');
+  const body   = document.getElementById('blokB-body');
+  if (_getCardCollapsed('B') === true) {
+    body.classList.remove('show');
+    header.setAttribute('aria-expanded', 'false');
+  }
+  header.addEventListener('click', () => {
+    setTimeout(() => {
+      _setCardCollapsed('B', !body.classList.contains('show'));
+    }, 0);
+  });
+}
+
+const _CARD_COLLAPSE_KEY = 'smartpeak.editCardCollapsed';
+function _getCardCollapsed(blok) {
+  try { return (JSON.parse(localStorage.getItem(_CARD_COLLAPSE_KEY)) || {})[blok] === true; }
+  catch { return false; }
+}
+function _setCardCollapsed(blok, collapsed) {
+  try {
+    const current = JSON.parse(localStorage.getItem(_CARD_COLLAPSE_KEY)) || {};
+    current[blok] = collapsed;
+    localStorage.setItem(_CARD_COLLAPSE_KEY, JSON.stringify(current));
+  } catch {}
 }
 
 function sectionBasisgegevens() {
