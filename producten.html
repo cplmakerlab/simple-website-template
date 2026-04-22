@@ -223,17 +223,17 @@ function renderMarstek(numUnits) {
             </p>
             <h3 class="h6 mb-2"><i class="fa-solid fa-list-check me-2"></i> Specificaties</h3>
             <dl class="row mb-0 small">
-              <dt class="col-5 col-md-4">Capaciteit</dt><dd class="col-7 col-md-8"><strong>${fmtKwh(totalCap)} kWh nominaal</strong> / per unit: 5,12 kWh nominaal (4,608 kWh bij 90% DoD)</dd>
-              <dt class="col-5 col-md-4">AC-vermogen</dt><dd class="col-7 col-md-8"><strong>${fmtKw(totalInverter)} kW</strong> / per unit: 2,5 kW bidirectioneel</dd>
-              <dt class="col-5 col-md-4">Chemie</dt><dd class="col-7 col-md-8">LFP (LiFePO4)</dd>
-              <dt class="col-5 col-md-4">Spanning</dt><dd class="col-7 col-md-8">51,2 V</dd>
-              <dt class="col-5 col-md-4">Cyclussen</dt><dd class="col-7 col-md-8">&gt; 6.000 (90% DoD)</dd>
-              <dt class="col-5 col-md-4">Beschermingsklasse</dt><dd class="col-7 col-md-8">IP65</dd>
-              <dt class="col-5 col-md-4">Werktemperatuur</dt><dd class="col-7 col-md-8">−20 °C tot +60 °C</dd>
-              <dt class="col-5 col-md-4">Afmetingen (per unit)</dt><dd class="col-7 col-md-8">480 × 624 × 153 mm</dd>
-              <dt class="col-5 col-md-4">Gewicht (per unit)</dt><dd class="col-7 col-md-8">60 kg</dd>
-              <dt class="col-5 col-md-4">Totaal gewicht</dt><dd class="col-7 col-md-8"><strong>${fmtKg(totalWeight)} kg</strong></dd>
-              <dt class="col-5 col-md-4">Connectiviteit</dt><dd class="col-7 col-md-8">WiFi · RS485</dd>
+              <dt class="col-sm-5 col-md-4">Capaciteit</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKwh(totalCap)} kWh nominaal</strong> / per unit: 5,12 kWh nominaal (4,608 kWh bij 90% DoD)</dd>
+              <dt class="col-sm-5 col-md-4">AC-vermogen</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKw(totalInverter)} kW</strong> / per unit: 2,5 kW bidirectioneel</dd>
+              <dt class="col-sm-5 col-md-4">Chemie</dt><dd class="col-sm-7 col-md-8">LFP (LiFePO4)</dd>
+              <dt class="col-sm-5 col-md-4">Spanning</dt><dd class="col-sm-7 col-md-8">51,2 V</dd>
+              <dt class="col-sm-5 col-md-4">Cyclussen</dt><dd class="col-sm-7 col-md-8">&gt; 6.000 (90% DoD)</dd>
+              <dt class="col-sm-5 col-md-4">Beschermingsklasse</dt><dd class="col-sm-7 col-md-8">IP65</dd>
+              <dt class="col-sm-5 col-md-4">Werktemperatuur</dt><dd class="col-sm-7 col-md-8">−20 °C tot +60 °C</dd>
+              <dt class="col-sm-5 col-md-4">Afmetingen (per unit)</dt><dd class="col-sm-7 col-md-8">480 × 624 × 153 mm</dd>
+              <dt class="col-sm-5 col-md-4">Gewicht (per unit)</dt><dd class="col-sm-7 col-md-8">60 kg</dd>
+              <dt class="col-sm-5 col-md-4">Totaal gewicht</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKg(totalWeight)} kg</strong></dd>
+              <dt class="col-sm-5 col-md-4">Connectiviteit</dt><dd class="col-sm-7 col-md-8">WiFi · RS485</dd>
             </dl>
           </div>
         </section>
@@ -271,17 +271,17 @@ function renderZendure(numInverters, numBatteriesPerInverter) {
             </p>
             <h3 class="h6 mb-2"><i class="fa-solid fa-list-check me-2"></i> Specificaties</h3>
             <dl class="row mb-0 small">
-              <dt class="col-5 col-md-4">Capaciteit</dt><dd class="col-7 col-md-8"><strong>${fmtKwh(totalCapacity)} kWh nominaal</strong> / per module: 2,88 kWh (nominaal)</dd>
-              <dt class="col-5 col-md-4">AC-vermogen</dt><dd class="col-7 col-md-8"><strong>${fmtKw(totalAcPower)} kW</strong> (piek ${fmtKw(totalPeakKw)} kW / 10 s) / per omvormer: 2.400 W (piek 3.600 W / 10 s)</dd>
-              <dt class="col-5 col-md-4">Laadvermogen</dt><dd class="col-7 col-md-8"><strong>${totalLoadW} W</strong> / per omvormer: 2.400 W</dd>
-              <dt class="col-5 col-md-4">Ontlaadvermogen</dt><dd class="col-7 col-md-8"><strong>${totalDischargeW} W</strong> / per omvormer: 2.600 W</dd>
-              <dt class="col-5 col-md-4">Spanning</dt><dd class="col-7 col-md-8">Omvormer: 230 V / 50 Hz · Module: 48 V</dd>
-              <dt class="col-5 col-md-4">Chemie</dt><dd class="col-7 col-md-8">LiFePO4</dd>
-              <dt class="col-5 col-md-4">Efficiëntie</dt><dd class="col-7 col-md-8">93%</dd>
-              <dt class="col-5 col-md-4">Beschermingsklasse</dt><dd class="col-7 col-md-8">Omvormer: IP65 · Module: IP65</dd>
-              <dt class="col-5 col-md-4">Afmetingen</dt><dd class="col-7 col-md-8">Omvormer: 410 × 302 × 75 mm · Module: 477,5 × 320 × 194 mm</dd>
-              <dt class="col-5 col-md-4">Gewicht (per stuk)</dt><dd class="col-7 col-md-8">Omvormer: 10,12 kg · Module: 26,1 kg</dd>
-              <dt class="col-5 col-md-4">Totaal gewicht</dt><dd class="col-7 col-md-8"><strong>${fmtKg(totalWeight)} kg</strong></dd>
+              <dt class="col-sm-5 col-md-4">Capaciteit</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKwh(totalCapacity)} kWh nominaal</strong> / per module: 2,88 kWh (nominaal)</dd>
+              <dt class="col-sm-5 col-md-4">AC-vermogen</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKw(totalAcPower)} kW</strong> (piek ${fmtKw(totalPeakKw)} kW / 10 s) / per omvormer: 2.400 W (piek 3.600 W / 10 s)</dd>
+              <dt class="col-sm-5 col-md-4">Laadvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${totalLoadW} W</strong> / per omvormer: 2.400 W</dd>
+              <dt class="col-sm-5 col-md-4">Ontlaadvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${totalDischargeW} W</strong> / per omvormer: 2.600 W</dd>
+              <dt class="col-sm-5 col-md-4">Spanning</dt><dd class="col-sm-7 col-md-8">Omvormer: 230 V / 50 Hz · Module: 48 V</dd>
+              <dt class="col-sm-5 col-md-4">Chemie</dt><dd class="col-sm-7 col-md-8">LiFePO4</dd>
+              <dt class="col-sm-5 col-md-4">Efficiëntie</dt><dd class="col-sm-7 col-md-8">93%</dd>
+              <dt class="col-sm-5 col-md-4">Beschermingsklasse</dt><dd class="col-sm-7 col-md-8">Omvormer: IP65 · Module: IP65</dd>
+              <dt class="col-sm-5 col-md-4">Afmetingen</dt><dd class="col-sm-7 col-md-8">Omvormer: 410 × 302 × 75 mm · Module: 477,5 × 320 × 194 mm</dd>
+              <dt class="col-sm-5 col-md-4">Gewicht (per stuk)</dt><dd class="col-sm-7 col-md-8">Omvormer: 10,12 kg · Module: 26,1 kg</dd>
+              <dt class="col-sm-5 col-md-4">Totaal gewicht</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKg(totalWeight)} kg</strong></dd>
             </dl>
           </div>
         </section>
