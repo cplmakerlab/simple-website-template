@@ -22,7 +22,35 @@ The default branch is `gh-pages`; the site is published directly from it via Git
 **Offerte PDF upload per config (2026-04-21)** — De drawer "Configs" sectie toont per config uit `lastCalcRun.inputs.selectedConfigTypes` een status-rij: groene `fa-circle-check` + filename + `fa-download` / `fa-pen-to-square` / `fa-trash` als er al een PDF hangt, of oranje `fa-triangle-exclamation` + `fa-upload` / `fa-trash` als er nog niets hangt. Upload via een modal (`#offerteModal`, eerste modal in de codebase — generieke basis herbruikbaar) met drag-drop zone, max 10 MB, PDF-only. Opslag: `project.offertes: { [configType]: { storagePath, filename, sizeBytes, contentType, uploadedAt, uploadedBy } }` top-level op het project-doc, blobs in Storage onder `projects/{id}/offertes/{configType}_{ts}.pdf` (dekt door bestaande `/projects/{id}/{allPaths=**}` Storage rule). Klik trash op een config zonder PDF = **soft-dismiss** (type toegevoegd aan `dismissedConfigs: string[]`, config verschijnt onder een "── Niet geoffreerd ──" scheidingslijn, `fa-rotate-left` restore-knop); klik trash op een config **mét** PDF = confirm-dialog → **hard-delete**: Storage blob + `offertes[type]` + type verwijderd uit `selectedConfigTypes`. Re-upload overschrijft de vorige blob atomair (nieuwe blob upload → Firestore swap → oude blob delete). Impliciete restore: `uploadProjectOfferte` haalt de type ook uit `dismissedConfigs`. `fa-triangle-exclamation` oranje warning-banner in drawer + parallel icoon in dashboard-rij/board-kaart wanneer `needsOfferteWarning(project)` true is (status in offerte-fase én minstens één niet-dismissed config zonder PDF). Helpers in `firebase-init.js`: `uploadProjectOfferte`, `deleteProjectOfferte`, `hardDeleteProjectConfig`, `dismissProjectConfig`, `restoreProjectConfig`, `needsOfferteWarning`. `mergeProjectMetadata` defaultet `offertes: {}` en `dismissedConfigs: []`. Calculator (`index.html`) blijft pure berekening — geen offerte-UI daar; share-links (`?s=`/`?data=`) tonen automatisch geen offertes want `_serializeState` kent de velden niet.
 
 **Font Awesome 6 (2026-04-21)** — Alle UI-iconen in `dashboard.html`, `project-edit.html`, `index.html` gebruiken FA 6.5.2 Free via cdnjs (`<i class="fa-solid fa-...">`). Kleurhelpers (global in alle 3 files): `.icon-ok` groen `#16a34a`, `.icon-warn` oranje `#f59e0b`, `.icon-danger` rood `#dc2626`. Emoji's blijven alleen nog in toast-messages, `statusEl.textContent`-strings en badge-labels (copy, niet UI-icoon). Warning driehoek `fa-triangle-exclamation` wordt gedeeld tussen ground-fault (rood) en offerte-missing (oranje) — verschil enkel kleur + tooltip.
-- **`project-edit.html`** — nieuw-project creatie + bestaande-project metadata bewerken. Auth-gated (Kevin/Ruben whitelist). 8 secties: basisgegevens, leverancier & tarieven, woning (+ BTW afleiding), elektrische aansluiting, zekeringkast, omvormer-lijst (dynamisch), voorkeuren berekening, CSV upload. Alle velden partieel opslagen toegelaten; enkel `projectName`+`customerName` en per-inverter `powerKw` zijn hard required. Action bar: Annuleren / Opslaan / Opslaan & Bereken.
+- **`project-edit.html`** — nieuw-project creatie + bestaande-project metadata
+  bewerken. Auth-gated. **4 blokken** (was 11 accordion-secties, herzien
+  2026-04-22):
+  - **Blok A · "Voor de berekening"** — altijd open bovenaan: klantnaam (required),
+    projectnaam (optioneel), woning-leeftijd-radio (bepaalt BTW), tarief-type +
+    prijs dag/nacht, totaal omvormer-kW (smart: single input als 0-1 omvormers,
+    readonly sum + deeplink naar Blok C als 2+), CSV upload, en een
+    disclosure `Extra opties` voor BTW-override/keuring/leverancier-naam.
+  - **Blok B · "Klant & situatie"** — status, adres, telefoon, e-mail,
+    situatie-notitie, vrij notitieveld. Collapsible (voorkeur in
+    `localStorage.smartpeak.editCardCollapsed`).
+  - **Blok C · "Technische opmeting"** — aansluitingstype + zekering A,
+    zekeringkast (modules/rem-automaat/wifi/stopcontact/batterij-plaats/fase-aarde),
+    dynamische omvormer-detail-lijst (merk/model/panelen/kringen/ligging).
+    Collapsible. Wijzigingen aan omvormer-`powerKw` triggeren `rerenderBlokA()`
+    zodat het "Totaal kW"-veld in Blok A live meegaat.
+  - **Blok D · "Foto's & serienummers"** — algemene plaatsbezoek-foto's
+    (met `capture="environment"` voor camera op mobile + aparte galerij-knop;
+    drop-zone blijft voor desktop ≥ md) en een dynamische serienummer-lijst:
+    trailing-empty-input-patroon; per gevulde entry optioneel een foto-knop.
+    Inputs zijn debounced-saved (600 ms) naar Firestore; foto's hangen aan
+    de serial-entry via `uploadProjectSerialPhoto(projectId, serialId, file)`.
+  - **Sticky action bar** onderaan (Bootstrap `fixed-bottom navbar`): "Opslaan &
+    Bereken" is **disabled** tot alle 5 calc-vereisten vervuld zijn (klantnaam,
+    omvormer-kW > 0, BTW bepaalbaar, prijs dag > 0 (+ nacht als dual-tariff),
+    CSV aanwezig); `title`-tooltip lijst wat mist. "Opslaan" alleen is altijd
+    actief (partial saves blijven toegelaten).
+  - Responsive grid: op `≥ lg` staan Blok B en C naast elkaar (2 col); op `< lg`
+    alles gestapeld.
 - **`assets/js/csv.js`** — CSV parsing helpers (`parseCSV`, `parseDate`, `parsVolume`, `extractCsvForStorage`) used by `index.html`, `dashboard.html` en `project-edit.html`.
 - **`assets/js/firebase-init.js`** — Firebase init (compat SDK 10.13.2 via CDN, no build step), auth helpers (Google sign-in + email whitelist), Firestore CRUD (`projects` collection), `PROJECT_STATUSES` enum + `getStatusMeta()`. Contains `FIREBASE_CONFIG_PLACEHOLDER` and `RUBEN_EMAIL_PLACEHOLDER` sentinels — must be replaced with real values before deploy. Config object is public-by-design (security rules enforce access).
 - **`background.jpg`, `logo.jpg`** — assets referenced by the dead template, not by the calculator. Safe to leave alone.
@@ -99,6 +127,23 @@ source of truth for the backoffice.
 **Product config source** — `loadConfigs()` fetches a Google Sheet as CSV from a hard-coded URL (`SHEET_CSV_URL` around line 769, gid `425908603`). Each row defines a product (`type`, capacity, inverter kW, efficiency, and four price columns keyed by `BTW%_keuring`: `6_no`, `6_yes`, `21_no`, `21_yes`). If the sheet schema changes (column names or price keys), `_parseSheetConfigs` and `_getPriceKey` must be updated together.
 
 **Project-niveau metadata (2026-04-20 uitbreiding)** — Het Firestore `projects` document heeft 6 extra top-level secties bovenop Phase 1: `site` (leeftijd woning → BTW afleiding), `electrical` (aansluitingstype, zekering A), `cabinet` (vrije modules, rem-automaat, wifi/stopcontact bereik, plaats voor batterijen), `solar.inverters[]` (per-omvormer: powerKw vereist + optionele merk/model/panelen/kringen/ligging), `supplier` (naam, isSingleTariff, priceDay/priceNight), `calcDefaults` (btw, keuring voorkeur). Pure helpers in `assets/js/firebase-init.js`: `newEmptyProjectMetadata()`, `mergeProjectMetadata(project)` (defaults voor oude projects), `effectiveBtwFor(project)` (houseAgeOver10Years → 6/21, anders calcDefaults.btw), `totalInverterPowerKw(project)` (som). Readers merge altijd via `mergeProjectMetadata` — pre-2026-04-20 projects behave als volledig-leeg.
+
+**Project-label fallback (2026-04-22)** — `getProjectLabel(project)` in
+`firebase-init.js` geeft `projectName || customerName || '(zonder naam)'`.
+Alle UI-plekken (dashboard lijst/bord/drawer, project-edit page title,
+index.html project-banner) gebruiken deze helper. `customerName` is nu het
+enige harde-required tekstveld bij project-creatie; `projectName` is optioneel
+en fungeert als override-label wanneer meerdere projecten voor dezelfde klant
+bestaan.
+
+**Serienummers (2026-04-22)** — `project.serialNumbers: Array<{id, value,
+photoStoragePath?, uploadedAt?, uploadedBy?}>` top-level op het project-doc.
+Helpers in `firebase-init.js`: `addProjectSerial`, `updateProjectSerial`,
+`deleteProjectSerial`, `uploadProjectSerialPhoto`, `getSerialPhotoUrl`,
+`_genSerialId`. Blobs in Storage onder
+`projects/{id}/serials/{serialId}_{ts}.jpg` (gedekt door bestaande
+`/projects/{id}/{allPaths=**}` rule). Barcode/OCR is out-of-scope; follow-up
+spec na deze iteratie.
 
 **Index.html project-mode source-of-truth** — Wanneer `?project=<id>` gebruikt is toont de pagina een dichtgeklapte "Projectgegevens" kaart (`#projectValuesCard`) met `✏ Aanpassen` knop die naar `project-edit.html?project=<id>` redirect. Formuliervelden waarvoor het project een waarde heeft worden verborgen via `applyProjectToCalcForm` (source-of-truth = project); velden zonder projectwaarde blijven zichtbaar als fallback. Keuring is een uitzondering: altijd zichtbaar, default-value komt uit project, wijzigt men de waarde dan wordt ze bij Bereken teruggeschreven. Bij Bereken roept `saveProjectCalcRun` eerst `buildProjectSyncPatch()` aan om alle fallback-ingevulde waarden naar het project doc te persisten (via `updateProjectMetadata`) vóór `saveLastCalcRun` aangeroepen wordt. Bij ontbrekende vereiste velden opent de summary-kaart automatisch met een waarschuwing.
 
