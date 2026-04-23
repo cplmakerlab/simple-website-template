@@ -81,6 +81,7 @@
       lightboxIdx:    0,
       backfillBusy:   false,
       backfillQueue:  [],
+      uploadBusy:     false,
     };
 
     async function refresh() {
@@ -137,43 +138,52 @@
     }
 
     async function _handleFiles(fileList) {
-      if (!options.projectId) {
-        _toast('Sla het project eerst op.', 'warning');
+      if (state.uploadBusy) {
+        _toast('Even wachten — vorige upload nog bezig.', 'warning');
         return;
       }
-      const files = Array.from(fileList || []).filter(f => f && f.type.startsWith('image/'));
-      if (files.length === 0) return;
-      _setErr('');
-
-      const uploadedIds = [];
-      const localThumbs = [];
-      _setProgress(0, files.length, files[0].name);
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        _setProgress(i, files.length, file.name);
-        try {
-          const docId = await uploadProjectPhotoWithThumb(options.projectId, file, { tag: 'situatie' });
-          uploadedIds.push(docId);
-          const previewThumb = await makeThumbnail(file);
-          localThumbs.push({ id: docId, blobUrl: URL.createObjectURL(previewThumb.blob), name: file.name });
-        } catch (e) {
-          _toast('Foto upload mislukt: ' + (e && e.message ? e.message : e), 'danger');
-          _setErr('Foto upload mislukt: ' + (e && e.message ? e.message : e));
-          break;
+      state.uploadBusy = true;
+      try {
+        if (!options.projectId) {
+          _toast('Sla het project eerst op.', 'warning');
+          return;
         }
-      }
-      _setProgress(files.length, files.length);
-      setTimeout(() => _setProgress(0, 0), 800);
+        const files = Array.from(fileList || []).filter(f => f && f.type.startsWith('image/'));
+        if (files.length === 0) return;
+        _setErr('');
 
-      await refresh();
+        const uploadedIds = [];
+        const localThumbs = [];
+        _setProgress(0, files.length, files[0].name);
 
-      if (uploadedIds.length > 0) {
-        _openTagModal(uploadedIds, localThumbs);
-      }
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          _setProgress(i, files.length, file.name);
+          try {
+            const docId = await uploadProjectPhotoWithThumb(options.projectId, file, { tag: 'situatie' });
+            uploadedIds.push(docId);
+            const previewThumb = await makeThumbnail(file);
+            localThumbs.push({ id: docId, blobUrl: URL.createObjectURL(previewThumb.blob), name: file.name });
+          } catch (e) {
+            _toast('Foto upload mislukt: ' + (e && e.message ? e.message : e), 'danger');
+            _setErr('Foto upload mislukt: ' + (e && e.message ? e.message : e));
+            break;
+          }
+        }
+        _setProgress(uploadedIds.length, files.length);
+        setTimeout(() => _setProgress(0, 0), 800);
 
-      if (typeof options.onChange === 'function') {
-        try { await options.onChange(); } catch {}
+        await refresh();
+
+        if (uploadedIds.length > 0) {
+          _openTagModal(uploadedIds, localThumbs);
+        }
+
+        if (typeof options.onChange === 'function') {
+          try { await options.onChange(); } catch {}
+        }
+      } finally {
+        state.uploadBusy = false;
       }
     }
 
