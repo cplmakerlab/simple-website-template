@@ -565,12 +565,83 @@ async function uploadProjectPhoto(projectId, file) {
   }
 }
 
+// Uploads a full image + a generated thumbnail in parallel, then writes
+// a single Firestore photo-doc.  Defaults tag='situatie' (user may change
+// later via the tag-modal).
+async function uploadProjectPhotoWithThumb(projectId, file, opts = {}) {
+  const email = currentUserEmail();
+  if (!email) throw new Error('Niet ingelogd');
+  if (!file || !file.type.startsWith('image/')) throw new Error('Alleen afbeeldingen.');
+  const MAX_BYTES = 15 * 1024 * 1024;
+  if (file.size > MAX_BYTES) throw new Error('Te groot (max 15 MB).');
+  const tag = opts.tag === 'serial' ? 'serial' : 'situatie';
+
+  const safeName     = file.name.replace(/[^\w.\-]+/g, '_').slice(0, 80);
+  const safeStripped = safeName.replace(/\.[^.]+$/, '') || 'photo';
+  const ts           = Date.now();
+  const fullPath     = `projects/${projectId}/${ts}_${safeName}`;
+  const thumbPath    = `projects/${projectId}/${ts}_${safeStripped}_thumb.jpg`;
+
+  // Step A — generate thumb
+  let thumb;
+  try { thumb = await makeThumbnail(file); }
+  catch (e) { throw new Error('Thumbnail genereren mislukt: ' + (e && e.message ? e.message : e)); }
+
+  // Step B — parallel storage upload
+  const storage = getStorage();
+  try {
+    await Promise.all([
+      storage.ref(fullPath).put(file,       { contentType: file.type }),
+      storage.ref(thumbPath).put(thumb.blob, { contentType: 'image/jpeg' }),
+    ]);
+  } catch (e) {
+    // best-effort cleanup of whichever blob(s) landed
+    try { await storage.ref(fullPath).delete();  } catch {}
+    try { await storage.ref(thumbPath).delete(); } catch {}
+    throw new Error('Storage upload mislukt: ' + (e && e.message ? e.message : e));
+  }
+
+  // Step C — Firestore metadata
+  try {
+    const ref = await projectDoc(projectId).collection('photos').add({
+      storagePath:      fullPath,
+      thumbStoragePath: thumbPath,
+      name:             file.name,
+      contentType:      file.type,
+      sizeBytes:        file.size,
+      width:            thumb.width,
+      height:           thumb.height,
+      tag,
+      uploadedAt:       firebase.firestore.FieldValue.serverTimestamp(),
+      uploadedBy:       email,
+    });
+    await projectDoc(projectId).update({
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  } catch (e) {
+    try { await storage.ref(fullPath).delete();  } catch {}
+    try { await storage.ref(thumbPath).delete(); } catch {}
+    throw new Error('Firestore metadata schrijven mislukt: ' + (e && e.message ? e.message : e));
+  }
+}
+
 async function listProjectPhotos(projectId) {
   const snap = await projectDoc(projectId).collection('photos').orderBy('uploadedAt', 'desc').get();
   const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   await Promise.all(docs.map(async d => {
+    // Full-size URL (always needed for lightbox)
     try { d.downloadUrl = await getStorage().ref(d.storagePath).getDownloadURL(); }
     catch (e) { d.downloadUrl = null; d.fetchError = e && e.message ? e.message : String(e); }
+    // Thumb URL (may be absent on legacy docs)
+    if (d.thumbStoragePath) {
+      try { d.thumbUrl = await getStorage().ref(d.thumbStoragePath).getDownloadURL(); }
+      catch (e) { d.thumbUrl = null; /* will fall back to downloadUrl in the UI */ }
+    } else {
+      d.thumbUrl = null;
+    }
+    // Defaults for legacy docs
+    if (!d.tag) d.tag = 'situatie';
   }));
   return docs;
 }
