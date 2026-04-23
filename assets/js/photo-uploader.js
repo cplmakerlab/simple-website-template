@@ -152,6 +152,102 @@
           <span class="pu-tag-indicator" title="${_esc(tagLabel)}"><i class="fa-solid ${_esc(tagIcon)}"></i></span>
         </div>`;
       }).join('');
+      grid.querySelectorAll('[data-pu-tile]').forEach(tile => {
+        tile.addEventListener('click', () => _openLightbox(parseInt(tile.dataset.idx, 10)));
+      });
+      // Queue backfills for any photo rendering from the full-size URL.
+      state.photos.forEach(p => {
+        if (!p.thumbStoragePath && p.downloadUrl && !state.backfillQueue.includes(p.id)) {
+          state.backfillQueue.push(p.id);
+        }
+      });
+      _drainBackfillQueue();
+    }
+
+    function _openLightbox(startIdx) {
+      state.lightboxIdx = startIdx;
+      let lb = document.getElementById('pu-lightbox');
+      if (!lb) {
+        lb = document.createElement('div');
+        lb.id = 'pu-lightbox';
+        lb.className = 'sp-lightbox';
+        lb.innerHTML = `
+          <button type="button" class="sp-lightbox-btn close" title="Sluit">×</button>
+          <button type="button" class="sp-lightbox-btn prev" title="Vorige">‹</button>
+          <button type="button" class="sp-lightbox-btn next" title="Volgende">›</button>
+          <button type="button" class="sp-lightbox-btn del" title="Verwijder foto"><i class="fa-solid fa-trash"></i></button>
+          <img data-pu-lightbox-img alt="" />
+        `;
+        document.body.appendChild(lb);
+        lb.querySelector('.close').addEventListener('click', _closeLightbox);
+        lb.querySelector('.prev').addEventListener('click',  e => { e.stopPropagation(); _navLightbox(-1); });
+        lb.querySelector('.next').addEventListener('click',  e => { e.stopPropagation(); _navLightbox(+1); });
+        lb.querySelector('.del').addEventListener('click',   async e => {
+          e.stopPropagation();
+          const photo = state.photos[state.lightboxIdx];
+          if (!photo) return;
+          if (!confirm('Deze foto verwijderen?')) return;
+          try {
+            await deleteProjectPhoto(options.projectId, photo.id, photo.storagePath, photo.thumbStoragePath || null);
+            await refresh();
+            if (state.photos.length === 0) _closeLightbox();
+            else {
+              state.lightboxIdx = Math.min(state.lightboxIdx, state.photos.length - 1);
+              _refreshLightboxImg();
+            }
+            if (typeof options.onChange === 'function') { try { await options.onChange(); } catch {} }
+          } catch (err) {
+            _toast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
+          }
+        });
+        lb.addEventListener('click', e => { if (e.target === lb) _closeLightbox(); });
+        document.addEventListener('keydown', e => {
+          if (!lb.classList.contains('open')) return;
+          if      (e.key === 'Escape')     _closeLightbox();
+          else if (e.key === 'ArrowLeft')  _navLightbox(-1);
+          else if (e.key === 'ArrowRight') _navLightbox(+1);
+        });
+      }
+      _refreshLightboxImg();
+      lb.classList.add('open');
+    }
+    function _refreshLightboxImg() {
+      const img = document.querySelector('#pu-lightbox [data-pu-lightbox-img]');
+      const p   = state.photos[state.lightboxIdx];
+      if (img && p && p.downloadUrl) img.src = p.downloadUrl;
+    }
+    function _navLightbox(delta) {
+      if (!state.photos.length) return;
+      state.lightboxIdx = (state.lightboxIdx + delta + state.photos.length) % state.photos.length;
+      _refreshLightboxImg();
+    }
+    function _closeLightbox() {
+      const lb = document.getElementById('pu-lightbox');
+      if (lb) lb.classList.remove('open');
+    }
+
+    // Lazy backfill — one at a time, fail-soft.
+    async function _drainBackfillQueue() {
+      if (state.backfillBusy) return;
+      state.backfillBusy = true;
+      try {
+        while (state.backfillQueue.length > 0) {
+          const photoId = state.backfillQueue.shift();
+          const photo = state.photos.find(p => p.id === photoId);
+          if (!photo || photo.thumbStoragePath) continue;
+          try {
+            await backfillThumbnail(options.projectId, photo);
+            // re-load URLs for this photo only
+            const updated = await listProjectPhotos(options.projectId);
+            state.photos = updated;
+            _renderGrid();
+          } catch (e) {
+            console.warn('[photo-uploader] backfill failed for', photoId, e);
+          }
+        }
+      } finally {
+        state.backfillBusy = false;
+      }
     }
 
     function _setErr(msg) {
