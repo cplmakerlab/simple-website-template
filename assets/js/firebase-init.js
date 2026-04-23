@@ -475,6 +475,53 @@ function needsGroundFaultCheck(project) {
 }
 
 // ─── PHOTOS (Firebase Storage + Firestore metadata) ──────────────────────────
+
+// ─── Client-side thumbnail generation ──
+// Accepts a File/Blob (new upload) or HTMLImageElement (backfill).
+// Returns { blob: Blob, width: number, height: number } where width/height
+// are the NATURAL dimensions of the source image.
+async function makeThumbnail(source) {
+  const MAX_SIDE = 400;
+  const QUALITY  = 0.82;
+
+  let img, cleanup = () => {};
+  if (source instanceof HTMLImageElement) {
+    img = source;
+    if (!img.complete || img.naturalWidth === 0) {
+      try { await img.decode(); } catch {}
+    }
+  } else if (source instanceof Blob) {
+    img = new Image();
+    const url = URL.createObjectURL(source);
+    cleanup = () => URL.revokeObjectURL(url);
+    img.src = url;
+    try { await img.decode(); }
+    catch (e) { cleanup(); throw new Error('Kan afbeelding niet decoderen: ' + (e && e.message ? e.message : e)); }
+  } else {
+    throw new Error('makeThumbnail: source moet File/Blob of HTMLImageElement zijn');
+  }
+
+  const naturalWidth  = img.naturalWidth;
+  const naturalHeight = img.naturalHeight;
+  if (!naturalWidth || !naturalHeight) {
+    cleanup();
+    throw new Error('Afbeelding heeft geen geldige afmetingen');
+  }
+
+  const longest = Math.max(naturalWidth, naturalHeight);
+  const scale   = longest > MAX_SIDE ? MAX_SIDE / longest : 1;
+  const canvas  = document.createElement('canvas');
+  canvas.width  = Math.max(1, Math.round(naturalWidth  * scale));
+  canvas.height = Math.max(1, Math.round(naturalHeight * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', QUALITY));
+  cleanup();
+  if (!blob) throw new Error('Thumbnail-aanmaak mislukt (canvas.toBlob)');
+  return { blob, width: naturalWidth, height: naturalHeight };
+}
+
 function getStorage() {
   initFirebase();
   if (typeof firebase.storage !== 'function') {
