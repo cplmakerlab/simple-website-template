@@ -499,6 +499,7 @@ function wireBoard(el) {
 // ─── DRAWER ──────────────────────────────────────────────────────────────────
 let _drawerProjectId    = null;
 let _currentDrawerProject = null;
+let _drawerPhotoUploader = null;
 
 function fmtRelTime(ts) {
   if (!ts || typeof ts.toDate !== 'function') return '—';
@@ -533,15 +534,14 @@ async function _refreshCurrentDrawer() {
   const fresh = { id: snap.id, ...snap.data() };
   _currentDrawerProject = fresh;
   renderDrawer(fresh);
-  // Re-populate the async sections (photos + comments) that renderDrawer reset
+  // Re-populate the async sections (comments + photo uploader) that renderDrawer reset
   // to their loading placeholders. Without this the drawer is stuck mid-reload.
   try {
-    const [comments, photos] = await Promise.all([
+    const [comments] = await Promise.all([
       listComments(id).catch(err => { console.warn('listComments failed', err); return []; }),
-      listProjectPhotos(id).catch(err => { console.warn('listProjectPhotos failed', err); return []; }),
     ]);
     renderComments(fresh, comments);
-    renderPhotos(fresh, photos);
+    if (_drawerPhotoUploader) await _drawerPhotoUploader.refresh();
   } catch (err) {
     console.warn('drawer refresh async sections failed', err);
   }
@@ -570,13 +570,17 @@ function openDrawer(projectId) {
     }
     _currentDrawerProject = project;
     renderDrawer(project);
-    // Load comments + photos in parallel.
+    // Load comments in parallel; mount the photo uploader component.
     return Promise.all([
       listComments(projectId).catch(e => { console.warn('listComments failed', e); return []; }),
-      listProjectPhotos(projectId).catch(e => { console.warn('listProjectPhotos failed', e); return []; }),
-    ]).then(([comments, photos]) => {
+    ]).then(([comments]) => {
       renderComments(project, comments);
-      renderPhotos(project, photos);
+      _drawerPhotoUploader = mountPhotoUploader(document.getElementById('drawerPhotoUploader'), {
+        projectId: project.id,
+        onChange: refreshDrawerAfterChange,
+      });
+      // Populate the count header once the initial refresh lands.
+      refreshDrawerAfterChange();
       // Mark read (non-blocking). Refresh list so the pulse dot disappears.
       markCommentsRead(projectId).then(() => {
         setTimeout(refreshProjectList, 400);
@@ -588,8 +592,21 @@ function openDrawer(projectId) {
 }
 
 function closeDrawer() {
+  if (_drawerPhotoUploader) {
+    try { _drawerPhotoUploader.destroy(); } catch {}
+    _drawerPhotoUploader = null;
+  }
   const el = document.getElementById('drawer');
   bootstrap.Offcanvas.getOrCreateInstance(el).hide();
+}
+
+async function refreshDrawerAfterChange() {
+  const countEl = document.getElementById('drawerPhotosCount');
+  if (!countEl || !_drawerPhotoUploader) return;
+  try {
+    const photos = await listProjectPhotos(_drawerProjectId);
+    countEl.textContent = photos.length > 0 ? `(${photos.length})` : '';
+  } catch {}
 }
 
 // Reset drawer state when Bootstrap hides it (backdrop click, Escape key, data-bs-dismiss)
@@ -695,16 +712,10 @@ function renderDrawer(project) {
     `);
   }
 
-  // Photos placeholder (filled by renderPhotos after async listProjectPhotos)
   sections.push(`
     <section class="border-bottom pb-3 mb-3" id="drawerPhotosSection">
       <h6 class="mb-2 text-uppercase text-muted"><i class="fa-solid fa-images" aria-hidden="true"></i> Foto's <span id="drawerPhotosCount" class="text-muted fw-normal"></span></h6>
-      <div class="photo-grid" id="drawerPhotoGrid"><p class="sp-empty-state">⏳ Laden…</p></div>
-      <div class="d-flex align-items-center gap-2 mt-2">
-        <input type="file" id="drawerPhotoInput" accept="image/*" multiple class="form-control form-control-sm" />
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="drawerPhotoUploadBtn">📤 Upload</button>
-      </div>
-      <div class="text-danger small mt-1" id="drawerPhotoErr"></div>
+      <div id="drawerPhotoUploader"></div>
     </section>
   `);
 
@@ -737,28 +748,6 @@ function renderDrawer(project) {
       }
     });
   }
-
-  // Wire photo upload
-  document.getElementById('drawerPhotoUploadBtn').addEventListener('click', async () => {
-    const input = document.getElementById('drawerPhotoInput');
-    const errEl = document.getElementById('drawerPhotoErr');
-    errEl.textContent = '';
-    const files = Array.from(input.files || []);
-    if (!files.length) { errEl.textContent = 'Kies eerst een foto.'; return; }
-    const btn = document.getElementById('drawerPhotoUploadBtn');
-    btn.disabled = true; btn.textContent = 'Uploaden…';
-    try {
-      for (const f of files) {
-        try { await uploadProjectPhoto(project.id, f); }
-        catch (e) { errEl.textContent = e && e.message ? e.message : String(e); break; }
-      }
-      input.value = '';
-      const fresh = await listProjectPhotos(project.id);
-      renderPhotos(project, fresh);
-    } finally {
-      btn.disabled = false; btn.textContent = '📤 Upload';
-    }
-  });
 
   // Wire comment submit
   document.getElementById('drawerCommentSubmit').addEventListener('click', async () => {
@@ -804,93 +793,6 @@ function renderComments(project, comments) {
   // Scroll last comment into view if the newest is below the fold.
   const lastComment = list.lastElementChild;
   if (lastComment) lastComment.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-// Photos rendering + lightbox ------------------------------------------------
-let _drawerPhotos = [];
-let _lightboxIdx  = 0;
-
-function renderPhotos(project, photos) {
-  _drawerPhotos = photos || [];
-  const grid  = document.getElementById('drawerPhotoGrid');
-  const count = document.getElementById('drawerPhotosCount');
-  if (!grid) return;
-  count.textContent = _drawerPhotos.length > 0 ? `(${_drawerPhotos.length})` : '';
-  if (_drawerPhotos.length === 0) {
-    grid.innerHTML = '<p class="sp-empty-state">Nog geen foto’s geüpload.</p>';
-    return;
-  }
-  grid.innerHTML = _drawerPhotos.map((p, i) => {
-    if (!p.downloadUrl) {
-      return `<div class="photo-tile broken" title="${escapeHtml(p.fetchError || 'Kon foto niet laden')}">${escapeHtml(p.name || 'onbekend')}</div>`;
-    }
-    return `<div class="photo-tile" data-idx="${i}"><img src="${p.downloadUrl}" alt="${escapeHtml(p.name || '')}" /></div>`;
-  }).join('');
-  grid.querySelectorAll('.photo-tile[data-idx]').forEach(tile => {
-    tile.addEventListener('click', () => openLightbox(parseInt(tile.dataset.idx, 10)));
-  });
-}
-
-function openLightbox(idx) {
-  _lightboxIdx = idx;
-  let lb = document.getElementById('dashLightbox');
-  if (!lb) {
-    lb = document.createElement('div');
-    lb.id = 'dashLightbox';
-    lb.className = 'sp-lightbox';
-    lb.innerHTML = `
-      <button type="button" class="sp-lightbox-btn close" title="Sluit">×</button>
-      <button type="button" class="sp-lightbox-btn prev" title="Vorige">‹</button>
-      <button type="button" class="sp-lightbox-btn next" title="Volgende">›</button>
-      <button type="button" class="sp-lightbox-btn del" title="Verwijder foto"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
-      <img id="dashLightboxImg" alt="" />
-    `;
-    document.body.appendChild(lb);
-    lb.querySelector('.close').addEventListener('click', closeLightbox);
-    lb.querySelector('.prev').addEventListener('click', e => { e.stopPropagation(); navLightbox(-1); });
-    lb.querySelector('.next').addEventListener('click', e => { e.stopPropagation(); navLightbox(+1); });
-    lb.querySelector('.del').addEventListener('click', async e => {
-      e.stopPropagation();
-      const photo = _drawerPhotos[_lightboxIdx];
-      if (!photo) return;
-      if (!confirm('Deze foto verwijderen?')) return;
-      try {
-        await deleteProjectPhoto(_drawerProjectId, photo.id, photo.storagePath);
-        const fresh = await listProjectPhotos(_drawerProjectId);
-        renderPhotos(null, fresh);
-        if (fresh.length === 0) closeLightbox();
-        else { _lightboxIdx = Math.min(_lightboxIdx, fresh.length - 1); refreshLightboxImage(); }
-      } catch (err) {
-        showToast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
-      }
-    });
-    lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
-    document.addEventListener('keydown', e => {
-      if (!lb.classList.contains('open')) return;
-      if (e.key === 'Escape') closeLightbox();
-      else if (e.key === 'ArrowLeft')  navLightbox(-1);
-      else if (e.key === 'ArrowRight') navLightbox(+1);
-    });
-  }
-  refreshLightboxImage();
-  lb.classList.add('open');
-}
-
-function refreshLightboxImage() {
-  const img = document.getElementById('dashLightboxImg');
-  const photo = _drawerPhotos[_lightboxIdx];
-  if (img && photo && photo.downloadUrl) img.src = photo.downloadUrl;
-}
-
-function navLightbox(delta) {
-  if (!_drawerPhotos.length) return;
-  _lightboxIdx = (_lightboxIdx + delta + _drawerPhotos.length) % _drawerPhotos.length;
-  refreshLightboxImage();
-}
-
-function closeLightbox() {
-  const lb = document.getElementById('dashLightbox');
-  if (lb) lb.classList.remove('open');
 }
 
 // Offerte modal + click delegation — wired once against the drawer element.
