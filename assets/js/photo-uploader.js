@@ -253,7 +253,7 @@
           const target = btn.getAttribute('data-pu-bulk');
           list.querySelectorAll('[data-pu-modal-row]').forEach(row => {
             const id = row.getAttribute('data-photo-id');
-            const radio = row.querySelector(`input[name="tag-${id}"][value="${target}"]`);
+            const radio = row.querySelector(`input[name="tag-${CSS.escape(id)}"][value="${target}"]`);
             if (radio) radio.checked = true;
           });
         };
@@ -270,7 +270,7 @@
           const batch = db.batch();
           let patches = 0;
           uploadedIds.forEach(id => {
-            const checked = list.querySelector(`input[name="tag-${id}"]:checked`);
+            const checked = list.querySelector(`input[name="tag-${CSS.escape(id)}"]:checked`);
             const tag = checked && checked.value === 'serial' ? 'serial' : 'situatie';
             if (tag !== 'situatie') {
               const ref = db.collection('projects').doc(options.projectId).collection('photos').doc(id);
@@ -281,7 +281,6 @@
           if (patches > 0) await batch.commit();
           bootstrap.Modal.getOrCreateInstance(el).hide();
           await refresh();
-          if (typeof options.onChange === 'function') { try { await options.onChange(); } catch {} }
         } catch (e) {
           _toast('Tags opslaan mislukt: ' + (e && e.message ? e.message : e), 'danger');
         } finally {
