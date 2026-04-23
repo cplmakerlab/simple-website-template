@@ -775,9 +775,12 @@ async function deleteProjectOfferte(projectId, configType) {
 }
 
 // ─── Cascade-delete a config (NEW single source of truth) ───────────────────
-// Removes the type from lastCalcRun.inputs.selectedConfigTypes, deletes the
-// offertes[type] entry from the project doc, and deletes the Storage blob (if
-// any).  Best-effort on the Storage delete — warn on failure, don't throw.
+// Removes the type from lastCalcRun.inputs.selectedConfigTypes AND strips the
+// deleted type's slice from lastCalcRun.results (configResults + avgTotals.scenarios
+// are positionally per-config; others like monthMap/capAnalysis are CSV-global
+// and stay valid). Also deletes the offertes[type] field and Storage blob.
+// Keeping the results coherent means the calc view won't re-render a stale
+// scenario card on next load.
 async function deleteProjectConfig(projectId, type) {
   if (!projectId || !type) throw new Error('deleteProjectConfig: projectId + type vereist');
   const ref  = projectDoc(projectId);
@@ -788,11 +791,29 @@ async function deleteProjectConfig(projectId, type) {
     : [];
   const pdfPath = data.offertes && data.offertes[type] && data.offertes[type].storagePath;
 
-  await ref.update({
+  const updates = {
     'lastCalcRun.inputs.selectedConfigTypes': types,
     [`offertes.${type}`]: firebase.firestore.FieldValue.delete(),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-  });
+  };
+
+  const oldResults = (data.lastCalcRun && data.lastCalcRun.results) || null;
+  if (oldResults && Array.isArray(oldResults.configResults)) {
+    const removeIdx = oldResults.configResults.findIndex(cr => cr && cr.cfg && cr.cfg.type === type);
+    if (removeIdx >= 0) {
+      const newResults = { ...oldResults };
+      newResults.configResults = oldResults.configResults.filter((_, i) => i !== removeIdx);
+      if (oldResults.avgTotals && Array.isArray(oldResults.avgTotals.scenarios)) {
+        newResults.avgTotals = {
+          ...oldResults.avgTotals,
+          scenarios: oldResults.avgTotals.scenarios.filter((_, i) => i !== removeIdx),
+        };
+      }
+      updates['lastCalcRun.results'] = newResults;
+    }
+  }
+
+  await ref.update(updates);
 
   if (pdfPath) {
     try { await firebase.storage().ref(pdfPath).delete(); }
