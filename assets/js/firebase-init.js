@@ -322,6 +322,10 @@ async function hardDeleteProject(id) {
         try { await getStorage().ref(data.storagePath).delete(); }
         catch (e) { console.warn('Storage file delete failed for', data.storagePath, e); }
       }
+      if (data.thumbStoragePath) {
+        try { await getStorage().ref(data.thumbStoragePath).delete(); }
+        catch (e) { console.warn('Thumb delete failed for', data.thumbStoragePath, e); }
+      }
       await doc.ref.delete();
     }
   } catch (e) { console.warn('photos cascade failed', e); }
@@ -602,8 +606,9 @@ async function uploadProjectPhotoWithThumb(projectId, file, opts = {}) {
   }
 
   // Step C — Firestore metadata
+  let ref;
   try {
-    const ref = await projectDoc(projectId).collection('photos').add({
+    ref = await projectDoc(projectId).collection('photos').add({
       storagePath:      fullPath,
       thumbStoragePath: thumbPath,
       name:             file.name,
@@ -615,15 +620,22 @@ async function uploadProjectPhotoWithThumb(projectId, file, opts = {}) {
       uploadedAt:       firebase.firestore.FieldValue.serverTimestamp(),
       uploadedBy:       email,
     });
-    await projectDoc(projectId).update({
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    return ref.id;
   } catch (e) {
     try { await storage.ref(fullPath).delete();  } catch {}
     try { await storage.ref(thumbPath).delete(); } catch {}
     throw new Error('Firestore metadata schrijven mislukt: ' + (e && e.message ? e.message : e));
   }
+
+  // updatedAt is cosmetic — don't roll back blobs if this fails
+  try {
+    await projectDoc(projectId).update({
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    console.warn('updatedAt update mislukt (niet fataal):', e);
+  }
+
+  return ref.id;
 }
 
 async function listProjectPhotos(projectId) {
