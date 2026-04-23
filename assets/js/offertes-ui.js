@@ -11,8 +11,7 @@
 //
 // The caller is responsible for:
 //   - Including firebase-init.js (uploadProjectOfferte, deleteProjectOfferte,
-//     hardDeleteProjectConfig, dismissProjectConfig, restoreProjectConfig,
-//     effectiveBtwFor) before this file.
+//     deleteProjectConfig, effectiveBtwFor) before this file.
 //   - Providing `escapeHtml(s)` and `showToast(msg, variant)` on the page.
 //   - Calling ensureOfferteModal() once during page init.
 //   - Re-rendering via `onChange()` (the caller's refresh function) after any mutation.
@@ -69,17 +68,15 @@ function _formatOfferteDate(d) {
   return d.toLocaleDateString('nl-BE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-// Inner content only — active cards grid + optional "Niet geoffreerd" block.
+// Inner content only — active configs grid.
 // Returns '' when the project has no configs to display.
 // Used by dashboard.html (wrapped in a <section>) and project-edit.html (wrapped in a .card).
 function renderOffertesCards(project) {
   const types = (project.lastCalcRun && project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
     ? project.lastCalcRun.inputs.selectedConfigTypes : [];
   const offertes  = project.offertes || {};
-  const dismissed = new Set(project.dismissedConfigs || []);
-  const active   = types.filter(t => !dismissed.has(t));
-  const inactive = Array.from(dismissed);
-  if (active.length === 0 && inactive.length === 0) return '';
+  const active = types;
+  if (active.length === 0) return '';
 
   const activeCards = active.map(t => {
     const cfg = _findConfigByType(project, t);
@@ -94,9 +91,9 @@ function renderOffertesCards(project) {
       ? `<button class="btn btn-sm btn-outline-secondary offerte-download-btn" data-offerte-action data-type="${escapeHtml(t)}" title="Download PDF"><i class="fa-solid fa-download" aria-hidden="true"></i></button>
          <button class="btn btn-sm btn-outline-secondary offerte-replace-btn"  data-offerte-action data-type="${escapeHtml(t)}" title="Vervang PDF"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
          <button class="btn btn-sm btn-outline-warning   offerte-deletepdf-btn" data-offerte-action data-type="${escapeHtml(t)}" title="Alleen PDF verwijderen (config blijft)"><i class="fa-solid fa-file-circle-xmark" aria-hidden="true"></i></button>
-         <button class="btn btn-sm btn-outline-danger    offerte-trash-btn"     data-offerte-action data-type="${escapeHtml(t)}" title="Niet geoffreerd (blijft zichtbaar onderaan, PDF behouden)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`
+         <button class="btn btn-sm btn-outline-danger    offerte-trash-btn"     data-offerte-action data-type="${escapeHtml(t)}" title="Config verwijderen (incl. offerte-PDF)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`
       : `<button class="btn btn-sm btn-outline-primary offerte-upload-btn"     data-offerte-action data-type="${escapeHtml(t)}" title="Upload offerte"><i class="fa-solid fa-upload" aria-hidden="true"></i></button>
-         <button class="btn btn-sm btn-outline-danger  offerte-trash-btn"      data-offerte-action data-type="${escapeHtml(t)}" title="Niet geoffreerd (blijft zichtbaar onderaan)"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
+         <button class="btn btn-sm btn-outline-danger  offerte-trash-btn"      data-offerte-action data-type="${escapeHtml(t)}" title="Config verwijderen"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>`;
 
     return `
       <div class="col">
@@ -116,30 +113,9 @@ function renderOffertesCards(project) {
     `;
   }).join('');
 
-  const inactiveCards = inactive.length ? `
-    <div class="offerte-divider">── Niet geoffreerd ──</div>
-    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">
-      ${inactive.map(t => {
-        const cfg = _findConfigByType(project, t);
-        return `
-          <div class="col">
-            <div class="offerte-row dismissed h-100 d-flex justify-content-between align-items-center gap-2">
-              <span class="offerte-row-title text-truncate">${escapeHtml(cfg.type)}</span>
-              <button class="btn btn-sm btn-outline-secondary offerte-restore-btn flex-shrink-0" data-offerte-action data-type="${escapeHtml(t)}" title="Terugzetten">
-                <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  ` : '';
-
-  const activeBlock = activeCards
+  return activeCards
     ? `<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2">${activeCards}</div>`
     : '';
-
-  return activeBlock + inactiveCards;
 }
 
 // Section-wrapped variant for the dashboard drawer.
@@ -180,15 +156,7 @@ function wireOffertesClicks(containerEl, getProjectFn, onChange) {
         if (typeof onChange === 'function') await onChange();
       }
       else if (btn.classList.contains('offerte-trash-btn')) {
-        // Always dismiss — config blijft onder "Niet geoffreerd" staan en keert
-        // automatisch terug wanneer de calculator hem opnieuw meerekent.
-        // Een eventuele PDF blijft bewaard (gebruik de aparte "delete PDF"-knop
-        // om die apart te wissen voordat je dismissed).
-        await dismissProjectConfig(project.id, type);
-        if (typeof onChange === 'function') await onChange();
-      }
-      else if (btn.classList.contains('offerte-restore-btn')) {
-        await restoreProjectConfig(project.id, type);
+        await deleteProjectConfig(project.id, type);
         if (typeof onChange === 'function') await onChange();
       }
     } catch (err) {
