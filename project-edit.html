@@ -854,7 +854,11 @@ function wireBlokD() {
   // Photo uploader (shared component)
   const uploaderHost = document.getElementById('peBlokDPhotoUploader');
   if (uploaderHost) {
-    mountPhotoUploader(uploaderHost, {
+    if (_blokDUploader) {
+      try { _blokDUploader.destroy(); } catch {}
+      _blokDUploader = null;
+    }
+    _blokDUploader = mountPhotoUploader(uploaderHost, {
       projectId: PROJECT_ID || null,
       onChange: null,
     });
@@ -926,7 +930,8 @@ function rerenderBlokD() {
   wireBlokD();
 }
 
-let _serialSaveTimer = null;
+let _blokDUploader    = null;
+let _serialSaveTimer  = null;
 
 function sectionBasisgegevens() {
   const p = _project;
