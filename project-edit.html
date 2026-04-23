@@ -79,16 +79,6 @@
   </nav>
 </div>
 
-<!-- Lightbox -->
-<div class="sp-lightbox" id="peLightbox" role="dialog" aria-modal="true" aria-label="Foto vergroten">
-  <button type="button" class="sp-lightbox-btn close" id="peLightboxClose" aria-label="Sluiten">×</button>
-  <button type="button" class="sp-lightbox-btn prev"  id="peLightboxPrev"  aria-label="Vorige foto">◀</button>
-  <img id="peLightboxImg" src="" alt="" />
-  <button type="button" class="sp-lightbox-btn next"  id="peLightboxNext"  aria-label="Volgende foto">▶</button>
-  <button type="button" class="sp-lightbox-btn del"   id="peLightboxDel"   aria-label="Verwijder foto"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
-  <div class="counter" id="peLightboxCounter">1 / 1</div>
-</div>
-
 <!-- Toast container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index:1090"></div>
 
@@ -201,7 +191,6 @@ async function bootstrap() {
   }
   renderSections();
   wireActions();
-  wireLightbox();
 
   // Offertes-section click delegation — attached once to the stable slot.
   ensureOfferteModal();
@@ -838,34 +827,9 @@ function sectionBlokD() {
         <h5 class="mb-0"><i class="fa-solid fa-images text-primary me-2"></i>Foto's &amp; serienummers</h5>
       </div>
       <div class="card-body">
-        <h6 class="text-muted mb-2">Algemene foto's (plaatsbezoek)</h6>
-        <div class="upload-buttons mb-2">
-          <label class="btn btn-outline-primary mb-0" for="pePhotoCamera">
-            <i class="fa-solid fa-camera me-1"></i> Foto maken
-          </label>
-          <input type="file" id="pePhotoCamera" accept="image/*" capture="environment" class="d-none" />
-          <label class="btn btn-outline-secondary mb-0" for="pePhotoGallery">
-            <i class="fa-solid fa-folder-open me-1"></i> Uit galerij kiezen
-          </label>
-          <input type="file" id="pePhotoGallery" accept="image/*" multiple class="d-none" />
-        </div>
-        <div class="photo-grid mb-3" id="pePhotoGrid"><p class="sp-empty-state">&#x23F3; Laden&hellip;</p></div>
-        <!-- Drop-zone: alleen op >= md (desktop/tablet landscape) — mobiel gebruikt bovenstaande buttons. -->
-        <div class="sp-drop-zone d-none d-md-block mb-4" id="peDropZone">
-          <input type="file" id="pePhotoInput" accept="image/*" multiple />
-          <div id="peDropPrompt">
-            <i class="fa-solid fa-cloud-arrow-up me-1"></i>
-            <strong>Sleep foto's hierheen</strong> <span class="text-muted">of klik om te selecteren</span>
-            <div class="text-muted small mt-1">Meerdere tegelijk OK (max 15 MB per foto).</div>
-          </div>
-          <div class="d-none" id="peDropProgress">
-            <div class="progress mt-1" style="height:6px;">
-              <div class="progress-bar" role="progressbar" style="width:0%"></div>
-            </div>
-            <div class="text-muted small mt-1">Uploaden <span id="peUploadCount">0/0</span>&hellip;</div>
-          </div>
-        </div>
-        <div id="pePhotoErr" class="alert alert-danger mt-2 d-none"></div>
+        <h6 class="text-muted mb-2">Foto's (plaatsbezoek &amp; serienummers)</h6>
+        <div id="peBlokDPhotoUploader"></div>
+        <hr class="my-3" />
 
         <h6 class="text-muted mb-2">Serienummers batterijen / omvormers</h6>
         <div id="peSerialList">${serialRowsHtml}</div>
@@ -875,14 +839,11 @@ function sectionBlokD() {
 }
 
 function _renderSerialRow(s) {
-  const hasPhoto = s.photoStoragePath != null;
   const isNew = s.id === '_new';
   return `
     <div class="serial-row" data-serial-id="${s.id}">
       <input type="text" class="form-control" placeholder="Serienummer&hellip;" value="${escapeHtml(s.value || '')}" data-serial-field="value" />
       <div class="serial-actions">
-        ${hasPhoto ? `<button type="button" class="btn btn-sm btn-outline-secondary" title="Foto bekijken" data-serial-view="${s.id}"><i class="fa-solid fa-eye"></i></button>` : ''}
-        ${isNew ? '' : `<label class="btn btn-sm btn-outline-primary mb-0" title="Foto nemen/kiezen"><input type="file" accept="image/*" capture="environment" class="d-none" data-serial-photo="${s.id}" /><i class="fa-solid fa-camera"></i></label>`}
         ${isNew ? '' : `<button type="button" class="btn btn-sm btn-outline-danger" title="Verwijderen" data-serial-delete="${s.id}"><i class="fa-solid fa-xmark"></i></button>`}
       </div>
     </div>
@@ -890,23 +851,14 @@ function _renderSerialRow(s) {
 }
 
 function wireBlokD() {
-  // Photo camera + gallery inputs (general photos)
-  const cam = document.getElementById('pePhotoCamera');
-  const gal = document.getElementById('pePhotoGallery');
-  const onPhotoFiles = async (files) => {
-    if (!PROJECT_ID) { showToast('Sla het project eerst op.', 'warning'); return; }
-    for (const file of files) {
-      try { await uploadProjectPhoto(PROJECT_ID, file); }
-      catch (err) { showToast('Foto upload mislukt: ' + (err && err.message ? err.message : String(err)), 'danger'); }
-    }
-    _photos = await listProjectPhotos(PROJECT_ID);
-    renderPhotoGrid();
-  };
-  cam.addEventListener('change', e => { if (e.target.files.length) onPhotoFiles([...e.target.files]); cam.value = ''; });
-  gal.addEventListener('change', e => { if (e.target.files.length) onPhotoFiles([...e.target.files]); gal.value = ''; });
-
-  // Initial photos render + drop-zone wiring — reuse existing wireSectionPhotos().
-  wireSectionPhotos();
+  // Photo uploader (shared component)
+  const uploaderHost = document.getElementById('peBlokDPhotoUploader');
+  if (uploaderHost) {
+    mountPhotoUploader(uploaderHost, {
+      projectId: PROJECT_ID || null,
+      onChange: null,
+    });
+  }
 
   // Serials — value typing
   document.querySelectorAll('[data-serial-field="value"]').forEach(inp => {
@@ -953,27 +905,6 @@ function wireBlokD() {
     });
   });
 
-  // Serial photo upload
-  document.querySelectorAll('[data-serial-photo]').forEach(inp => {
-    inp.addEventListener('change', async e => {
-      const id = e.target.getAttribute('data-serial-photo');
-      const file = e.target.files && e.target.files[0];
-      if (!file) return;
-      if (!PROJECT_ID) {
-        showToast("Sla het project eerst op voor je serial-foto's toevoegt.", 'warning');
-        return;
-      }
-      try {
-        await uploadProjectSerialPhoto(PROJECT_ID, id, file);
-        const snap = await projectDoc(PROJECT_ID).get();
-        _project.serialNumbers = snap.data().serialNumbers || [];
-        rerenderBlokD();
-      } catch (err) {
-        showToast('Foto upload mislukt: ' + (err && err.message ? err.message : String(err)), 'danger');
-      }
-    });
-  });
-
   // Serial delete
   document.querySelectorAll('[data-serial-delete]').forEach(btn => {
     btn.addEventListener('click', async e => {
@@ -988,16 +919,6 @@ function wireBlokD() {
     });
   });
 
-  // Serial photo view
-  document.querySelectorAll('[data-serial-view]').forEach(btn => {
-    btn.addEventListener('click', async e => {
-      const id = e.currentTarget.getAttribute('data-serial-view');
-      const entry = (_project.serialNumbers || []).find(x => x.id === id);
-      if (!entry || !entry.photoStoragePath) return;
-      const url = await getSerialPhotoUrl(entry.photoStoragePath);
-      if (url) window.open(url, '_blank');
-    });
-  });
 }
 
 function rerenderBlokD() {
@@ -1537,209 +1458,6 @@ function wireSectionCalcDefaults() {
   document.getElementById('fKeuring').addEventListener('change', e => {
     _project.calcDefaults.keuring = e.target.value === '' ? null : e.target.value;
   });
-}
-
-// Photos section — Firestore-backed list with upload + lightbox. Only functional when !IS_NEW
-// (a project id is required to upload). For new projects we show a hint.
-let _photos = [];
-let _photoLightboxIdx = 0;
-
-function sectionPhotos() {
-  if (IS_NEW) {
-    return `
-      <div class="accordion-item">
-        <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#secPhotos" aria-expanded="false" aria-controls="secPhotos">
-            <i class="fa-solid fa-images me-2" aria-hidden="true"></i> Foto's
-          </button>
-        </h2>
-        <div id="secPhotos" class="accordion-collapse collapse">
-          <div class="accordion-body">
-            <p class="text-muted fst-italic">Maak het project eerst aan (Opslaan). Daarna kan je hier foto's uploaden.</p>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-  return `
-    <div class="accordion-item">
-      <h2 class="accordion-header">
-        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secPhotos" aria-expanded="true" aria-controls="secPhotos">
-          <i class="fa-solid fa-images me-2" aria-hidden="true"></i> Foto's <span id="pePhotosCount" class="ms-2 text-muted small"></span>
-        </button>
-      </h2>
-      <div id="secPhotos" class="accordion-collapse collapse show">
-        <div class="accordion-body">
-          <div class="photo-grid" id="pePhotoGrid"><p class="sp-empty-state">⏳ Laden…</p></div>
-          <div class="sp-drop-zone" id="peDropZone">
-            <input type="file" id="pePhotoInput" accept="image/*" multiple />
-            <div id="peDropPrompt">
-              <i class="fa-solid fa-cloud-arrow-up me-1" aria-hidden="true"></i>
-              <strong>Sleep foto's hierheen</strong> <span class="text-muted">of klik om te selecteren</span>
-              <div class="text-muted small mt-1">Meerdere tegelijk is OK (max 15 MB per foto).</div>
-            </div>
-            <div class="d-none" id="peDropProgress">
-              <div class="progress mt-1" style="height:6px;">
-                <div class="progress-bar" role="progressbar" style="width:0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-              </div>
-              <div class="text-muted small mt-1">Uploaden <span id="peUploadCount">0/0</span>…</div>
-            </div>
-          </div>
-          <div id="pePhotoErr" class="alert alert-danger mt-2 d-none"></div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function wireSectionPhotos() {
-  if (IS_NEW) return;
-  // Async load + render
-  listProjectPhotos(PROJECT_ID).then(photos => { _photos = photos; renderPhotoGrid(); })
-    .catch(e => {
-      const grid = document.getElementById('pePhotoGrid');
-      if (grid) grid.innerHTML = `<p class="text-danger small">Kon foto's niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</p>`;
-    });
-
-  const zone  = document.getElementById('peDropZone');
-  const input = document.getElementById('pePhotoInput');
-  if (!zone || !input) return;
-
-  // Click zone → file picker (but not when the click bubbled from an input already).
-  zone.addEventListener('click', (e) => {
-    if (e.target === input) return;
-    if (zone.classList.contains('uploading')) return;
-    input.click();
-  });
-  input.addEventListener('change', () => {
-    const files = Array.from(input.files || []);
-    input.value = '';  // reset so picking the same file again re-triggers change
-    if (files.length) runPeUpload(files);
-  });
-
-  zone.addEventListener('dragover', e => {
-    e.preventDefault();
-    if (!zone.classList.contains('uploading')) zone.classList.add('drag-over');
-  });
-  zone.addEventListener('dragleave', e => {
-    if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over');
-  });
-  zone.addEventListener('drop', e => {
-    e.preventDefault();
-    zone.classList.remove('drag-over');
-    if (zone.classList.contains('uploading')) return;
-    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
-    if (files.length) runPeUpload(files);
-  });
-}
-
-async function runPeUpload(files) {
-  const zone     = document.getElementById('peDropZone');
-  const promptEl = document.getElementById('peDropPrompt');
-  const progEl   = document.getElementById('peDropProgress');
-  const countEl  = document.getElementById('peUploadCount');
-  const errEl    = document.getElementById('pePhotoErr');
-  errEl.classList.add('d-none'); errEl.textContent = '';
-  promptEl.classList.add('hide');
-  progEl.classList.remove('d-none');
-  zone.classList.add('uploading');
-  countEl.textContent = `0/${files.length}`;
-  const bar = progEl.querySelector('.progress-bar');
-  bar.style.width = '0%'; bar.setAttribute('aria-valuenow', '0');
-  let done = 0;
-  let failMsg = null;
-  for (const f of files) {
-    try {
-      await uploadProjectPhoto(PROJECT_ID, f);
-      done++;
-      countEl.textContent = `${done}/${files.length}`;
-      const pct = Math.round((done / files.length) * 100);
-      bar.style.width = pct + '%'; bar.setAttribute('aria-valuenow', String(pct));
-    } catch (e) {
-      failMsg = e && e.message ? e.message : String(e);
-      break;
-    }
-  }
-  if (failMsg) {
-    errEl.textContent = `Fout na ${done}/${files.length}: ${failMsg}`;
-    errEl.classList.remove('d-none');
-  }
-  try { _photos = await listProjectPhotos(PROJECT_ID); renderPhotoGrid(); } catch {}
-  progEl.classList.add('d-none');
-  promptEl.classList.remove('hide');
-  zone.classList.remove('uploading');
-}
-
-function renderPhotoGrid() {
-  const grid = document.getElementById('pePhotoGrid');
-  const count = document.getElementById('pePhotosCount');
-  if (!grid) return;
-  if (count) count.textContent = _photos.length > 0 ? `(${_photos.length})` : '';
-  if (_photos.length === 0) {
-    grid.innerHTML = '<p class="sp-empty-state">Nog geen foto’s geüpload.</p>';
-    return;
-  }
-  grid.innerHTML = _photos.map((p, i) => {
-    if (!p.downloadUrl) {
-      return `<div class="photo-tile broken" title="${escapeHtml(p.fetchError || 'Kon foto niet laden')}">${escapeHtml(p.name || 'onbekend')}</div>`;
-    }
-    return `<div class="photo-tile" data-idx="${i}"><img src="${p.downloadUrl}" alt="${escapeHtml(p.name || '')}" /></div>`;
-  }).join('');
-  grid.querySelectorAll('.photo-tile[data-idx]').forEach(tile => {
-    tile.addEventListener('click', () => openPeLightbox(parseInt(tile.dataset.idx, 10)));
-  });
-}
-
-function wireLightbox() {
-  const lb     = document.getElementById('peLightbox');
-  const closeBtn = document.getElementById('peLightboxClose');
-  const prevBtn  = document.getElementById('peLightboxPrev');
-  const nextBtn  = document.getElementById('peLightboxNext');
-  const delBtn   = document.getElementById('peLightboxDel');
-
-  closeBtn.addEventListener('click', () => lb.classList.remove('open'));
-  prevBtn.addEventListener('click', e => { e.stopPropagation(); navPeLightbox(-1); });
-  nextBtn.addEventListener('click', e => { e.stopPropagation(); navPeLightbox(+1); });
-  delBtn.addEventListener('click', async e => {
-    e.stopPropagation();
-    const photo = _photos[_photoLightboxIdx];
-    if (!photo) return;
-    if (!confirm('Deze foto verwijderen?')) return;
-    try {
-      await deleteProjectPhoto(PROJECT_ID, photo.id, photo.storagePath);
-      _photos = await listProjectPhotos(PROJECT_ID);
-      renderPhotoGrid();
-      if (_photos.length === 0) lb.classList.remove('open');
-      else { _photoLightboxIdx = Math.min(_photoLightboxIdx, _photos.length - 1); refreshPeLightboxImage(); }
-    } catch (err) {
-      showToast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
-    }
-  });
-  lb.addEventListener('click', e => { if (e.target === lb) lb.classList.remove('open'); });
-  document.addEventListener('keydown', e => {
-    if (!lb.classList.contains('open')) return;
-    if (e.key === 'Escape') lb.classList.remove('open');
-    else if (e.key === 'ArrowLeft')  navPeLightbox(-1);
-    else if (e.key === 'ArrowRight') navPeLightbox(+1);
-  });
-}
-
-function openPeLightbox(idx) {
-  _photoLightboxIdx = idx;
-  refreshPeLightboxImage();
-  document.getElementById('peLightbox').classList.add('open');
-}
-function refreshPeLightboxImage() {
-  const img = document.getElementById('peLightboxImg');
-  const counter = document.getElementById('peLightboxCounter');
-  const photo = _photos[_photoLightboxIdx];
-  if (img && photo && photo.downloadUrl) img.src = photo.downloadUrl;
-  if (counter) counter.textContent = `${_photoLightboxIdx + 1} / ${_photos.length}`;
-}
-function navPeLightbox(delta) {
-  if (!_photos.length) return;
-  _photoLightboxIdx = (_photoLightboxIdx + delta + _photos.length) % _photos.length;
-  refreshPeLightboxImage();
 }
 
 // Pending CSV state — only used when IS_NEW (no project-id yet to attach to).
