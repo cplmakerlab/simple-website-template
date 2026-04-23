@@ -774,6 +774,7 @@ async function hardDeleteProjectConfig(projectId, configType) {
 // offertes[type] entry from the project doc, and deletes the Storage blob (if
 // any).  Best-effort on the Storage delete — warn on failure, don't throw.
 async function deleteProjectConfig(projectId, type) {
+  if (!projectId || !type) throw new Error('deleteProjectConfig: projectId + type vereist');
   const ref  = projectDoc(projectId);
   const snap = await ref.get();
   const data = snap.data() || {};
