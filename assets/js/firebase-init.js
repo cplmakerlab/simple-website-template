@@ -356,27 +356,55 @@ async function setProjectCsv(id, csvData) {
   });
 }
 
-// Save the latest calculation result. `results` is the full r-object from _serializeState
-// minus dailyCompact (which lives in csvUpload). Caller is responsible for stripping it.
-async function saveLastCalcRun(id, { inputs, results }) {
-  const email = currentUserEmail();
+// Save the latest calculation result. `saved` must have `inputs` and `results` keys.
+// `results` is the full r-object from _serializeState minus dailyCompact (which lives
+// in csvUpload). Caller is responsible for stripping dailyCompact.
+// PDF cascade: any config type that was previously selected but is absent from the new
+// selectedConfigTypes AND had an offertes entry is purged (Firestore field + Storage blob).
+async function saveLastCalcRun(projectId, saved) {
+  if (!projectId || !saved) throw new Error('saveLastCalcRun: projectId + saved vereist');
+
+  const ref  = projectDoc(projectId);
+  const snap = await ref.get();
+  const data = snap.data() || {};
+
+  const inputs  = saved.inputs  || {};
+  const results = saved.results || {};
+
+  // Build the lastCalcRun payload.
+  const lastCalcRun = {
+    savedAt:   firebase.firestore.FieldValue.serverTimestamp(),
+    savedBy:   currentUserEmail() || 'unknown',
+    inputs,
+    results,
+  };
+
+  // Determine which previously-selected types that hold a PDF are NOT in the new set.
+  const prevSelected = (data.lastCalcRun && data.lastCalcRun.inputs &&
+                        Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
+    ? data.lastCalcRun.inputs.selectedConfigTypes : [];
+  const newSelected  = Array.isArray(inputs.selectedConfigTypes)
+    ? inputs.selectedConfigTypes : [];
+  const offertes     = data.offertes || {};
+  const removedWithPdf = prevSelected.filter(t =>
+    !newSelected.includes(t) && offertes[t] && offertes[t].storagePath);
+
+  // Firestore update: lastCalcRun + updatedAt + PDF cascade field-deletes.
   const update = {
-    lastCalcRun: {
-      calculatedAt:  firebase.firestore.FieldValue.serverTimestamp(),
-      calculatedBy:  email,
-      inputs,
-      results,
-    },
+    lastCalcRun,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
   };
-  // Invariant: a type that's in selectedConfigTypes must NOT be in dismissedConfigs.
-  // Whenever the calculator re-saves with a type that was previously dismissed, clear
-  // the dismiss so the drawer/edit-page stops showing it as struck-through.
-  const selected = (inputs && Array.isArray(inputs.selectedConfigTypes)) ? inputs.selectedConfigTypes : [];
-  if (selected.length > 0) {
-    update.dismissedConfigs = firebase.firestore.FieldValue.arrayRemove(...selected);
+  for (const t of removedWithPdf) {
+    update[`offertes.${t}`] = firebase.firestore.FieldValue.delete();
   }
-  await projectDoc(id).update(update);
+
+  await ref.update(update);
+
+  // Best-effort Storage blob cleanup for cascaded PDFs.
+  for (const t of removedWithPdf) {
+    try { await firebase.storage().ref(offertes[t].storagePath).delete(); }
+    catch (e) { console.warn(`Offerte blob (${t}) verwijderen mislukt`, e); }
+  }
 }
 
 // ─── PRODUCT-SHEET CONFIG ────────────────────────────────────────────────────
