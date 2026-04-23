@@ -1324,7 +1324,7 @@ async function loadConfigs() {
 }
 
 // ─── MAIN CALC ─────────────────────────────────────────────────────────────────
-function calculate() {
+async function calculate() {
   const pvInv      = parseFloat(document.getElementById('pvInverter').value);
   const priceDay   = parseFloat(document.getElementById('elecPrice').value);
   const priceNight = parseFloat(document.getElementById('elecPriceNight').value); // may be NaN
@@ -1347,6 +1347,9 @@ function calculate() {
     .filter(Boolean);
 
   if (!selectedConfigs.length) { alert('Kies minstens één productconfiguratie.'); return; }
+
+  // ── Guard: confirm before Bereken if removing a config that has an offerte-PDF ──
+  if (!(await _confirmConfigCascade(_projectId, selectedConfigs.map(c => c.type)))) return;
 
   // ── Project-mode path: use the project's stored CSV instead of a file upload ──
   if (_projectId && _projectDoc && _projectDoc.csvUpload) {
@@ -2016,6 +2019,31 @@ function renderResults(d) {
       console.error('Auto-save failed:', err);
       showToast('⚠️ Niet opgeslagen — controleer netwerk');
     });
+  }
+}
+
+// Pre-Bereken confirm when the save would cascade-delete PDFs.
+// Returns true if the user confirms (or no PDFs are on the line), false if cancelled.
+async function _confirmConfigCascade(projectId, newSelectedTypes) {
+  if (!projectId) return true; // no-project mode — no PDFs possible.
+  try {
+    const snap = await projectDoc(projectId).get();
+    const data = snap.data() || {};
+    const prevSelected = (data.lastCalcRun && data.lastCalcRun.inputs
+                          && Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
+      ? data.lastCalcRun.inputs.selectedConfigTypes : [];
+    const offertes = data.offertes || {};
+    const removedWithPdf = prevSelected.filter(t =>
+      !newSelectedTypes.includes(t) && offertes[t]);
+    if (removedWithPdf.length === 0) return true;
+    const label = removedWithPdf.join(', ');
+    const msg = removedWithPdf.length === 1
+      ? `De config "${label}" heeft een offerte-PDF. Als je doorgaat wordt die ook verwijderd.\n\nDoorgaan?`
+      : `De configs "${label}" hebben offerte-PDF's. Als je doorgaat worden die ook verwijderd.\n\nDoorgaan?`;
+    return confirm(msg);
+  } catch (e) {
+    console.warn('_confirmConfigCascade: snapshot read mislukt, doorgaan zonder confirm', e);
+    return true; // fail-open: don't block Bereken on a stale read error.
   }
 }
 
