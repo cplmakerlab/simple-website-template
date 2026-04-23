@@ -536,39 +536,6 @@ function getStorage() {
   return firebase.storage();
 }
 
-async function uploadProjectPhoto(projectId, file) {
-  const email = currentUserEmail();
-  if (!email) throw new Error('Niet ingelogd');
-  if (!file || !file.type.startsWith('image/')) throw new Error('Alleen afbeeldingen.');
-  const MAX_BYTES = 15 * 1024 * 1024;
-  if (file.size > MAX_BYTES) throw new Error('Te groot (max 15 MB).');
-  const safeName = file.name.replace(/[^\w.\-]+/g, '_').slice(0, 80);
-  const storagePath = `projects/${projectId}/${Date.now()}_${safeName}`;
-  // Phase 1: upload bytes to Storage.
-  try {
-    await getStorage().ref(storagePath).put(file, { contentType: file.type });
-  } catch (e) {
-    const msg = e && e.message ? e.message : String(e);
-    throw new Error('Storage upload mislukt: ' + msg + ' — controleer dat Firebase Storage geactiveerd is én dat de Storage-rule voor projects/{projectId}/... gepubliceerd staat.');
-  }
-  // Phase 2: write Firestore metadata doc.
-  try {
-    await projectDoc(projectId).collection('photos').add({
-      storagePath,
-      name:        file.name,
-      contentType: file.type,
-      sizeBytes:   file.size,
-      uploadedAt:  firebase.firestore.FieldValue.serverTimestamp(),
-      uploadedBy:  email,
-    });
-    await projectDoc(projectId).update({ updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
-  } catch (e) {
-    const msg = e && e.message ? e.message : String(e);
-    // Orphan the storage byte — Firestore entry didn't land. User can retry.
-    throw new Error('Firestore metadata schrijven mislukt: ' + msg + ' — controleer dat de Firestore-rule voor projects/{id}/photos gepubliceerd staat.');
-  }
-}
-
 // Uploads a full image + a generated thumbnail in parallel, then writes
 // a single Firestore photo-doc.  Defaults tag='situatie' (user may change
 // later via the tag-modal).
