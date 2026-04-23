@@ -366,3 +366,22 @@ body.readonly-mode input, body.readonly-mode textarea, body.readonly-mode select
 
 /* Utility: hidden via JS state toggles (used by all three HTML files) */
 .hide { display: none !important; }
+
+/* ─── Photo-uploader component ─────────────────────────────────────── */
+.photo-tile { position: relative; }
+.pu-tag-indicator {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 11px;
+  pointer-events: none;
+}
+.pu-progress .progress-bar { transition: width 0.15s ease; }
