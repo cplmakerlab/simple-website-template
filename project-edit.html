@@ -72,7 +72,7 @@
     <div class="container-fluid justify-content-end gap-2 flex-wrap">
       <button type="button" class="btn btn-outline-secondary flex-grow-1 flex-md-grow-0" id="btnCancel">Annuleren</button>
       <button type="button" class="btn btn-primary flex-grow-1 flex-md-grow-0" id="btnSave">Opslaan</button>
-      <button type="button" class="btn btn-success flex-grow-1 flex-md-grow-0" id="btnSaveAndCalc" disabled title="Vul eerst de benodigde velden in">
+      <button type="button" class="btn btn-success flex-grow-1 flex-md-grow-0" id="btnSaveAndCalc" title="Opslaan en door naar Bereken">
         <i class="fa-solid fa-calculator me-1"></i> Opslaan &amp; Bereken
       </button>
     </div>
@@ -1539,13 +1539,17 @@ function wireActions() {
 }
 
 function updateSaveCalcEnabled() {
+  // Informatief: tooltip toont nog wat ontbreekt, maar blokkeert de click niet.
+  // Hard-required velden (klantnaam, omvormer powerKw) worden in collectFromForm
+  // alsnog afgedwongen; overige fallback-velden kunnen in de calc view ingevuld
+  // worden (applyProjectToCalcForm + buildProjectSyncPatch propagate terug).
   const missing = _missingCalcFields();
   const btn = document.getElementById('btnSaveAndCalc');
   if (!btn) return;
-  btn.disabled = missing.length > 0;
+  btn.disabled = false;
   btn.title = missing.length === 0
     ? 'Alles aanwezig — klaar om te berekenen'
-    : 'Nog ontbreekt: ' + missing.join(', ');
+    : 'Tip — nog niet ingevuld: ' + missing.join(', ');
 }
 
 function _missingCalcFields() {
