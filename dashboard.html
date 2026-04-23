@@ -528,7 +528,7 @@ async function _refreshCurrentDrawer() {
   const snap = await firebase.firestore().collection('projects').doc(id).get();
   if (!snap.exists) return;
   // Keep the raw doc shape (id + all top-level fields: projectName, customerName,
-  // status, lastCalcRun, offertes, dismissedConfigs, ...). renderDrawer internally
+  // status, lastCalcRun, offertes, ...). renderDrawer internally
   // calls mergeProjectMetadata() to normalize the nested metadata sections;
   // wrapping here would strip the top-level fields and break warnings + configs.
   const fresh = { id: snap.id, ...snap.data() };
@@ -653,7 +653,7 @@ function renderDrawer(project) {
   }
   if (needsOfferteWarning(project)) {
     const missingCount = (project.lastCalcRun && project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
-      ? project.lastCalcRun.inputs.selectedConfigTypes.filter(t => !(project.dismissedConfigs || []).includes(t) && !(project.offertes || {})[t]).length
+      ? project.lastCalcRun.inputs.selectedConfigTypes.filter(t => !(project.offertes || {})[t]).length
       : 0;
     sections.push(`
       <div class="alert alert-warning d-flex gap-2 mb-3">

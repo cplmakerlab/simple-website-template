@@ -737,10 +737,9 @@ async function uploadProjectOfferte(projectId, configType, file) {
     uploadedBy:  user.email || null
   };
 
-  // Firestore swap — ook restore uit dismissedConfigs impliciet.
+  // Firestore swap.
   await projRef.update({
     [`offertes.${configType}`]: metadata,
-    dismissedConfigs: firebase.firestore.FieldValue.arrayRemove(configType),
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
 
@@ -895,17 +894,16 @@ async function getSerialPhotoUrl(storagePath) {
 }
 
 // ─── OFFERTE WARNING PREDICATE ────────────────────────────────────────────────
-// True iff project is in offerte-fase AND minstens één config heeft geen PDF en
-// is niet dismissed.
+// True iff project is in offerte-fase AND minstens één config heeft geen PDF.
 function needsOfferteWarning(project) {
-  if (!project) return false;
+  if (!project || !project.lastCalcRun) return false;
   if (typeof phaseForStatus !== 'function') return false;
   if (phaseForStatus(project.status).key !== 'offerte') return false;
 
-  const types = (project.lastCalcRun && project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
+  const types = (project.lastCalcRun.inputs && Array.isArray(project.lastCalcRun.inputs.selectedConfigTypes))
     ? project.lastCalcRun.inputs.selectedConfigTypes
     : [];
+  if (types.length === 0) return false;
   const offertes = project.offertes || {};
-  const dismissed = new Set(Array.isArray(project.dismissedConfigs) ? project.dismissedConfigs : []);
-  return types.some(t => !dismissed.has(t) && !offertes[t]);
+  return types.some(t => !offertes[t]);
 }

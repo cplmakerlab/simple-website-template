@@ -243,7 +243,6 @@ async function _refreshOffertes() {
     // Merge only the fields the offertes section cares about — keep the user's
     // in-flight edits to other Blok A/B/C/D fields intact.
     _project.offertes         = fresh.offertes || {};
-    _project.dismissedConfigs = Array.isArray(fresh.dismissedConfigs) ? fresh.dismissedConfigs : [];
     _project.lastCalcRun      = fresh.lastCalcRun || null;
     renderBlokOffertes();
   } catch (err) {
