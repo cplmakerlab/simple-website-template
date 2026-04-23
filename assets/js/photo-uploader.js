@@ -1,4 +1,4 @@
-/* global firebase, uploadProjectPhotoWithThumb, listProjectPhotos,
+/* global firebase, makeThumbnail, uploadProjectPhotoWithThumb, listProjectPhotos,
           deleteProjectPhoto, backfillThumbnail, escapeHtml, showToast */
 
 // assets/js/photo-uploader.js
@@ -117,8 +117,110 @@
       }).join('');
     }
 
+    function _setErr(msg) {
+      const el = containerEl.querySelector('[data-pu-err]');
+      if (!el) return;
+      if (msg) { el.textContent = msg; el.classList.remove('d-none'); }
+      else      { el.textContent = '';  el.classList.add('d-none');    }
+    }
+
+    function _setProgress(done, total, filename) {
+      const wrap = containerEl.querySelector('[data-pu-progress]');
+      if (!wrap) return;
+      if (total <= 0) { wrap.classList.add('d-none'); return; }
+      wrap.classList.remove('d-none');
+      const pct  = Math.max(0, Math.min(100, Math.round((done / total) * 100)));
+      const bar  = wrap.querySelector('.progress-bar');
+      const lbl  = wrap.querySelector('[data-pu-count]');
+      if (bar) bar.style.width = pct + '%';
+      if (lbl) lbl.textContent = `${done}/${total}` + (filename ? ` — ${filename}` : '');
+    }
+
+    async function _handleFiles(fileList) {
+      if (!options.projectId) {
+        _toast('Sla het project eerst op.', 'warning');
+        return;
+      }
+      const files = Array.from(fileList || []).filter(f => f && f.type.startsWith('image/'));
+      if (files.length === 0) return;
+      _setErr('');
+
+      const uploadedIds = [];
+      const localThumbs = [];
+      _setProgress(0, files.length, files[0].name);
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        _setProgress(i, files.length, file.name);
+        try {
+          const docId = await uploadProjectPhotoWithThumb(options.projectId, file, { tag: 'situatie' });
+          uploadedIds.push(docId);
+          const previewThumb = await makeThumbnail(file);
+          localThumbs.push({ id: docId, blobUrl: URL.createObjectURL(previewThumb.blob), name: file.name });
+        } catch (e) {
+          _toast('Foto upload mislukt: ' + (e && e.message ? e.message : e), 'danger');
+          _setErr('Foto upload mislukt: ' + (e && e.message ? e.message : e));
+          break;
+        }
+      }
+      _setProgress(files.length, files.length);
+      setTimeout(() => _setProgress(0, 0), 800);
+
+      await refresh();
+
+      if (uploadedIds.length > 0) {
+        _openTagModal(uploadedIds, localThumbs);
+      }
+
+      if (typeof options.onChange === 'function') {
+        try { await options.onChange(); } catch {}
+      }
+    }
+
+    // Placeholder for Task 6.
+    function _openTagModal(ids, localThumbs) {
+      // Free blob URLs even if the modal isn't wired yet.
+      setTimeout(() => localThumbs.forEach(t => URL.revokeObjectURL(t.blobUrl)), 100);
+    }
+
     function destroy() {
       containerEl.innerHTML = '';
+    }
+
+    // Camera input
+    const camInput = containerEl.querySelector('[data-pu-camera]');
+    if (camInput) {
+      camInput.addEventListener('change', async e => {
+        if (e.target.files && e.target.files.length) await _handleFiles(e.target.files);
+        camInput.value = '';
+      });
+    }
+
+    // Gallery input
+    const galInput = containerEl.querySelector('[data-pu-gallery]');
+    if (galInput) {
+      galInput.addEventListener('change', async e => {
+        if (e.target.files && e.target.files.length) await _handleFiles(e.target.files);
+        galInput.value = '';
+      });
+    }
+
+    // Drop-zone (desktop only; hidden under md via Bootstrap `d-md-block`).
+    const drop = containerEl.querySelector('[data-pu-drop]');
+    if (drop) {
+      drop.removeAttribute('hidden');
+      drop.addEventListener('dragover', e => {
+        e.preventDefault(); drop.classList.add('drag-over');
+      });
+      drop.addEventListener('dragleave', () => drop.classList.remove('drag-over'));
+      drop.addEventListener('drop', async e => {
+        e.preventDefault(); drop.classList.remove('drag-over');
+        const files = e.dataTransfer && e.dataTransfer.files;
+        if (files && files.length) await _handleFiles(files);
+      });
+      drop.addEventListener('click', () => {
+        if (galInput) galInput.click();
+      });
     }
 
     refresh();
