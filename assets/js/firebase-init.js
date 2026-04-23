@@ -134,9 +134,7 @@ function mergeProjectMetadata(project) {
     supplier:     { ...empty.supplier,     ...(project.supplier || {}) },
     calcDefaults: { ...empty.calcDefaults, ...(project.calcDefaults || {}) },
   };
-  merged.offertes         = project.offertes         || {};
-  merged.dismissedConfigs = Array.isArray(project.dismissedConfigs)
-                              ? project.dismissedConfigs : [];
+  merged.offertes      = project.offertes || {};
   merged.serialNumbers = Array.isArray(project.serialNumbers) ? project.serialNumbers : [];
   return merged;
 }
@@ -749,26 +747,6 @@ async function deleteProjectOfferte(projectId, configType) {
   });
 }
 
-async function hardDeleteProjectConfig(projectId, configType) {
-  // 1. Blob + map-entry weg (reuse deleteProjectOfferte).
-  await deleteProjectOfferte(projectId, configType);
-
-  // 2. Type uit lastCalcRun.inputs.selectedConfigTypes halen.
-  const projRef = firebase.firestore().collection('projects').doc(projectId);
-  const snap = await projRef.get();
-  const data = snap.data() || {};
-  const types = (data.lastCalcRun && data.lastCalcRun.inputs && Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
-    ? data.lastCalcRun.inputs.selectedConfigTypes.filter(t => t !== configType)
-    : [];
-
-  // 3. Ook uit dismissedConfigs (defensief — mocht hij per ongeluk in beide staan).
-  await projRef.update({
-    'lastCalcRun.inputs.selectedConfigTypes': types,
-    dismissedConfigs: firebase.firestore.FieldValue.arrayRemove(configType),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-}
-
 // ─── Cascade-delete a config (NEW single source of truth) ───────────────────
 // Removes the type from lastCalcRun.inputs.selectedConfigTypes, deletes the
 // offertes[type] entry from the project doc, and deletes the Storage blob (if
@@ -793,34 +771,6 @@ async function deleteProjectConfig(projectId, type) {
     try { await firebase.storage().ref(pdfPath).delete(); }
     catch (e) { console.warn('Offerte blob verwijderen mislukt', e); }
   }
-}
-
-async function dismissProjectConfig(projectId, configType) {
-  const projRef = firebase.firestore().collection('projects').doc(projectId);
-  const snap = await projRef.get();
-  const data = snap.data() || {};
-  const types = (data.lastCalcRun && data.lastCalcRun.inputs && Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
-    ? data.lastCalcRun.inputs.selectedConfigTypes.filter(t => t !== configType)
-    : [];
-  await projRef.update({
-    'lastCalcRun.inputs.selectedConfigTypes': types,
-    dismissedConfigs: firebase.firestore.FieldValue.arrayUnion(configType),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
-}
-
-async function restoreProjectConfig(projectId, configType) {
-  const projRef = firebase.firestore().collection('projects').doc(projectId);
-  const snap = await projRef.get();
-  const data = snap.data() || {};
-  const existing = (data.lastCalcRun && data.lastCalcRun.inputs && Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
-    ? data.lastCalcRun.inputs.selectedConfigTypes : [];
-  const types = existing.includes(configType) ? existing : [...existing, configType];
-  await projRef.update({
-    'lastCalcRun.inputs.selectedConfigTypes': types,
-    dismissedConfigs: firebase.firestore.FieldValue.arrayRemove(configType),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
 }
 
 // ─── SERIAL NUMBERS (batterij/omvormer tracking) ─────────────────────────────
