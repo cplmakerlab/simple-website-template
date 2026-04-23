@@ -2034,7 +2034,7 @@ async function _confirmConfigCascade(projectId, newSelectedTypes) {
       ? data.lastCalcRun.inputs.selectedConfigTypes : [];
     const offertes = data.offertes || {};
     const removedWithPdf = prevSelected.filter(t =>
-      !newSelectedTypes.includes(t) && offertes[t]);
+      !newSelectedTypes.includes(t) && offertes[t] && offertes[t].storagePath);
     if (removedWithPdf.length === 0) return true;
     const label = removedWithPdf.join(', ');
     const msg = removedWithPdf.length === 1
