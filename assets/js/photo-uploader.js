@@ -419,6 +419,8 @@
     }
 
     function destroy() {
+      _closeLightbox();
+      _activeLightboxMount = null;
       containerEl.innerHTML = '';
     }
 

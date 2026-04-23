@@ -614,6 +614,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const drawerEl = document.getElementById('drawer');
   if (drawerEl) {
     drawerEl.addEventListener('hidden.bs.offcanvas', () => {
+      if (_drawerPhotoUploader) {
+        try { _drawerPhotoUploader.destroy(); } catch {}
+        _drawerPhotoUploader = null;
+      }
       _drawerProjectId = null;
       _currentDrawerProject = null;
     });
