@@ -47,12 +47,12 @@ Re-upload overschrijft de vorige blob atomair (nieuwe blob upload → Firestore 
     dynamische omvormer-detail-lijst (merk/model/panelen/kringen/ligging).
     Collapsible. Wijzigingen aan omvormer-`powerKw` triggeren `rerenderBlokA()`
     zodat het "Totaal kW"-veld in Blok A live meegaat.
-  - **Blok D · "Foto's & serienummers"** — algemene plaatsbezoek-foto's
-    (met `capture="environment"` voor camera op mobile + aparte galerij-knop;
-    drop-zone blijft voor desktop ≥ md) en een dynamische serienummer-lijst:
-    trailing-empty-input-patroon; per gevulde entry optioneel een foto-knop.
-    Inputs zijn debounced-saved (600 ms) naar Firestore; foto's hangen aan
-    de serial-entry via `uploadProjectSerialPhoto(projectId, serialId, file)`.
+  - **Blok D · "Foto's & serienummers"** — één gedeelde foto-uploader
+    component (`assets/js/photo-uploader.js`) voor plaatsbezoek- én
+    serienummer-foto's, gevolgd door een dynamische serienummer-lijst met
+    enkel tekstvelden + delete (per-serial camera-knop is gepensioneerd —
+    alle foto's gaan in de gedeelde pool). Zie ook `dashboard.html`
+    drawer die hetzelfde component mount.
   - **Sticky action bar** onderaan (Bootstrap `fixed-bottom navbar`): "Opslaan &
     Bereken" is **disabled** tot alle 5 calc-vereisten vervuld zijn (klantnaam,
     omvormer-kW > 0, BTW bepaalbaar, prijs dag > 0 (+ nacht als dual-tariff),
@@ -113,6 +113,35 @@ source of truth for the backoffice.
 **SRI hashes for Bootstrap 5.3.3 (cdnjs):**
 - CSS: `sha512-jnSuA4Ss2PkkikSOLtYs8BlYIeeIK1h99ty4YfvRPAlzr377vr3CXDb7sb7eEEBYjDtcYj+AjBH3FLv5uSJuXg==`
 - JS:  `sha512-7Pi/otdlbbCR+LnW+F7PwFcSDJOuUJB3OxtEHbg4vSMvzvJjde4Po1v4BR9Gdc9aXNUNFVUY+SK51wWT8WF0Gg==`
+
+## Shared photo-uploader component (2026-04-23)
+
+`assets/js/photo-uploader.js` bevat één `mountPhotoUploader(containerEl, opts)`
+factory die het volledige foto-systeem rendert: camera + gallery + drop-zone,
+progress-balk, foto-grid met tag-indicator, lightbox, en after-upload
+tag-modal. Gebruikt in `dashboard.html` drawer (`#drawerPhotoUploader`) en
+`project-edit.html` Blok D (`#peBlokDPhotoUploader`). Meerdere instanties op
+dezelfde page zijn safe — alle state is scoped aan de container.
+
+**Twee image-versies per foto** — client-side canvas genereert bij upload een
+thumbnail van max 400 px langste zijde (JPEG q=0.82). Full-versie gaat naar
+`projects/{id}/{ts}_{name}`, thumb naar `projects/{id}/{ts}_{name}_thumb.jpg`.
+Firestore photo-doc krijgt `thumbStoragePath`, `width`, `height`, `tag`
+('situatie' | 'serial'). Grid-views laden thumbs, lightbox laadt full.
+
+**Tag-modal** opent automatisch na elke upload (bulk of 1); default is
+`situatie`, met `Alles → Situatie` / `Alles → Serieel` bulk-knoppen. Save via
+Firestore `WriteBatch`. Cancel behoudt de defaults, geen dataverlies.
+
+**Lazy backfill** — photos zonder `thumbStoragePath` (pre-2026-04-23) genereren
+bij het eerste render een thumb via `backfillThumbnail()` en patchen het
+Firestore doc. Throttled op één tegelijk per component-instance; fail-soft
+(console.warn, grid blijft full-URL tonen).
+
+**Retired** — `uploadProjectSerialPhoto` / `getSerialPhotoUrl` en de
+`photoStoragePath` op `serialNumbers[]` entries zijn legacy-data. De UI-knoppen
+`fa-camera` / `fa-eye` per serial-rij zijn verwijderd; serial-rijen hebben nu
+enkel een tekstveld + delete. De oude `uploadProjectPhoto` is ook verwijderd.
 
 ## How to work on it
 
