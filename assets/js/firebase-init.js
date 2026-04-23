@@ -769,6 +769,31 @@ async function hardDeleteProjectConfig(projectId, configType) {
   });
 }
 
+// ─── Cascade-delete a config (NEW single source of truth) ───────────────────
+// Removes the type from lastCalcRun.inputs.selectedConfigTypes, deletes the
+// offertes[type] entry from the project doc, and deletes the Storage blob (if
+// any).  Best-effort on the Storage delete — warn on failure, don't throw.
+async function deleteProjectConfig(projectId, type) {
+  const ref  = projectDoc(projectId);
+  const snap = await ref.get();
+  const data = snap.data() || {};
+  const types = (data.lastCalcRun && data.lastCalcRun.inputs && Array.isArray(data.lastCalcRun.inputs.selectedConfigTypes))
+    ? data.lastCalcRun.inputs.selectedConfigTypes.filter(t => t !== type)
+    : [];
+  const pdfPath = data.offertes && data.offertes[type] && data.offertes[type].storagePath;
+
+  await ref.update({
+    'lastCalcRun.inputs.selectedConfigTypes': types,
+    [`offertes.${type}`]: firebase.firestore.FieldValue.delete(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+
+  if (pdfPath) {
+    try { await firebase.storage().ref(pdfPath).delete(); }
+    catch (e) { console.warn('Offerte blob verwijderen mislukt', e); }
+  }
+}
+
 async function dismissProjectConfig(projectId, configType) {
   const projRef = firebase.firestore().collection('projects').doc(projectId);
   const snap = await projRef.get();
