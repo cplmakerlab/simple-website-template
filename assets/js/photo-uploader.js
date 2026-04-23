@@ -86,6 +86,7 @@
     async function refresh() {
       if (!options.projectId) {
         const grid = containerEl.querySelector('[data-pu-grid]');
+        if (!grid) return;
         grid.innerHTML = '<p class="sp-empty-state">Sla het project eerst op om foto\'s te kunnen toevoegen.</p>';
         return;
       }
@@ -106,10 +107,12 @@
         if (!src) {
           return `<div class="photo-tile broken" title="${_esc(p.fetchError || 'Kon foto niet laden')}">${_esc(p.name || 'onbekend')}</div>`;
         }
-        const tagIcon = p.tag === 'serial' ? 'fa-barcode' : 'fa-camera';
+        const isSerial = p.tag === 'serial';
+        const tagIcon  = isSerial ? 'fa-barcode' : 'fa-camera';
+        const tagLabel = isSerial ? 'Serieel'    : 'Situatie';
         return `<div class="photo-tile" data-pu-tile data-idx="${i}">
           <img src="${_esc(src)}" alt="${_esc(p.name || '')}" />
-          <span class="pu-tag-indicator" title="${p.tag === 'serial' ? 'Serieel' : 'Situatie'}"><i class="fa-solid ${tagIcon}"></i></span>
+          <span class="pu-tag-indicator" title="${_esc(tagLabel)}"><i class="fa-solid ${_esc(tagIcon)}"></i></span>
         </div>`;
       }).join('');
     }
