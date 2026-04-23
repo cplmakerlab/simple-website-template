@@ -58,6 +58,12 @@
     return el;
   }
 
+  // Module-scope reference to the currently-active mount's lightbox helpers.
+  // Used by the singleton #pu-lightbox's document-level keydown handler so
+  // the latest mount always drives the lightbox, never the first mount that
+  // happened to create the element.
+  let _activeLightboxMount = null;
+
   function _renderSkeleton(opts) {
     const canCam  = !!opts.allowCamera;
     const canFile = !!opts.allowFileUpload;
@@ -166,6 +172,14 @@
 
     function _openLightbox(startIdx) {
       state.lightboxIdx = startIdx;
+
+      // Expose THIS mount's close/nav helpers module-wide so the singleton
+      // keydown handler dispatches to the correct mount.
+      _activeLightboxMount = {
+        close: _closeLightbox,
+        nav:   _navLightbox,
+      };
+
       let lb = document.getElementById('pu-lightbox');
       if (!lb) {
         lb = document.createElement('div');
@@ -179,42 +193,51 @@
           <img data-pu-lightbox-img alt="" />
         `;
         document.body.appendChild(lb);
-        lb.querySelector('.close').addEventListener('click', _closeLightbox);
-        lb.querySelector('.prev').addEventListener('click',  e => { e.stopPropagation(); _navLightbox(-1); });
-        lb.querySelector('.next').addEventListener('click',  e => { e.stopPropagation(); _navLightbox(+1); });
-        lb.querySelector('.del').addEventListener('click',   async e => {
-          e.stopPropagation();
-          const photo = state.photos[state.lightboxIdx];
-          if (!photo) return;
-          if (!confirm('Deze foto verwijderen?')) return;
-          try {
-            await deleteProjectPhoto(options.projectId, photo.id, photo.storagePath, photo.thumbStoragePath || null);
-            await refresh();
-            if (state.photos.length === 0) _closeLightbox();
-            else {
-              state.lightboxIdx = Math.min(state.lightboxIdx, state.photos.length - 1);
-              _refreshLightboxImg();
-            }
-            if (typeof options.onChange === 'function') { try { await options.onChange(); } catch {} }
-          } catch (err) {
-            _toast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
-          }
-        });
-        lb.addEventListener('click', e => { if (e.target === lb) _closeLightbox(); });
+
+        // Document-level keydown: add ONCE, dispatch via _activeLightboxMount
         document.addEventListener('keydown', e => {
-          if (!lb.classList.contains('open')) return;
-          if      (e.key === 'Escape')     _closeLightbox();
-          else if (e.key === 'ArrowLeft')  _navLightbox(-1);
-          else if (e.key === 'ArrowRight') _navLightbox(+1);
+          const el = document.getElementById('pu-lightbox');
+          if (!el || !el.classList.contains('open') || !_activeLightboxMount) return;
+          if      (e.key === 'Escape')     _activeLightboxMount.close();
+          else if (e.key === 'ArrowLeft')  _activeLightboxMount.nav(-1);
+          else if (e.key === 'ArrowRight') _activeLightboxMount.nav(+1);
         });
       }
+
+      // Per-call rewiring of button handlers — each open binds THIS mount's
+      // closures via `.onclick = ...`, which overwrites any prior handler.
+      lb.querySelector('.close').onclick = () => _closeLightbox();
+      lb.querySelector('.prev').onclick  = e => { e.stopPropagation(); _navLightbox(-1); };
+      lb.querySelector('.next').onclick  = e => { e.stopPropagation(); _navLightbox(+1); };
+      lb.querySelector('.del').onclick   = async e => {
+        e.stopPropagation();
+        const photo = state.photos[state.lightboxIdx];
+        if (!photo) return;
+        if (!confirm('Deze foto verwijderen?')) return;
+        try {
+          await deleteProjectPhoto(options.projectId, photo.id, photo.storagePath, photo.thumbStoragePath || null);
+          await refresh();
+          if (state.photos.length === 0) _closeLightbox();
+          else {
+            state.lightboxIdx = Math.min(state.lightboxIdx, state.photos.length - 1);
+            _refreshLightboxImg();
+          }
+          if (typeof options.onChange === 'function') { try { await options.onChange(); } catch {} }
+        } catch (err) {
+          _toast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
+        }
+      };
+      lb.onclick = e => { if (e.target === lb) _closeLightbox(); };
+
       _refreshLightboxImg();
       lb.classList.add('open');
     }
     function _refreshLightboxImg() {
       const img = document.querySelector('#pu-lightbox [data-pu-lightbox-img]');
       const p   = state.photos[state.lightboxIdx];
-      if (img && p && p.downloadUrl) img.src = p.downloadUrl;
+      if (!img) return;
+      img.src = (p && (p.downloadUrl || p.thumbUrl)) || '';
+      img.alt = (p && p.name) || '';
     }
     function _navLightbox(delta) {
       if (!state.photos.length) return;
