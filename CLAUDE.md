@@ -37,10 +37,15 @@ Re-upload overschrijft de vorige blob atomair (nieuwe blob upload → Firestore 
   bewerken. Auth-gated. **4 blokken** (was 11 accordion-secties, herzien
   2026-04-22):
   - **Blok A · "Voor de berekening"** — altijd open bovenaan: klantnaam (required),
-    projectnaam (optioneel), woning-leeftijd-radio (bepaalt BTW), tarief-type +
-    prijs dag/nacht, totaal omvormer-kW (smart: single input als 0-1 omvormers,
-    readonly sum + deeplink naar Blok C als 2+), CSV upload, en een
-    disclosure `Extra opties` voor BTW-override/keuring/leverancier-naam.
+    projectnaam (optioneel), woning-leeftijd-radio met twee expliciete keuzes
+    "10 jaar of ouder (6% BTW)" en "Jonger dan 10 jaar (21% BTW)" — niet
+    kiezen = default 21%; geen manuele BTW-override meer (2026-04-23). Verder
+    tarief-type + prijs dag/nacht, totaal omvormer-kW (smart: single input
+    als 0-1 omvormers, readonly sum + deeplink naar Blok C als 2+), CSV
+    upload, en een disclosure `Extra opties` voor keuring + leverancier-naam.
+    Wijzigt de gebruiker de woning-leeftijd en klikt Opslaan, dan routet de
+    save automatisch door de calc view (`?project=<id>#results`) zodat de
+    gecachete ROI met de nieuwe BTW herrekend wordt.
   - **Blok B · "Klant & situatie"** — status, adres, telefoon, e-mail,
     situatie-notitie, vrij notitieveld. Collapsible (voorkeur in
     `localStorage.smartpeak.editCardCollapsed`).
@@ -56,10 +61,13 @@ Re-upload overschrijft de vorige blob atomair (nieuwe blob upload → Firestore 
     alle foto's gaan in de gedeelde pool). Zie ook `dashboard.html`
     drawer die hetzelfde component mount.
   - **Sticky action bar** onderaan (Bootstrap `fixed-bottom navbar`): "Opslaan &
-    Bereken" is **disabled** tot alle 5 calc-vereisten vervuld zijn (klantnaam,
-    omvormer-kW > 0, BTW bepaalbaar, prijs dag > 0 (+ nacht als dual-tariff),
-    CSV aanwezig); `title`-tooltip lijst wat mist. "Opslaan" alleen is altijd
-    actief (partial saves blijven toegelaten).
+    Bereken" en "Opslaan" zijn beide altijd klikbaar (2026-04-23). De
+    `title`-tooltip op "Opslaan & Bereken" toont welke calc-relevante velden
+    nog niet ingevuld zijn (klantnaam, omvormer-kW, prijs dag/nacht, CSV) —
+    informatief, geen blocker. Hard-required fields (customerName, inverter
+    powerKw) worden afgedwongen via `collectFromForm` met `is-invalid`-
+    feedback; overige velden kunnen in de calc view ingevuld worden
+    (`applyProjectToCalcForm` + `buildProjectSyncPatch`).
   - Responsive grid: op `≥ lg` staan Blok B en C naast elkaar (2 col); op `< lg`
     alles gestapeld.
 - **`assets/js/csv.js`** — CSV parsing helpers (`parseCSV`, `parseDate`, `parsVolume`, `extractCsvForStorage`) used by `index.html`, `dashboard.html` en `project-edit.html`.
@@ -166,7 +174,7 @@ enkel een tekstveld + delete. De oude `uploadProjectPhoto` is ook verwijderd.
 
 **Product config source** — `loadConfigs()` fetches a Google Sheet as CSV from a hard-coded URL (`SHEET_CSV_URL` around line 769, gid `425908603`). Each row defines a product (`type`, capacity, inverter kW, efficiency, and four price columns keyed by `BTW%_keuring`: `6_no`, `6_yes`, `21_no`, `21_yes`). If the sheet schema changes (column names or price keys), `_parseSheetConfigs` and `_getPriceKey` must be updated together.
 
-**Project-niveau metadata (2026-04-20 uitbreiding)** — Het Firestore `projects` document heeft 6 extra top-level secties bovenop Phase 1: `site` (leeftijd woning → BTW afleiding), `electrical` (aansluitingstype, zekering A), `cabinet` (vrije modules, rem-automaat, wifi/stopcontact bereik, plaats voor batterijen), `solar.inverters[]` (per-omvormer: powerKw vereist + optionele merk/model/panelen/kringen/ligging), `supplier` (naam, isSingleTariff, priceDay/priceNight), `calcDefaults` (btw, keuring voorkeur). Pure helpers in `assets/js/firebase-init.js`: `newEmptyProjectMetadata()`, `mergeProjectMetadata(project)` (defaults voor oude projects), `effectiveBtwFor(project)` (houseAgeOver10Years → 6/21, anders calcDefaults.btw), `totalInverterPowerKw(project)` (som). Readers merge altijd via `mergeProjectMetadata` — pre-2026-04-20 projects behave als volledig-leeg.
+**Project-niveau metadata (2026-04-20 uitbreiding, BTW-model vereenvoudigd 2026-04-23)** — Het Firestore `projects` document heeft 6 extra top-level secties bovenop Phase 1: `site` (leeftijd woning → BTW afleiding), `electrical` (aansluitingstype, zekering A), `cabinet` (vrije modules, rem-automaat, wifi/stopcontact bereik, plaats voor batterijen), `solar.inverters[]` (per-omvormer: powerKw vereist + optionele merk/model/panelen/kringen/ligging), `supplier` (naam, isSingleTariff, priceDay/priceNight), `calcDefaults` (enkel `keuring` voorkeur; `btw` veld is legacy en wordt genegeerd). Pure helpers in `assets/js/firebase-init.js`: `newEmptyProjectMetadata()`, `mergeProjectMetadata(project)` (defaults voor oude projects), `effectiveBtwFor(project)` (`houseAgeOver10Years === true ? 6 : 21` — `null`/`false`/undefined → 21), `totalInverterPowerKw(project)` (som). Readers merge altijd via `mergeProjectMetadata` — pre-2026-04-20 projects behave als volledig-leeg.
 
 **Project-label fallback (2026-04-22)** — `getProjectLabel(project)` in
 `firebase-init.js` geeft `projectName || customerName || '(zonder naam)'`.

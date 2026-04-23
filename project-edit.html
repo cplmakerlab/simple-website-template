@@ -92,6 +92,11 @@ const PROJECT_ID = IS_NEW ? null : URL_PARAMS.get('project');
 // Current working project state (metadata + basisgegevens). Populated on load.
 let _project = null;
 
+// Snapshot of houseAgeOver10Years at page-load time. If the user changes it
+// before saving, we force-route the save through the calc view so the ROI
+// reflects the new BTW rate (6% vs 21%) in all config installPrices.
+let _initialHouseAge = null;
+
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function showState(which) {
   ['stateLoggedOut', 'stateNotWhitelisted', 'stateAuthorized'].forEach(id => {
@@ -187,6 +192,8 @@ async function bootstrap() {
       ...proj,
       ...mergeProjectMetadata(proj),
     };
+    _initialHouseAge = (_project.site && _project.site.houseAgeOver10Years !== undefined)
+      ? _project.site.houseAgeOver10Years : null;
     document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary" aria-hidden="true"></i> ' + escapeHtml(getProjectLabel(proj));
   }
   renderSections();
@@ -286,8 +293,8 @@ function sectionBlokA() {
   const totalKw = invs.reduce((s, i) => s + (Number(i.powerKw) || 0), 0);
 
   const ageRadio = (v, label) => {
-    const match = (v === null ? site.houseAgeOver10Years === null : site.houseAgeOver10Years === v);
-    const strV = v === null ? 'unknown' : String(v);
+    const match = site.houseAgeOver10Years === v;
+    const strV = String(v);
     const id = 'fAge_' + strV;
     return `<div class="form-check form-check-inline">
       <input class="form-check-input" type="radio" name="fHouseAge" value="${strV}" id="${id}" ${match ? 'checked' : ''}/>
@@ -339,9 +346,8 @@ function sectionBlokA() {
           <div class="col-12">
             <label class="form-label">Leeftijd woning (bepaalt BTW)</label>
             <div>
-              ${ageRadio(true,  '≥ 10 jaar (6%)')}
-              ${ageRadio(false, '< 10 jaar (21%)')}
-              ${ageRadio(null,  'Onbekend')}
+              ${ageRadio(true,  '10 jaar of ouder (6% BTW)')}
+              ${ageRadio(false, 'Jonger dan 10 jaar (21% BTW)')}
             </div>
           </div>
 
@@ -376,24 +382,16 @@ function sectionBlokA() {
 
           <div class="col-12">
             <details class="mt-2">
-              <summary class="text-muted small">Extra opties (BTW handmatig, keuring, leverancier-naam)</summary>
+              <summary class="text-muted small">Extra opties (keuring, leverancier-naam)</summary>
               <div class="row g-3 mt-1">
-                <div class="col-12 col-md-4">
-                  <label for="fBtwManual" class="form-label">BTW handmatig</label>
-                  <select id="fBtwManual" class="form-select" ${site.houseAgeOver10Years !== null ? 'disabled' : ''}>
-                    <option value="">— Nog niet bepaald —</option>
-                    <option value="6"  ${calcD.btw === 6  ? 'selected' : ''}>6%</option>
-                    <option value="21" ${calcD.btw === 21 ? 'selected' : ''}>21%</option>
-                  </select>
-                </div>
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-6">
                   <label for="fKeuring" class="form-label">Keuring</label>
                   <select id="fKeuring" class="form-select">
                     <option value="yes" ${calcD.keuring === 'yes' ? 'selected' : ''}>Ja</option>
                     <option value="no"  ${calcD.keuring === 'no'  ? 'selected' : ''}>Nee</option>
                   </select>
                 </div>
-                <div class="col-12 col-md-4">
+                <div class="col-12 col-md-6">
                   <label for="fSupplierName" class="form-label">Leverancier-naam</label>
                   <input type="text" id="fSupplierName" class="form-control" maxlength="80" value="${escapeHtml(sup.name || '')}" />
                 </div>
@@ -429,10 +427,6 @@ function wireBlokA() {
         v === 'true'  ? true  :
         v === 'false' ? false :
                         null;
-      if (_project.site.houseAgeOver10Years !== null) {
-        _project.calcDefaults = _project.calcDefaults || {};
-        _project.calcDefaults.btw = null;
-      }
       rerenderBlokA();
       updateSaveCalcEnabled();
     });
@@ -491,12 +485,6 @@ function wireBlokA() {
     }
   });
 
-  const btwSel = document.getElementById('fBtwManual');
-  if (btwSel) btwSel.addEventListener('change', e => {
-    _project.calcDefaults = _project.calcDefaults || {};
-    _project.calcDefaults.btw = e.target.value === '' ? null : Number(e.target.value);
-    updateSaveCalcEnabled();
-  });
   const keur = document.getElementById('fKeuring');
   if (keur) keur.addEventListener('change', e => {
     _project.calcDefaults = _project.calcDefaults || {};
@@ -1119,75 +1107,6 @@ function wireSectionSupplier() {
   });
 }
 
-function sectionWoning() {
-  const ageVal = _project.site.houseAgeOver10Years;   // null | true | false
-  const effective = effectiveBtwFor(_project);         // null | 6 | 21
-  const ageDisabled = ageVal !== null;
-  const radioId = (v, label) => {
-    const checked = (ageVal === v);
-    const strV = v === null ? 'unknown' : String(v);
-    return `<div class="form-check form-check-inline"><input class="form-check-input" type="radio" name="fHouseAge" value="${strV}" id="fHouseAge_${strV}" ${checked ? 'checked' : ''} /><label class="form-check-label" for="fHouseAge_${strV}">${label}</label></div>`;
-  };
-  return `
-    <div class="accordion-item">
-      <h2 class="accordion-header">
-        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#secWoning" aria-expanded="true" aria-controls="secWoning">
-          <i class="fa-solid fa-house me-2" aria-hidden="true"></i> Woning
-        </button>
-      </h2>
-      <div id="secWoning" class="accordion-collapse collapse show">
-        <div class="accordion-body">
-          <div class="row g-3">
-            <div class="col-12 col-md-6">
-              <label class="form-label">Leeftijd woning</label>
-              <div>
-                ${radioId(true,  '10 jaar of ouder')}
-                ${radioId(false, 'Jonger dan 10 jaar')}
-                ${radioId(null,  'Onbekend')}
-              </div>
-              <div class="form-text">10 jaar of ouder → BTW 6%. Jonger → BTW 21%.</div>
-            </div>
-            <div class="col-12 col-md-6">
-              <label for="fBtwManual" class="form-label">Effectief BTW-tarief</label>
-              <select id="fBtwManual" class="form-select" ${ageDisabled ? 'disabled' : ''}>
-                <option value="">— Nog niet bepaald —</option>
-                <option value="6"  ${effective === 6  ? 'selected' : ''}>6%</option>
-                <option value="21" ${effective === 21 ? 'selected' : ''}>21%</option>
-              </select>
-              <div class="form-text">${ageDisabled
-                ? 'Afgeleid uit de leeftijd van de woning. Kies "Onbekend" om zelf te kiezen.'
-                : 'Vul in als de leeftijd onbekend is.'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function wireSectionWoning() {
-  document.querySelectorAll('input[name="fHouseAge"]').forEach(r => {
-    r.addEventListener('change', e => {
-      const v = e.target.value;
-      _project.site.houseAgeOver10Years =
-        v === 'true'  ? true  :
-        v === 'false' ? false :
-                        null;
-      // When auto-derived, we clear the manual btw so readers always see the derived value.
-      if (_project.site.houseAgeOver10Years !== null) {
-        _project.calcDefaults.btw = null;
-      }
-      rerenderSection('secWoning', sectionWoning, wireSectionWoning);
-    });
-  });
-  const sel = document.getElementById('fBtwManual');
-  sel.addEventListener('change', e => {
-    const v = e.target.value;
-    _project.calcDefaults.btw = v === '' ? null : Number(v);
-  });
-}
-
 function sectionElectrical() {
   const e = _project.electrical;
   const opts = ['', ...CONNECTION_TYPES].map(t =>
@@ -1558,9 +1477,6 @@ function _missingCalcFields() {
   const totalKw = ((_project.solar && _project.solar.inverters) || [])
     .reduce((s, i) => s + (Number(i.powerKw) || 0), 0);
   if (totalKw <= 0) miss.push('omvormer-vermogen');
-  const site = _project.site || {};
-  const cd   = _project.calcDefaults || {};
-  if (site.houseAgeOver10Years == null && cd.btw == null) miss.push('BTW-tarief');
   const sup = _project.supplier || {};
   if (!(sup.priceDay > 0)) miss.push('prijs dag');
   if (sup.isSingleTariff === false && !(sup.priceNight > 0)) miss.push('prijs nacht');
@@ -1645,7 +1561,12 @@ async function save({ andCalc }) {
       });
       targetId = PROJECT_ID;
     }
-    if (andCalc) {
+    // If the house-age (→ BTW) changed since load, always route through the
+    // calc view so the cached ROI is recomputed with the new BTW rate.
+    const currentHouseAge = (_project.site && _project.site.houseAgeOver10Years !== undefined)
+      ? _project.site.houseAgeOver10Years : null;
+    const houseAgeChanged = currentHouseAge !== _initialHouseAge;
+    if (andCalc || houseAgeChanged) {
       window.location.href = `index.html?project=${targetId}#results`;
     } else {
       window.location.href = 'dashboard.html';

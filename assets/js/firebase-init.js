@@ -111,7 +111,6 @@ function newEmptyProjectMetadata() {
       priceNight:     null,
     },
     calcDefaults: {
-      btw:     null,
       keuring: 'yes',
     },
     serialNumbers: [],
@@ -140,14 +139,13 @@ function mergeProjectMetadata(project) {
 }
 
 // BTW afleidingsregel (single source of truth).
-//   houseAgeOver10Years === true  → 6
-//   houseAgeOver10Years === false → 21
-//   houseAgeOver10Years === null  → calcDefaults.btw (may be null)
+//   houseAgeOver10Years === true  → 6  (woning 10 jaar of ouder)
+//   houseAgeOver10Years === false → 21 (jonger dan 10 jaar)
+//   null / undefined              → 21 (onbekend → default tarief)
+// Een eventueel legacy `calcDefaults.btw` veld wordt genegeerd.
 function effectiveBtwFor(project) {
   const m = mergeProjectMetadata(project);
-  if (m.site.houseAgeOver10Years === true)  return 6;
-  if (m.site.houseAgeOver10Years === false) return 21;
-  return m.calcDefaults.btw;
+  return m.site.houseAgeOver10Years === true ? 6 : 21;
 }
 
 // Sum of powerKw over all solar.inverters entries. Returns 0 if no inverters.
