@@ -638,6 +638,49 @@ async function uploadProjectPhotoWithThumb(projectId, file, opts = {}) {
   return ref.id;
 }
 
+// Lazily generates + uploads a thumbnail for a legacy photo that only has
+// a full-resolution blob.  Returns the new thumbStoragePath or null on no-op.
+// Throws on fatal errors so callers can decide how to surface them.
+async function backfillThumbnail(projectId, photoDoc) {
+  if (!photoDoc || !photoDoc.id || !photoDoc.storagePath) return null;
+  if (photoDoc.thumbStoragePath) return null; // already done
+
+  const storage = getStorage();
+  const fullUrl = photoDoc.downloadUrl
+    || await storage.ref(photoDoc.storagePath).getDownloadURL();
+
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = fullUrl;
+  try { await img.decode(); }
+  catch (e) { throw new Error('Backfill: image decode mislukt: ' + (e && e.message ? e.message : e)); }
+
+  const { blob, width, height } = await makeThumbnail(img);
+
+  // Derive thumb path from full path.
+  // Full looks like: projects/<pid>/<ts>_<safeName>
+  // Thumb target:    projects/<pid>/<ts>_<safeStripped>_thumb.jpg
+  let thumbPath;
+  const m = /^(.*\/)([^/]+)$/.exec(photoDoc.storagePath);
+  if (m) {
+    const dir  = m[1];
+    const base = m[2];
+    const stripped = base.replace(/\.[^.]+$/, '') || 'photo';
+    thumbPath = `${dir}${stripped}_thumb.jpg`;
+  } else {
+    thumbPath = photoDoc.storagePath.replace(/\.[^.]+$/, '') + '_thumb.jpg';
+  }
+
+  await storage.ref(thumbPath).put(blob, { contentType: 'image/jpeg' });
+  await projectDoc(projectId).collection('photos').doc(photoDoc.id).update({
+    thumbStoragePath: thumbPath,
+    width,
+    height,
+  });
+
+  return thumbPath;
+}
+
 async function listProjectPhotos(projectId) {
   const snap = await projectDoc(projectId).collection('photos').orderBy('uploadedAt', 'desc').get();
   const docs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -658,10 +701,14 @@ async function listProjectPhotos(projectId) {
   return docs;
 }
 
-async function deleteProjectPhoto(projectId, photoId, storagePath) {
+async function deleteProjectPhoto(projectId, photoId, storagePath, thumbStoragePath) {
   await projectDoc(projectId).collection('photos').doc(photoId).delete();
   try { await getStorage().ref(storagePath).delete(); }
-  catch (e) { console.warn('Storage file verwijderen mislukt', e); }
+  catch (e) { console.warn('Storage full-blob verwijderen mislukt', e); }
+  if (thumbStoragePath) {
+    try { await getStorage().ref(thumbStoragePath).delete(); }
+    catch (e) { console.warn('Storage thumb-blob verwijderen mislukt', e); }
+  }
 }
 
 // ─── OFFERTES (per-config PDF upload) ────────────────────────────────────────
