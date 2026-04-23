@@ -1,4 +1,4 @@
-/* global firebase, makeThumbnail, uploadProjectPhotoWithThumb, listProjectPhotos,
+/* global firebase, bootstrap, makeThumbnail, uploadProjectPhotoWithThumb, listProjectPhotos,
           deleteProjectPhoto, backfillThumbnail, escapeHtml, showToast */
 
 // assets/js/photo-uploader.js
@@ -20,6 +20,42 @@
   function _toast(msg, variant) {
     if (typeof showToast === 'function') return showToast(msg, variant || 'danger');
     console.warn('[photo-uploader]', msg);
+  }
+
+  function _ensureModalEl() {
+    let el = document.getElementById('pu-tag-modal');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'pu-tag-modal';
+    el.className = 'modal fade';
+    el.setAttribute('tabindex', '-1');
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = `
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"><i class="fa-solid fa-tags me-2"></i>Foto's taggen</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Sluit"></button>
+          </div>
+          <div class="modal-body">
+            <div class="d-flex gap-2 mb-3">
+              <button type="button" class="btn btn-sm btn-outline-primary" data-pu-bulk="situatie">
+                <i class="fa-solid fa-camera me-1"></i> Alles → Situatie
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary" data-pu-bulk="serial">
+                <i class="fa-solid fa-barcode me-1"></i> Alles → Serieel
+              </button>
+            </div>
+            <div data-pu-modal-list></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuleren</button>
+            <button type="button" class="btn btn-primary" data-pu-modal-save>Opslaan</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    return el;
   }
 
   function _renderSkeleton(opts) {
@@ -187,10 +223,81 @@
       }
     }
 
-    // Placeholder for Task 6.
-    function _openTagModal(ids, localThumbs) {
-      // Free blob URLs even if the modal isn't wired yet.
-      setTimeout(() => localThumbs.forEach(t => URL.revokeObjectURL(t.blobUrl)), 100);
+    function _openTagModal(uploadedIds, localThumbs) {
+      if (!uploadedIds || uploadedIds.length === 0) return;
+      const el = _ensureModalEl();
+      const list = el.querySelector('[data-pu-modal-list]');
+      const thumbByIdMap = new Map(localThumbs.map(t => [t.id, t]));
+
+      // Render rows — one per uploaded photo
+      list.innerHTML = uploadedIds.map(id => {
+        const t = thumbByIdMap.get(id) || { blobUrl: '', name: '' };
+        return `
+          <div class="d-flex align-items-center gap-3 mb-2 pb-2 border-bottom" data-pu-modal-row data-photo-id="${_esc(id)}">
+            <img src="${_esc(t.blobUrl)}" alt="${_esc(t.name)}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;" />
+            <div class="flex-grow-1">
+              <div class="small text-muted text-truncate" style="max-width:200px;">${_esc(t.name)}</div>
+              <div class="btn-group btn-group-sm mt-1" role="group">
+                <input type="radio" class="btn-check" name="tag-${_esc(id)}" id="tag-${_esc(id)}-s" value="situatie" checked />
+                <label class="btn btn-outline-primary" for="tag-${_esc(id)}-s"><i class="fa-solid fa-camera me-1"></i>Situatie</label>
+                <input type="radio" class="btn-check" name="tag-${_esc(id)}" id="tag-${_esc(id)}-r" value="serial" />
+                <label class="btn btn-outline-primary" for="tag-${_esc(id)}-r"><i class="fa-solid fa-barcode me-1"></i>Serieel</label>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+
+      // Bulk handlers
+      el.querySelectorAll('[data-pu-bulk]').forEach(btn => {
+        btn.onclick = () => {
+          const target = btn.getAttribute('data-pu-bulk');
+          list.querySelectorAll('[data-pu-modal-row]').forEach(row => {
+            const id = row.getAttribute('data-photo-id');
+            const radio = row.querySelector(`input[name="tag-${id}"][value="${target}"]`);
+            if (radio) radio.checked = true;
+          });
+        };
+      });
+
+      // Save handler — Firestore WriteBatch, only patch non-default tags
+      const saveBtn = el.querySelector('[data-pu-modal-save]');
+      saveBtn.onclick = async () => {
+        saveBtn.disabled = true;
+        const btnOrig = saveBtn.textContent;
+        saveBtn.textContent = 'Opslaan…';
+        try {
+          const db = firebase.firestore();
+          const batch = db.batch();
+          let patches = 0;
+          uploadedIds.forEach(id => {
+            const checked = list.querySelector(`input[name="tag-${id}"]:checked`);
+            const tag = checked && checked.value === 'serial' ? 'serial' : 'situatie';
+            if (tag !== 'situatie') {
+              const ref = db.collection('projects').doc(options.projectId).collection('photos').doc(id);
+              batch.update(ref, { tag });
+              patches++;
+            }
+          });
+          if (patches > 0) await batch.commit();
+          bootstrap.Modal.getOrCreateInstance(el).hide();
+          await refresh();
+          if (typeof options.onChange === 'function') { try { await options.onChange(); } catch {} }
+        } catch (e) {
+          _toast('Tags opslaan mislukt: ' + (e && e.message ? e.message : e), 'danger');
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = btnOrig;
+        }
+      };
+
+      // Cleanup blob URLs when modal closes (either via save or dismiss)
+      const onHidden = () => {
+        localThumbs.forEach(t => { try { URL.revokeObjectURL(t.blobUrl); } catch {} });
+        el.removeEventListener('hidden.bs.modal', onHidden);
+      };
+      el.addEventListener('hidden.bs.modal', onHidden);
+
+      bootstrap.Modal.getOrCreateInstance(el).show();
     }
 
     function destroy() {
