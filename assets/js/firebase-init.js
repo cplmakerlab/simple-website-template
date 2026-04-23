@@ -488,7 +488,8 @@ async function makeThumbnail(source) {
   if (source instanceof HTMLImageElement) {
     img = source;
     if (!img.complete || img.naturalWidth === 0) {
-      try { await img.decode(); } catch {}
+      try { await img.decode(); }
+      catch (e) { throw new Error('Afbeelding kon niet geladen worden: ' + (e && e.message ? e.message : e)); }
     }
   } else if (source instanceof Blob) {
     img = new Image();
@@ -514,6 +515,7 @@ async function makeThumbnail(source) {
   canvas.width  = Math.max(1, Math.round(naturalWidth  * scale));
   canvas.height = Math.max(1, Math.round(naturalHeight * scale));
   const ctx = canvas.getContext('2d');
+  if (!ctx) { cleanup(); throw new Error('Canvas 2D context niet beschikbaar'); }
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
   const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', QUALITY));
