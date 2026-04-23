@@ -373,8 +373,8 @@ async function saveLastCalcRun(projectId, saved) {
 
   // Build the lastCalcRun payload.
   const lastCalcRun = {
-    savedAt:   firebase.firestore.FieldValue.serverTimestamp(),
-    savedBy:   currentUserEmail() || 'unknown',
+    calculatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    calculatedBy: currentUserEmail() || 'unknown',
     inputs,
     results,
   };
