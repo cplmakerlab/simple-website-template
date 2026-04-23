@@ -421,6 +421,14 @@
     function destroy() {
       _closeLightbox();
       _activeLightboxMount = null;
+      // Hide the tag modal if one is currently visible from this (or a prior) mount.
+      // Uses getInstance (not getOrCreateInstance) so we don't create an instance
+      // on an element that might not exist yet.
+      const tagModalEl = document.getElementById('pu-tag-modal');
+      if (tagModalEl && window.bootstrap) {
+        const inst = bootstrap.Modal.getInstance(tagModalEl);
+        if (inst) inst.hide();
+      }
       containerEl.innerHTML = '';
     }
 
