@@ -248,8 +248,11 @@ function rowHTML(p, isDeleted) {
   const chat   = hasAnyComments(p)
     ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en) van collega' : 'Opmerkingen aanwezig'}"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i></span>`
     : '';
-  const warn   = needsGroundFaultCheck(p)
-    ? `<span class="row-warning" title="Controleer fase↔aarde spanning: bij Zendure-installaties moet dit &lt; 30 V zijn. Zet de vink in het project zodra gemeten."><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i></span>`
+  const gfStatus = groundFaultStatus(p);
+  const warn   = gfStatus === 'unsupported'
+    ? `<span class="row-warning" title="Niet-ondersteund producttype in configuratie — enkel Zendure en Marstek worden herkend."><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i></span>`
+    : gfStatus === 'no-measurement'
+    ? `<span class="row-warning" title="Meting fase↔aarde nog niet uitgevoerd. Voer de meting uit en registreer het resultaat in het project."><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i></span>`
     : '';
   const warnOfferte = needsOfferteWarning(p)
     ? `<span class="row-warning row-warning-offerte" title="Offertes ontbreken — klant zit in offerte-fase maar er zijn configs zonder PDF."><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i></span>`
@@ -403,8 +406,11 @@ function kanbanCardHTML(p) {
   const chat  = hasAnyComments(p)
     ? `<span class="chat-indicator ${hasUnreadComments(p, email) ? 'unread' : ''}" title="${hasUnreadComments(p, email) ? 'Nieuwe opmerking(en)' : 'Opmerkingen aanwezig'}"><i class="fa-solid fa-comment-dots" aria-hidden="true"></i></span>`
     : '';
-  const warn  = needsGroundFaultCheck(p)
-    ? `<span class="row-warning" title="Controleer fase↔aarde meting bij Zendure (&lt; 30 V)."><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i></span>`
+  const gfSt  = groundFaultStatus(p);
+  const warn  = gfSt === 'unsupported'
+    ? `<span class="row-warning" title="Niet-ondersteund producttype."><i class="fa-solid fa-triangle-exclamation icon-danger" aria-hidden="true"></i></span>`
+    : gfSt === 'no-measurement'
+    ? `<span class="row-warning" title="Meting fase↔aarde nog niet uitgevoerd."><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i></span>`
     : '';
   const warnOfferte = needsOfferteWarning(p)
     ? `<span class="row-warning row-warning-offerte" title="Offertes ontbreken — klant zit in offerte-fase maar er zijn configs zonder PDF."><i class="fa-solid fa-triangle-exclamation icon-warn" aria-hidden="true"></i></span>`
@@ -641,13 +647,22 @@ function renderDrawer(project) {
   // Build sections conditionally.
   const sections = [];
 
-  // Ground-fault warning banner (top-of-drawer, if applicable)
-  if (needsGroundFaultCheck(project)) {
+  // Ground-fault / unsupported-product banners (top-of-drawer)
+  const drawerGfStatus = groundFaultStatus(project);
+  if (drawerGfStatus === 'unsupported') {
+    sections.push(`
+      <div class="alert alert-danger d-flex gap-2 mb-3">
+        <i class="fa-solid fa-triangle-exclamation icon-danger flex-shrink-0 mt-1" aria-hidden="true"></i>
+        <div><strong>Niet-ondersteund producttype.</strong>
+          Dit project bevat configuraties die geen Zendure of Marstek zijn. Controleer de geselecteerde configuraties.</div>
+      </div>
+    `);
+  } else if (drawerGfStatus === 'no-measurement') {
     sections.push(`
       <div class="alert alert-warning d-flex gap-2 mb-3">
         <i class="fa-solid fa-triangle-exclamation icon-warn flex-shrink-0 mt-1" aria-hidden="true"></i>
-        <div><strong>Controleer fase↔aarde meting voor Zendure.</strong>
-          Nog niet aangevinkt in dit project. Meet het spanningsverschil vóór installatie en vink aan in <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Bewerk project om een ground fault te voorkomen.</div>
+        <div><strong>Meting fase↔aarde nog niet uitgevoerd.</strong>
+          Voer de meting uit en registreer het resultaat (onder of boven 30 V) in <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Bewerk project.</div>
       </div>
     `);
   }

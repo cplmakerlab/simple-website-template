@@ -686,12 +686,20 @@ function sectionBlokC() {
             ${triRow('Plaats voor batterijen?',         'batteryPlacementRoom',  c.batteryPlacementRoom)}
             ${triRow('Wifi bij zekeringkast?',          'hasWifiNearCabinet',    c.hasWifiNearCabinet)}
             <div class="col-12">
-              <div class="form-check">
-                <input type="checkbox" class="form-check-input" id="fLineGroundChecked" ${c.lineGroundChecked === true ? 'checked' : ''} />
-                <label class="form-check-label" for="fLineGroundChecked">
-                  Meting fase ↔ aarde uitgevoerd én onder 30 V
-                  <span class="d-block form-text">Verplicht bij Zendure-installaties.</span>
-                </label>
+              <label class="form-label mb-1">Meting fase ↔ aarde</label>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input type="radio" class="form-check-input" name="lineGround" id="fLgNone" value="" ${!c.lineGroundChecked ? 'checked' : ''} />
+                  <label class="form-check-label" for="fLgNone">Niet gemeten</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" class="form-check-input" name="lineGround" id="fLgUnder30" value="under30" ${c.lineGroundChecked === 'under30' || c.lineGroundChecked === true ? 'checked' : ''} />
+                  <label class="form-check-label" for="fLgUnder30">Uitgevoerd — onder 30 V</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" class="form-check-input" name="lineGround" id="fLgOver30" value="over30" ${c.lineGroundChecked === 'over30' ? 'checked' : ''} />
+                  <label class="form-check-label" for="fLgOver30">Uitgevoerd — boven 30 V</label>
+                </div>
               </div>
             </div>
           </div>
@@ -736,9 +744,11 @@ function wireBlokC() {
       });
     });
   });
-  document.getElementById('fLineGroundChecked').addEventListener('change', e => {
-    _project.cabinet = _project.cabinet || {};
-    _project.cabinet.lineGroundChecked = e.target.checked ? true : null;
+  document.querySelectorAll('input[name="lineGround"]').forEach(r => {
+    r.addEventListener('change', e => {
+      _project.cabinet = _project.cabinet || {};
+      _project.cabinet.lineGroundChecked = e.target.value || null;
+    });
   });
 
   // Omvormer-lijst — per-entry input handlers
@@ -1204,12 +1214,20 @@ function sectionCabinet() {
             ${row('Plaats om batterijen te plaatsen bij zekeringkast?', 'batteryPlacementRoom', '')}
             ${row('Wifi-bereik bij zekeringkast?', 'hasWifiNearCabinet', '')}
             <div class="col-12">
-              <div class="form-check">
-                <input type="checkbox" class="form-check-input" id="fLineGroundChecked" ${c.lineGroundChecked === true ? 'checked' : ''} />
-                <label class="form-check-label" for="fLineGroundChecked">
-                  Meting fase ↔ aarde uitgevoerd én onder 30 V
-                  <span class="d-block form-text">Verplicht bij Zendure-installaties om een ground fault te voorkomen. Vink aan nadat je gemeten hebt.</span>
-                </label>
+              <label class="form-label mb-1">Meting fase ↔ aarde</label>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input type="radio" class="form-check-input" name="lineGround" id="fLgNone" value="" ${!c.lineGroundChecked ? 'checked' : ''} />
+                  <label class="form-check-label" for="fLgNone">Niet gemeten</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" class="form-check-input" name="lineGround" id="fLgUnder30" value="under30" ${c.lineGroundChecked === 'under30' || c.lineGroundChecked === true ? 'checked' : ''} />
+                  <label class="form-check-label" for="fLgUnder30">Uitgevoerd — onder 30 V</label>
+                </div>
+                <div class="form-check">
+                  <input type="radio" class="form-check-input" name="lineGround" id="fLgOver30" value="over30" ${c.lineGroundChecked === 'over30' ? 'checked' : ''} />
+                  <label class="form-check-label" for="fLgOver30">Uitgevoerd — boven 30 V</label>
+                </div>
               </div>
             </div>
           </div>
@@ -1233,8 +1251,10 @@ function wireSectionCabinet() {
       r.addEventListener('change', e => { _project.cabinet[key] = parseTriState(e.target.value); });
     });
   });
-  document.getElementById('fLineGroundChecked').addEventListener('change', e => {
-    _project.cabinet.lineGroundChecked = e.target.checked ? true : null;
+  document.querySelectorAll('input[name="lineGround"]').forEach(r => {
+    r.addEventListener('change', e => {
+      _project.cabinet.lineGroundChecked = e.target.value || null;
+    });
   });
 }
 

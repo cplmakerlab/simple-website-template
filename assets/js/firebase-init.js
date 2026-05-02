@@ -490,17 +490,28 @@ function hasUnreadComments(project, email) {
 
 // ─── GROUND-FAULT WARNING PREDICATE ──────────────────────────────────────────
 function isMarstekConfig(type) { return typeof type === 'string' && type.startsWith('MARVE'); }
+function isZendureConfig(type) { return typeof type === 'string' && type.startsWith('ZSF'); }
+function isSupportedConfig(type) { return isMarstekConfig(type) || isZendureConfig(type); }
 
-function needsGroundFaultCheck(project) {
+// Returns: false (no warning), 'no-measurement' (warning), 'unsupported' (error)
+function groundFaultStatus(project) {
   const lcr = project && project.lastCalcRun;
   if (!lcr) return false;
   const types = (lcr.inputs && lcr.inputs.selectedConfigTypes) || [];
   if (types.length === 0) return false;
-  const anyNonMarstek = types.some(t => !isMarstekConfig(t));
-  if (!anyNonMarstek) return false;
+  // Error: config that's neither Zendure nor Marstek
+  if (types.some(t => !isSupportedConfig(t))) return 'unsupported';
+  // Warning: measurement not yet performed
   const m = mergeProjectMetadata(project);
-  return m.cabinet.lineGroundChecked !== true;
+  const v = m.cabinet.lineGroundChecked;
+  // Legacy compat: old projects stored true (checkbox era) → treat as 'under30'
+  if (v === true) return false;
+  if (v !== 'under30' && v !== 'over30') return 'no-measurement';
+  return false;
 }
+
+// Legacy compat — old code that calls needsGroundFaultCheck still works
+function needsGroundFaultCheck(project) { return groundFaultStatus(project) !== false; }
 
 // ─── PHOTOS (Firebase Storage + Firestore metadata) ──────────────────────────
 
