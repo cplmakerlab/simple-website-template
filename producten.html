@@ -58,12 +58,12 @@ const ZENDURE_PER_BATTERY = {
 
 // ─── ZENDURE SOLARFLOW 2400 AC+ (new model with built-in battery) ───────────
 const ZENDURE_ACPLUS_HUB = {
-  builtInCapacity: 2.4,    // kWh (internal LiFePO4)
-  acPower:    2.4,         // kW
-  peakKw:     3.6,         // kW (10 s)
+  builtInCapacity: 2.4,    // kWh (internal LiFePO4, 50 Ah @ 48 V)
+  acPower:    2.4,         // kW (Premium) / 0.8 kW standaard
+  maxAcInput: 3.2,         // kW
   chargeW:    2400,        // W
-  dischargeW: 2600,        // W
-  weight:     10.12,       // kg
+  dischargeW: 2400,        // W
+  weight:     27.8,        // kg
 };
 const ZENDURE_ACPLUS_BATTERY = {
   capacityNominal: 2.88,   // kWh (AB3000L)
@@ -320,7 +320,7 @@ function renderZendure(numInverters, numBatteriesPerInverter) {
 function renderZendureAcPlus(numInverters, numBatteriesPerInverter) {
   const totalBatteries    = numInverters * numBatteriesPerInverter;
   const totalAcPower      = numInverters * ZENDURE_ACPLUS_HUB.acPower;
-  const totalPeakKw       = numInverters * ZENDURE_ACPLUS_HUB.peakKw;
+  const totalMaxAcInput   = numInverters * ZENDURE_ACPLUS_HUB.maxAcInput;
   const totalChargeW      = numInverters * ZENDURE_ACPLUS_HUB.chargeW;
   const totalDischargeW   = numInverters * ZENDURE_ACPLUS_HUB.dischargeW;
   const totalCapacity     = numInverters * (ZENDURE_ACPLUS_HUB.builtInCapacity + numBatteriesPerInverter * ZENDURE_ACPLUS_BATTERY.capacityNominal);
@@ -347,36 +347,40 @@ function renderZendureAcPlus(numInverters, numBatteriesPerInverter) {
             </p>
             <h3 class="h6 mb-2"><i class="fa-solid fa-list-check me-2"></i> Specificaties — Hub</h3>
             <dl class="row mb-0 small">
-              <dt class="col-sm-5 col-md-4">Ingebouwde batterij</dt><dd class="col-sm-7 col-md-8">2,4 kWh LiFePO4 per hub · <strong>${fmtKwh(numInverters * ZENDURE_ACPLUS_HUB.builtInCapacity)} kWh</strong> totaal</dd>
-              <dt class="col-sm-5 col-md-4">AC-vermogen</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKw(totalAcPower)} kW</strong> (piek ${fmtKw(totalPeakKw)} kW / 10 s) / per hub: 2.400 W (piek 3.600 W / 10 s)</dd>
-              <dt class="col-sm-5 col-md-4">Laadvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${totalChargeW.toLocaleString('nl-BE')} W</strong> / per hub: 2.400 W</dd>
-              <dt class="col-sm-5 col-md-4">Ontlaadvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${totalDischargeW.toLocaleString('nl-BE')} W</strong> / per hub: 2.600 W</dd>
-              <dt class="col-sm-5 col-md-4">Efficiëntie</dt><dd class="col-sm-7 col-md-8">93%</dd>
-              <dt class="col-sm-5 col-md-4">Spanning</dt><dd class="col-sm-7 col-md-8">Hub: 230 V / 50 Hz</dd>
-              <dt class="col-sm-5 col-md-4">Beschermingsklasse</dt><dd class="col-sm-7 col-md-8">IP65</dd>
-              <dt class="col-sm-5 col-md-4">Afmetingen (hub)</dt><dd class="col-sm-7 col-md-8">448 × 303,6 × 88 mm</dd>
-              <dt class="col-sm-5 col-md-4">Gewicht (hub)</dt><dd class="col-sm-7 col-md-8">10,12 kg</dd>
-              <dt class="col-sm-5 col-md-4">Werktemperatuur</dt><dd class="col-sm-7 col-md-8">−20 °C tot +60 °C</dd>
-              <dt class="col-sm-5 col-md-4">Connectiviteit</dt><dd class="col-sm-7 col-md-8">WiFi · Bluetooth</dd>
-              <dt class="col-sm-5 col-md-4">Cyclussen</dt><dd class="col-sm-7 col-md-8">&gt; 6.000 (70% restcapaciteit)</dd>
-              <dt class="col-sm-5 col-md-4">Garantie</dt><dd class="col-sm-7 col-md-8">10 jaar</dd>
+              <dt class="col-sm-5 col-md-4">Model</dt><dd class="col-sm-7 col-md-8">ZDSF2400AC+</dd>
+              <dt class="col-sm-5 col-md-4">Ingebouwde batterij</dt><dd class="col-sm-7 col-md-8">2,4 kWh LiFePO4 (50 Ah / 48 V DC) per hub · <strong>${fmtKwh(numInverters * ZENDURE_ACPLUS_HUB.builtInCapacity)} kWh</strong> totaal</dd>
+              <dt class="col-sm-5 col-md-4">Nom. AC-uitgangsvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKw(totalAcPower)} kW</strong> (Premium) / per hub: 800 W standaard · 2.400 W Premium</dd>
+              <dt class="col-sm-5 col-md-4">Max. AC-ingangsvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKw(totalMaxAcInput)} kW</strong> / per hub: 3.200 W</dd>
+              <dt class="col-sm-5 col-md-4">Max. laad-/ontlaadvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${totalChargeW.toLocaleString('nl-BE')} W</strong> / per hub: 2.400 W (50 A DC)</dd>
+              <dt class="col-sm-5 col-md-4">Spanning</dt><dd class="col-sm-7 col-md-8">230 V AC / 50 Hz · Batterijpoort: 37,5–54,75 V DC</dd>
+              <dt class="col-sm-5 col-md-4">Arbeidsfactor</dt><dd class="col-sm-7 col-md-8">0,8 inductief tot 0,8 capacitief</dd>
+              <dt class="col-sm-5 col-md-4">Beschermingsklasse</dt><dd class="col-sm-7 col-md-8">IP65 · Klasse I</dd>
+              <dt class="col-sm-5 col-md-4">Afmetingen (hub)</dt><dd class="col-sm-7 col-md-8">326 × 294 × 251 mm (B × H × D)</dd>
+              <dt class="col-sm-5 col-md-4">Gewicht (hub)</dt><dd class="col-sm-7 col-md-8">27,8 kg</dd>
+              <dt class="col-sm-5 col-md-4">Bedrijfstemperatuur</dt><dd class="col-sm-7 col-md-8">−20 °C tot +55 °C</dd>
+              <dt class="col-sm-5 col-md-4">Laadtemperatuur (batterij)</dt><dd class="col-sm-7 col-md-8">0 °C tot +55 °C</dd>
+              <dt class="col-sm-5 col-md-4">Ontlaadtemperatuur (batterij)</dt><dd class="col-sm-7 col-md-8">−20 °C tot +55 °C</dd>
+              <dt class="col-sm-5 col-md-4">Connectiviteit</dt><dd class="col-sm-7 col-md-8">WiFi 4 (802.11 b/g/n) · Bluetooth 5.0</dd>
             </dl>
             ${numBatteriesPerInverter > 0 ? `
             <hr class="my-3" />
             <h3 class="h6 mb-2"><i class="fa-solid fa-battery-full me-2"></i> Specificaties — AB3000L module</h3>
             <dl class="row mb-0 small">
-              <dt class="col-sm-5 col-md-4">Capaciteit (modules)</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKwh(totalBatteries * ZENDURE_ACPLUS_BATTERY.capacityNominal)} kWh</strong> / per module: 2,88 kWh</dd>
-              <dt class="col-sm-5 col-md-4">Chemie</dt><dd class="col-sm-7 col-md-8">LiFePO4</dd>
-              <dt class="col-sm-5 col-md-4">Spanning</dt><dd class="col-sm-7 col-md-8">48 V</dd>
+              <dt class="col-sm-5 col-md-4">Model</dt><dd class="col-sm-7 col-md-8">ZDAB3000L</dd>
+              <dt class="col-sm-5 col-md-4">Capaciteit (modules)</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKwh(totalBatteries * ZENDURE_ACPLUS_BATTERY.capacityNominal)} kWh</strong> / per module: 60 Ah / 2.880 Wh</dd>
+              <dt class="col-sm-5 col-md-4">Chemie</dt><dd class="col-sm-7 col-md-8">LiFePO₄</dd>
+              <dt class="col-sm-5 col-md-4">Spanning</dt><dd class="col-sm-7 col-md-8">48 V DC</dd>
+              <dt class="col-sm-5 col-md-4">Max. in-/uitgangsvermogen</dt><dd class="col-sm-7 col-md-8">1 module: 1.680 W · 2+ modules: 1.920 W</dd>
               <dt class="col-sm-5 col-md-4">Beschermingsklasse</dt><dd class="col-sm-7 col-md-8">IP65</dd>
               <dt class="col-sm-5 col-md-4">Afmetingen (module)</dt><dd class="col-sm-7 col-md-8">394 × 257 × 283 mm</dd>
               <dt class="col-sm-5 col-md-4">Gewicht (module)</dt><dd class="col-sm-7 col-md-8">26,3 kg</dd>
               <dt class="col-sm-5 col-md-4">Laadtemperatuur</dt><dd class="col-sm-7 col-md-8">0 °C tot +55 °C</dd>
-              <dt class="col-sm-5 col-md-4">Ontlaadtemperatuur</dt><dd class="col-sm-7 col-md-8">−20 °C tot +55 °C</dd>
-              <dt class="col-sm-5 col-md-4">Koeling</dt><dd class="col-sm-7 col-md-8">Passief (geruisloos)</dd>
-              <dt class="col-sm-5 col-md-4">Behuizing</dt><dd class="col-sm-7 col-md-8">Aluminium</dd>
-              <dt class="col-sm-5 col-md-4">Cyclussen</dt><dd class="col-sm-7 col-md-8">&gt; 6.000</dd>
-              <dt class="col-sm-5 col-md-4">Garantie</dt><dd class="col-sm-7 col-md-8">10 jaar</dd>
+              <dt class="col-sm-5 col-md-4">Ontlaadtemperatuur</dt><dd class="col-sm-7 col-md-8">−20 °C tot +60 °C</dd>
+              <dt class="col-sm-5 col-md-4">Zelfverwarmingsfunctie</dt><dd class="col-sm-7 col-md-8">Ja, automatisch bij −20 °C tot 0 °C</dd>
+              <dt class="col-sm-5 col-md-4">Brandbeveiliging</dt><dd class="col-sm-7 col-md-8">Aerosol brandblusssysteem (activatie bij 170 °C ±10 °C)</dd>
+              <dt class="col-sm-5 col-md-4">Batterijbeveiliging</dt><dd class="col-sm-7 col-md-8">Overbelasting, overstroom, kortsluiting, oververhitting</dd>
+              <dt class="col-sm-5 col-md-4">Cyclussen</dt><dd class="col-sm-7 col-md-8">6.000</dd>
+              <dt class="col-sm-5 col-md-4">Compatibiliteit</dt><dd class="col-sm-7 col-md-8">SolarFlow 2400 Pro / SolarFlow 2400 AC+</dd>
             </dl>
             ` : ''}
             <hr class="my-3" />
