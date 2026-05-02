@@ -56,6 +56,20 @@ const ZENDURE_PER_BATTERY = {
   weight:          26.1,   // kg
 };
 
+// ─── ZENDURE SOLARFLOW 2400 AC+ (new model with built-in battery) ───────────
+const ZENDURE_ACPLUS_HUB = {
+  builtInCapacity: 2.4,    // kWh (internal LiFePO4)
+  acPower:    2.4,         // kW
+  peakKw:     3.6,         // kW (10 s)
+  chargeW:    2400,        // W
+  dischargeW: 2600,        // W
+  weight:     10.12,       // kg
+};
+const ZENDURE_ACPLUS_BATTERY = {
+  capacityNominal: 2.88,   // kWh (AB3000L)
+  weight:          26.3,   // kg
+};
+
 // ─── PHOTOS ─────────────────────────────────────────────────────────────────
 const MARSTEK_PHOTOS = [
   'assets/products/marstek/marstek-1.jpg',
@@ -71,6 +85,15 @@ const ZENDURE_PHOTOS = [
   'assets/products/zendure/zendure-3.webp',
   'assets/products/zendure/zendure-4.webp',
   'assets/products/zendure/zendure-5.webp',
+];
+const ZENDURE_ACPLUS_PHOTOS = [
+  'assets/products/zendure-ac-plus/zendure-acplus-1.png',
+  'assets/products/zendure-ac-plus/zendure-acplus-2.jpg',
+  'assets/products/zendure-ac-plus/zendure-acplus-3.jpg',
+  'assets/products/zendure-ac-plus/zendure-acplus-4.jpg',
+  'assets/products/zendure-ac-plus/zendure-acplus-5.jpg',
+  'assets/products/zendure-ac-plus/zendure-acplus-6.jpg',
+  'assets/products/zendure-ac-plus/zendure-acplus-ab3000l.jpg',
 ];
 
 // ─── FORMATTING HELPERS ─────────────────────────────────────────────────────
@@ -294,6 +317,86 @@ function renderZendure(numInverters, numBatteriesPerInverter) {
   `;
 }
 
+function renderZendureAcPlus(numInverters, numBatteriesPerInverter) {
+  const totalBatteries    = numInverters * numBatteriesPerInverter;
+  const totalAcPower      = numInverters * ZENDURE_ACPLUS_HUB.acPower;
+  const totalPeakKw       = numInverters * ZENDURE_ACPLUS_HUB.peakKw;
+  const totalChargeW      = numInverters * ZENDURE_ACPLUS_HUB.chargeW;
+  const totalDischargeW   = numInverters * ZENDURE_ACPLUS_HUB.dischargeW;
+  const totalCapacity     = numInverters * (ZENDURE_ACPLUS_HUB.builtInCapacity + numBatteriesPerInverter * ZENDURE_ACPLUS_BATTERY.capacityNominal);
+  const totalWeight       = numInverters * ZENDURE_ACPLUS_HUB.weight + totalBatteries * ZENDURE_ACPLUS_BATTERY.weight;
+
+  const batLabel = numBatteriesPerInverter === 0
+    ? 'geen extra batterijmodules'
+    : `${numBatteriesPerInverter} × AB3000L per hub = ${totalBatteries} module${totalBatteries !== 1 ? 's' : ''} totaal`;
+
+  return `
+    <div class="alert alert-info d-flex align-items-center" role="alert">
+      <i class="fa-solid fa-circle-info me-2"></i>
+      <div>Uw configuratie: <strong>${numInverters} × Solarflow 2400 AC+ (${batLabel})</strong></div>
+    </div>
+    <div class="row g-4 mb-4">
+      <div class="col-lg-7">
+        <section class="card h-100">
+          <div class="card-body">
+            <h2 class="h5 mb-1">Zendure SolarFlow 2400 AC+ ${numBatteriesPerInverter > 0 ? '+ AB3000L' : ''}</h2>
+            <p class="text-muted fst-italic mb-3">
+              Modulair AC-gekoppeld opslagsysteem met ingebouwde 2,4 kWh LiFePO4-batterij in de hub.
+              Uitbreidbaar met stapelbare AB3000L-modules (2,88 kWh per stuk, max. 5 per hub).
+              Meerdere hubs parallel schakelbaar. Plug-and-play installatie, WiFi- en Bluetooth-connectiviteit.
+            </p>
+            <h3 class="h6 mb-2"><i class="fa-solid fa-list-check me-2"></i> Specificaties — Hub</h3>
+            <dl class="row mb-0 small">
+              <dt class="col-sm-5 col-md-4">Ingebouwde batterij</dt><dd class="col-sm-7 col-md-8">2,4 kWh LiFePO4 per hub · <strong>${fmtKwh(numInverters * ZENDURE_ACPLUS_HUB.builtInCapacity)} kWh</strong> totaal</dd>
+              <dt class="col-sm-5 col-md-4">AC-vermogen</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKw(totalAcPower)} kW</strong> (piek ${fmtKw(totalPeakKw)} kW / 10 s) / per hub: 2.400 W (piek 3.600 W / 10 s)</dd>
+              <dt class="col-sm-5 col-md-4">Laadvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${totalChargeW.toLocaleString('nl-BE')} W</strong> / per hub: 2.400 W</dd>
+              <dt class="col-sm-5 col-md-4">Ontlaadvermogen</dt><dd class="col-sm-7 col-md-8"><strong>${totalDischargeW.toLocaleString('nl-BE')} W</strong> / per hub: 2.600 W</dd>
+              <dt class="col-sm-5 col-md-4">Efficiëntie</dt><dd class="col-sm-7 col-md-8">93%</dd>
+              <dt class="col-sm-5 col-md-4">Spanning</dt><dd class="col-sm-7 col-md-8">Hub: 230 V / 50 Hz</dd>
+              <dt class="col-sm-5 col-md-4">Beschermingsklasse</dt><dd class="col-sm-7 col-md-8">IP65</dd>
+              <dt class="col-sm-5 col-md-4">Afmetingen (hub)</dt><dd class="col-sm-7 col-md-8">448 × 303,6 × 88 mm</dd>
+              <dt class="col-sm-5 col-md-4">Gewicht (hub)</dt><dd class="col-sm-7 col-md-8">10,12 kg</dd>
+              <dt class="col-sm-5 col-md-4">Werktemperatuur</dt><dd class="col-sm-7 col-md-8">−20 °C tot +60 °C</dd>
+              <dt class="col-sm-5 col-md-4">Connectiviteit</dt><dd class="col-sm-7 col-md-8">WiFi · Bluetooth</dd>
+              <dt class="col-sm-5 col-md-4">Cyclussen</dt><dd class="col-sm-7 col-md-8">&gt; 6.000 (70% restcapaciteit)</dd>
+              <dt class="col-sm-5 col-md-4">Garantie</dt><dd class="col-sm-7 col-md-8">10 jaar</dd>
+            </dl>
+            ${numBatteriesPerInverter > 0 ? `
+            <hr class="my-3" />
+            <h3 class="h6 mb-2"><i class="fa-solid fa-battery-full me-2"></i> Specificaties — AB3000L module</h3>
+            <dl class="row mb-0 small">
+              <dt class="col-sm-5 col-md-4">Capaciteit (modules)</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKwh(totalBatteries * ZENDURE_ACPLUS_BATTERY.capacityNominal)} kWh</strong> / per module: 2,88 kWh</dd>
+              <dt class="col-sm-5 col-md-4">Chemie</dt><dd class="col-sm-7 col-md-8">LiFePO4</dd>
+              <dt class="col-sm-5 col-md-4">Spanning</dt><dd class="col-sm-7 col-md-8">48 V</dd>
+              <dt class="col-sm-5 col-md-4">Beschermingsklasse</dt><dd class="col-sm-7 col-md-8">IP65</dd>
+              <dt class="col-sm-5 col-md-4">Afmetingen (module)</dt><dd class="col-sm-7 col-md-8">394 × 257 × 283 mm</dd>
+              <dt class="col-sm-5 col-md-4">Gewicht (module)</dt><dd class="col-sm-7 col-md-8">26,3 kg</dd>
+              <dt class="col-sm-5 col-md-4">Laadtemperatuur</dt><dd class="col-sm-7 col-md-8">0 °C tot +55 °C</dd>
+              <dt class="col-sm-5 col-md-4">Ontlaadtemperatuur</dt><dd class="col-sm-7 col-md-8">−20 °C tot +55 °C</dd>
+              <dt class="col-sm-5 col-md-4">Koeling</dt><dd class="col-sm-7 col-md-8">Passief (geruisloos)</dd>
+              <dt class="col-sm-5 col-md-4">Behuizing</dt><dd class="col-sm-7 col-md-8">Aluminium</dd>
+              <dt class="col-sm-5 col-md-4">Cyclussen</dt><dd class="col-sm-7 col-md-8">&gt; 6.000</dd>
+              <dt class="col-sm-5 col-md-4">Garantie</dt><dd class="col-sm-7 col-md-8">10 jaar</dd>
+            </dl>
+            ` : ''}
+            <hr class="my-3" />
+            <h3 class="h6 mb-2"><i class="fa-solid fa-calculator me-2"></i> Totalen configuratie</h3>
+            <dl class="row mb-0 small">
+              <dt class="col-sm-5 col-md-4">Totale capaciteit</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKwh(totalCapacity)} kWh</strong></dd>
+              <dt class="col-sm-5 col-md-4">Totaal AC-vermogen</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKw(totalAcPower)} kW</strong></dd>
+              <dt class="col-sm-5 col-md-4">Totaal gewicht</dt><dd class="col-sm-7 col-md-8"><strong>${fmtKg(totalWeight)} kg</strong></dd>
+            </dl>
+          </div>
+        </section>
+      </div>
+      <div class="col-lg-5">
+        ${renderCarousel(ZENDURE_ACPLUS_PHOTOS)}
+      </div>
+    </div>
+    ${renderFootnote()}
+  `;
+}
+
 function renderFallback() {
   return `
     <div class="alert alert-warning d-flex align-items-center" role="alert">
@@ -313,6 +416,9 @@ window.addEventListener('DOMContentLoaded', () => {
   if ((m = type.match(/^MARVE03_X(\d+)$/))) {
     html = renderMarstek(parseInt(m[1], 10));
     images = MARSTEK_PHOTOS;
+  } else if ((m = type.match(/^ZSF2400AC\+_(\d+)X(\d+)$/))) {
+    html = renderZendureAcPlus(parseInt(m[1], 10), parseInt(m[2], 10));
+    images = ZENDURE_ACPLUS_PHOTOS;
   } else if ((m = type.match(/^ZSF2400AC_(\d+)X(\d+)$/))) {
     html = renderZendure(parseInt(m[1], 10), parseInt(m[2], 10));
     images = ZENDURE_PHOTOS;
