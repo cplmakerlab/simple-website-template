@@ -476,8 +476,7 @@ function wireBlokA() {
     if (!file) return;
     try {
       const csvText = await file.text();
-      const parsed  = parseCSV(csvText);
-      _pendingCsv   = extractCsvForStorage(parsed, file.name);
+      _pendingCsv   = extractCsvForStorage(csvText);
       document.getElementById('fCsvStatus').textContent = _csvStatusLine();
       updateSaveCalcEnabled();
     } catch (err) {
