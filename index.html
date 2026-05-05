@@ -2107,6 +2107,13 @@ function buildSavedFromProject(proj) {
   };
 }
 
+// ─── Expose functions used by inline onclick handlers ───────────────────────
+// (ES modules don't put top-level declarations on `window`)
+window.loadConfigs   = loadConfigs;
+window.calculate     = calculate;
+window.copyShareLink = copyShareLink;
+window.showToast     = showToast;
+
 </script>
 </body>
 </html>

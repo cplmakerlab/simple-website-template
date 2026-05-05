@@ -1,8 +1,10 @@
 // e2e/helpers/project-helpers.js
 import { expect } from '@playwright/test';
+import { firebaseSignIn } from './auth-fixture.js';
 
 /**
  * Creates a new test project and returns the project ID.
+ * Handles Firebase auth if the page is not yet authenticated.
  *
  * @param {import('@playwright/test').Page} page - Playwright page instance
  * @param {Object} opts - Options
@@ -15,20 +17,24 @@ export async function createTestProject(page, opts = {}) {
   // Navigate to new project page
   await page.goto('/project-edit.html?new=1');
 
-  // Wait for the customer name field to be visible (auth-gated page)
+  // Authenticate (Firebase SDK loads on this page)
+  await firebaseSignIn(page);
+
+  // Wait for auth-gated UI to appear
   await page.waitForSelector('#fCustomerName', {
     state: 'visible',
-    timeout: 15000
+    timeout: 15_000,
   });
 
   // Fill in customer name
   await page.fill('#fCustomerName', customerName);
 
-  // Click save button
-  await page.click('#btnSave');
+  // Click "Opslaan & Bereken" — this redirects to index.html?project=<id>#results
+  // (plain "Opslaan" redirects to dashboard.html without the project ID in URL)
+  await page.click('#btnSaveAndCalc');
 
-  // Wait for redirect to project edit page with project ID
-  await page.waitForURL(/\?project=/, { timeout: 10000 });
+  // Wait for redirect to calculator page with project ID
+  await page.waitForURL(/\?project=/, { timeout: 15_000 });
 
   // Extract project ID from URL
   const url = new URL(page.url());
@@ -53,8 +59,11 @@ export async function uploadCsvToProject(page, projectId, csvPath) {
   // Navigate to project edit page
   await page.goto(`/project-edit.html?project=${projectId}`);
 
+  // Auth should persist in same context, but re-auth if needed
+  await firebaseSignIn(page);
+
   // Wait for CSV input to be available
-  await page.waitForSelector('#fCsv', { state: 'attached', timeout: 10000 });
+  await page.waitForSelector('#fCsv', { state: 'attached', timeout: 10_000 });
 
   // Get the initial CSV status text
   const initialStatus = await page.locator('#fCsvStatus').textContent();
@@ -69,10 +78,10 @@ export async function uploadCsvToProject(page, projectId, csvPath) {
       return statusEl && statusEl.textContent !== oldStatus;
     },
     initialStatus,
-    { timeout: 5000 }
+    { timeout: 5000 },
   );
 
-  // Verify CSV was parsed successfully (should contain "Klaar om op te slaan")
+  // Verify CSV was parsed successfully
   const newStatus = await page.locator('#fCsvStatus').textContent();
   if (!newStatus.includes('Klaar om op te slaan')) {
     throw new Error(`CSV upload failed. Status: ${newStatus}`);
@@ -98,20 +107,22 @@ export async function cleanupProject(page, projectId, customerName) {
     // Navigate to dashboard
     await page.goto('/dashboard.html');
 
-    // Wait for search field to be visible
+    // Authenticate
+    await firebaseSignIn(page);
+
+    // Wait for search field to be visible (auth-gated)
     await page.waitForSelector('#projectSearch', {
       state: 'visible',
-      timeout: 10000
+      timeout: 15_000,
     });
 
     // Search for the project
     await page.fill('#projectSearch', customerName);
-    await page.waitForTimeout(500); // Allow search debounce/filter to apply
+    await page.waitForTimeout(500);
 
     // Soft delete: click delete button and handle confirm dialog
     const deleteBtn = page.locator(`.deleteBtn[data-id="${projectId}"]`);
 
-    // Check if delete button exists (project might not be found)
     const deleteCount = await deleteBtn.count();
     if (deleteCount === 0) {
       console.warn(`[cleanup] Project ${projectId} not found for soft delete, skipping`);
@@ -121,8 +132,6 @@ export async function cleanupProject(page, projectId, customerName) {
     // Handle confirm dialog
     page.once('dialog', dialog => dialog.accept());
     await deleteBtn.click();
-
-    // Wait for soft delete to propagate
     await page.waitForTimeout(1500);
 
     // Enable "Show deleted" toggle
@@ -133,29 +142,23 @@ export async function cleanupProject(page, projectId, customerName) {
     await page.fill('#projectSearch', customerName);
     await page.waitForTimeout(500);
 
-    // Hard delete: click permanent delete button and handle confirm dialog
+    // Hard delete: click permanent delete button
     const permdelBtn = page.locator(`.permdelBtn[data-id="${projectId}"]`);
 
-    // Check if permdelete button exists
     const permdelCount = await permdelBtn.count();
     if (permdelCount === 0) {
-      console.warn(`[cleanup] Project ${projectId} not found for hard delete, might be already deleted`);
+      console.warn(`[cleanup] Project ${projectId} not found for hard delete`);
       return;
     }
 
-    // Handle confirm dialog
     page.once('dialog', dialog => dialog.accept());
     await permdelBtn.click();
-
-    // Wait for hard delete to propagate
     await page.waitForTimeout(1500);
 
     // Verify project is gone
     const projectNameBtn = page.locator(`.projectNameBtn[data-id="${projectId}"]`);
     const finalCount = await projectNameBtn.count();
-
     expect(finalCount).toBe(0);
-
   } catch (error) {
     console.error(`[cleanup] Failed to cleanup project ${projectId}:`, error.message);
     // Don't re-throw - cleanup should be best-effort

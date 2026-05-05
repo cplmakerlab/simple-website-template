@@ -10,7 +10,6 @@ export default defineConfig({
   reporter: [['html', { open: 'never' }]],
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:8000',
-    storageState: './auth-state.json',
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
