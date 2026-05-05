@@ -73,3 +73,9 @@ export function fmtRelTime(ts) {
   return date.toLocaleDateString('nl-BE', { day: '2-digit', month: 'short' }) +
          ' ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
 }
+
+// Expose on window for non-module scripts (offertes-ui.js, photo-uploader.js)
+if (typeof window !== 'undefined') {
+  window.escapeHtml = escapeHtml;
+  window.showToast = showToast;
+}

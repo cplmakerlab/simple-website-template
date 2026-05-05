@@ -1,6 +1,8 @@
 // Shared CSV parsing — ES module.
 // Used by calc-engine.js (parseCSV, parseDate, parsVolume)
 // and directly by HTML pages (extractCsvForStorage).
+//
+// Also exposed on window for non-module scripts that depend on globals.
 
 export function parseCSV(text) {
   const lines = text.trim().split('\n');
@@ -81,4 +83,12 @@ export function extractCsvForStorage(csvText) {
       injectienacht: allDays.map(d => d.injectienacht),
     },
   };
+}
+
+// Expose on window so non-module scripts (firebase-init.js, offertes-ui.js) can access them
+if (typeof window !== 'undefined') {
+  window.parseCSV = parseCSV;
+  window.parseDate = parseDate;
+  window.parsVolume = parsVolume;
+  window.extractCsvForStorage = extractCsvForStorage;
 }
