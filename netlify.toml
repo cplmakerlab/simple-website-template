@@ -1,0 +1,6 @@
+[build]
+  publish = "."
+  command = ""
+
+# No build step needed — static HTML served as-is
+# Deploy previews are auto-created for every PR
