@@ -1,7 +1,8 @@
-// Shared CSV parsing for index.html (calculator) and dashboard.html (project create flow).
-// Loaded via <script src> — exposes parseCSV/parseDate/parsVolume/extractCsvForStorage as globals.
+// Shared CSV parsing — ES module.
+// Used by calc-engine.js (parseCSV, parseDate, parsVolume)
+// and directly by HTML pages (extractCsvForStorage).
 
-function parseCSV(text) {
+export function parseCSV(text) {
   const lines = text.trim().split('\n');
   const header = lines[0].split(';').map(h => h.trim());
   const rows = [];
@@ -15,13 +16,13 @@ function parseCSV(text) {
   return rows;
 }
 
-function parseDate(str) {
+export function parseDate(str) {
   // dd-mm-yyyy
   const [d, m, y] = str.split('-');
   return new Date(+y, +m - 1, +d);
 }
 
-function parsVolume(str) {
+export function parsVolume(str) {
   if (!str || str === '') return 0;
   return parseFloat(str.replace(',', '.')) || 0;
 }
@@ -33,7 +34,7 @@ function parsVolume(str) {
 // Returns: { eanCode, meterNr, meterType, dailyCompact: { startDate, afname[], injectie[],
 //            afnamedag[], afnamenacht[], injectiedag[], injectienacht[] } }
 // Throws Error('Geen data gevonden in het CSV bestand.') if the CSV has no usable rows.
-function extractCsvForStorage(csvText) {
+export function extractCsvForStorage(csvText) {
   const rows = parseCSV(csvText);
 
   let eanCode = '', meterNr = '', meterType = '';
