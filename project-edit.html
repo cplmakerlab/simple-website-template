@@ -83,7 +83,10 @@
 <div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer" style="z-index:1090"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js" integrity="sha512-7Pi/otdlbbCR+LnW+F7PwFcSDJOuUJB3OxtEHbg4vSMvzvJjde4Po1v4BR9Gdc9aXNUNFVUY+SK51wWT8WF0Gg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script>
+<script type="module">
+import { escapeHtml, showToast, showState, shortEmail, formatTs } from './assets/js/shared-helpers.js';
+import { extractCsvForStorage } from './assets/js/csv.js';
+
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const URL_PARAMS = new URLSearchParams(window.location.search);
 const IS_NEW     = URL_PARAMS.has('new');
@@ -98,36 +101,12 @@ let _project = null;
 let _initialHouseAge = null;
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
-function showState(which) {
-  ['stateLoggedOut', 'stateNotWhitelisted', 'stateAuthorized'].forEach(id => {
-    document.getElementById(id).classList.toggle('hide', id !== which);
-  });
-}
-
 function showError(msg) {
   const el = document.getElementById('globalError');
   el.textContent = msg;
   el.classList.remove('hide');
 }
 function clearError() { document.getElementById('globalError').classList.add('hide'); }
-
-function showToast(message, variant = 'primary') {
-  const container = document.getElementById('toastContainer');
-  const id = 't_' + Date.now();
-  const html = `
-    <div id="${id}" class="toast text-bg-${variant} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="d-flex">
-        <div class="toast-body">${escapeHtml(message)}</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Sluiten"></button>
-      </div>
-    </div>
-  `;
-  container.insertAdjacentHTML('beforeend', html);
-  const el = document.getElementById(id);
-  const t = bootstrap.Toast.getOrCreateInstance(el, { delay: 4000 });
-  el.addEventListener('hidden.bs.toast', () => el.remove());
-  t.show();
-}
 
 function showFieldError(fieldId, msg) {
   const el = document.getElementById(fieldId);
@@ -140,11 +119,6 @@ function clearFieldError(fieldId) {
   const el = document.getElementById(fieldId);
   if (!el) return;
   el.classList.remove('is-invalid');
-}
-
-function escapeHtml(s) {
-  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
-    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
@@ -1440,12 +1414,6 @@ function sectionCsv() {
   `;
 }
 
-function shortEmail(e) { return e ? String(e).split('@')[0] : '—'; }
-function formatTs(ts) {
-  if (!ts || typeof ts.toDate !== 'function') return '—';
-  return ts.toDate().toLocaleString('nl-BE', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-}
-
 function wireSectionCsv() {
   document.getElementById('fCsv').addEventListener('change', async e => {
     const file = e.target.files[0];
@@ -1578,6 +1546,10 @@ async function save({ andCalc }) {
         status:       payload.status,
         ...payload.metadata,
       });
+      if (_pendingCsv) {
+        await setProjectCsv(PROJECT_ID, _pendingCsv);
+        _pendingCsv = null;
+      }
       targetId = PROJECT_ID;
     }
     // If the house-age (→ BTW) changed since load, always route through the
