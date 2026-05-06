@@ -1,5 +1,5 @@
 /* global firebase, bootstrap, makeThumbnail, uploadProjectPhotoWithThumb, listProjectPhotos,
-          deleteProjectPhoto, backfillThumbnail, showToast */
+          deleteProjectPhoto, backfillThumbnail, showToast, showSpinner, updateSpinner, hideSpinner */
 
 import { escapeHtml } from './shared-helpers.js';
 
@@ -208,6 +208,7 @@ import { escapeHtml } from './shared-helpers.js';
         const photo = state.photos[state.lightboxIdx];
         if (!photo) return;
         if (!confirm('Deze foto verwijderen?')) return;
+        showSpinner();
         try {
           await deleteProjectPhoto(options.projectId, photo.id, photo.storagePath, photo.thumbStoragePath || null);
           await refresh();
@@ -219,6 +220,8 @@ import { escapeHtml } from './shared-helpers.js';
           if (typeof options.onChange === 'function') { try { await options.onChange(); } catch {} }
         } catch (err) {
           _toast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
+        } finally {
+          hideSpinner();
         }
       };
       lb.onclick = e => { if (e.target === lb) _closeLightbox(); };
@@ -305,6 +308,8 @@ import { escapeHtml } from './shared-helpers.js';
         const localThumbs = [];
         _setProgress(0, files.length, files[0].name);
 
+        showSpinner({ progress: true, current: 0, total: files.length, message: 'Foto\'s uploaden...' });
+
         for (let i = 0; i < files.length; i++) {
           const file = files[i];
           _setProgress(i, files.length, file.name);
@@ -313,7 +318,9 @@ import { escapeHtml } from './shared-helpers.js';
             uploadedIds.push(docId);
             const previewThumb = await makeThumbnail(file);
             localThumbs.push({ id: docId, blobUrl: URL.createObjectURL(previewThumb.blob), name: file.name });
+            updateSpinner({ current: i + 1, total: files.length });
           } catch (e) {
+            hideSpinner();
             _toast('Foto upload mislukt: ' + (e && e.message ? e.message : e), 'danger');
             _setErr('Foto upload mislukt: ' + (e && e.message ? e.message : e));
             break;
@@ -323,6 +330,7 @@ import { escapeHtml } from './shared-helpers.js';
         setTimeout(() => _setProgress(0, 0), 800);
 
         await refresh();
+        hideSpinner();
 
         if (uploadedIds.length > 0) {
           _openTagModal(uploadedIds, localThumbs);
@@ -378,6 +386,7 @@ import { escapeHtml } from './shared-helpers.js';
         saveBtn.disabled = true;
         const btnOrig = saveBtn.textContent;
         saveBtn.textContent = 'Opslaan…';
+        showSpinner();
         try {
           const db = firebase.firestore();
           const batch = db.batch();
@@ -397,6 +406,7 @@ import { escapeHtml } from './shared-helpers.js';
         } catch (e) {
           _toast('Tags opslaan mislukt: ' + (e && e.message ? e.message : e), 'danger');
         } finally {
+          hideSpinner();
           saveBtn.disabled = false;
           saveBtn.textContent = btnOrig;
         }

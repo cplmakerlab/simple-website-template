@@ -147,17 +147,32 @@ function wireOffertesClicks(containerEl, getProjectFn, onChange) {
       else if (btn.classList.contains('offerte-download-btn')) {
         const pdf = (project.offertes || {})[type];
         if (!pdf || !pdf.storagePath) return;
-        const url = await firebase.storage().ref(pdf.storagePath).getDownloadURL();
-        window.open(url, '_blank');
+        showSpinner();
+        try {
+          const url = await firebase.storage().ref(pdf.storagePath).getDownloadURL();
+          window.open(url, '_blank');
+        } finally {
+          hideSpinner();
+        }
       }
       else if (btn.classList.contains('offerte-deletepdf-btn')) {
         if (!confirm('Alleen de offerte-PDF wissen? De configuratie zelf blijft behouden.')) return;
-        await deleteProjectOfferte(project.id, type);
-        if (typeof onChange === 'function') await onChange();
+        showSpinner();
+        try {
+          await deleteProjectOfferte(project.id, type);
+          if (typeof onChange === 'function') await onChange();
+        } finally {
+          hideSpinner();
+        }
       }
       else if (btn.classList.contains('offerte-trash-btn')) {
-        await deleteProjectConfig(project.id, type);
-        if (typeof onChange === 'function') await onChange();
+        showSpinner();
+        try {
+          await deleteProjectConfig(project.id, type);
+          if (typeof onChange === 'function') await onChange();
+        } finally {
+          hideSpinner();
+        }
       }
     } catch (err) {
       if (typeof showToast === 'function') {
@@ -240,9 +255,14 @@ function _bindOfferteDropZone(projectId, configType, onUploaded) {
       if (file.size > 10 * 1024 * 1024)    throw new Error('PDF is groter dan 10 MB');
       prog.style.display = 'block';
       prog.querySelector('span').textContent = '…';
-      await uploadProjectOfferte(projectId, configType, file);
-      closeOfferteModal();
-      if (typeof onUploaded === 'function') await onUploaded();
+      showSpinner();
+      try {
+        await uploadProjectOfferte(projectId, configType, file);
+        closeOfferteModal();
+        if (typeof onUploaded === 'function') await onUploaded();
+      } finally {
+        hideSpinner();
+      }
     } catch (e) {
       err.textContent = e.message || String(e);
       err.style.display = 'block';

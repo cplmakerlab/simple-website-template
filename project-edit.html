@@ -85,7 +85,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js" integrity="sha512-7Pi/otdlbbCR+LnW+F7PwFcSDJOuUJB3OxtEHbg4vSMvzvJjde4Po1v4BR9Gdc9aXNUNFVUY+SK51wWT8WF0Gg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script type="module">
-import { escapeHtml, showToast, showState, shortEmail, formatTs } from './assets/js/shared-helpers.js';
+import { escapeHtml, showToast, showState, shortEmail, formatTs, showSpinner, hideSpinner, withSpinner } from './assets/js/shared-helpers.js';
 import { extractCsvForStorage } from './assets/js/csv.js';
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
@@ -150,34 +150,39 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function bootstrap() {
-  if (IS_NEW) {
-    _project = {
-      projectName: '',
-      customerName: '',
-      status: DEFAULT_STATUS,
-      ...newEmptyProjectMetadata(),
-      csvUpload: null,
-    };
-    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-bolt text-primary" aria-hidden="true"></i> Nieuw project';
-  } else {
-    if (!PROJECT_ID) { showError('Geen project-id opgegeven.'); return; }
-    const proj = await getProject(PROJECT_ID);
-    if (!proj || proj.deletedAt) { showError('Project niet gevonden of verwijderd.'); return; }
-    _project = {
-      ...proj,
-      ...mergeProjectMetadata(proj),
-    };
-    _initialHouseAge = (_project.site && _project.site.houseAgeOver10Years !== undefined)
-      ? _project.site.houseAgeOver10Years : null;
-    document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary" aria-hidden="true"></i> ' + escapeHtml(getProjectLabel(proj));
-  }
-  renderSections();
-  wireActions();
+  showSpinner({ message: 'Project laden…' });
+  try {
+    if (IS_NEW) {
+      _project = {
+        projectName: '',
+        customerName: '',
+        status: DEFAULT_STATUS,
+        ...newEmptyProjectMetadata(),
+        csvUpload: null,
+      };
+      document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-bolt text-primary" aria-hidden="true"></i> Nieuw project';
+    } else {
+      if (!PROJECT_ID) { showError('Geen project-id opgegeven.'); return; }
+      const proj = await getProject(PROJECT_ID);
+      if (!proj || proj.deletedAt) { showError('Project niet gevonden of verwijderd.'); return; }
+      _project = {
+        ...proj,
+        ...mergeProjectMetadata(proj),
+      };
+      _initialHouseAge = (_project.site && _project.site.houseAgeOver10Years !== undefined)
+        ? _project.site.houseAgeOver10Years : null;
+      document.getElementById('pageTitle').innerHTML = '<i class="fa-solid fa-pen-to-square text-primary" aria-hidden="true"></i> ' + escapeHtml(getProjectLabel(proj));
+    }
+    renderSections();
+    wireActions();
 
-  // Offertes-section click delegation — attached once to the stable slot.
-  ensureOfferteModal();
-  const offertesSlot = document.getElementById('blokOffertes-slot');
-  if (offertesSlot) wireOffertesClicks(offertesSlot, () => _project, _refreshOffertes);
+    // Offertes-section click delegation — attached once to the stable slot.
+    ensureOfferteModal();
+    const offertesSlot = document.getElementById('blokOffertes-slot');
+    if (offertesSlot) wireOffertesClicks(offertesSlot, () => _project, _refreshOffertes);
+  } finally {
+    hideSpinner();
+  }
 }
 
 function renderSections() {
@@ -449,6 +454,7 @@ function wireBlokA() {
   document.getElementById('fCsv').addEventListener('change', async e => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
+    showSpinner({ message: 'CSV verwerken…' });
     try {
       const csvText = await file.text();
       _pendingCsv   = extractCsvForStorage(csvText);
@@ -456,6 +462,8 @@ function wireBlokA() {
       updateSaveCalcEnabled();
     } catch (err) {
       document.getElementById('fCsvStatus').textContent = 'CSV-fout: ' + (err && err.message ? err.message : String(err));
+    } finally {
+      hideSpinner();
     }
   });
 
@@ -1025,6 +1033,8 @@ async function save({ andCalc }) {
   btnSave.disabled = true; btnSC.disabled = true;
   const prevLabel = btnSave.textContent;
   btnSave.textContent = 'Bezig…';
+
+  showSpinner({ message: 'Project opslaan…' });
   try {
     const payload = collectFromForm();
     let targetId;
@@ -1061,6 +1071,7 @@ async function save({ andCalc }) {
       window.location.href = 'dashboard.html';
     }
   } catch (e) {
+    hideSpinner();
     if (e.fieldErrors) {
       let firstEl = null;
       for (const [key, { msg, invId }] of Object.entries(e.fieldErrors)) {
