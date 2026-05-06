@@ -66,6 +66,21 @@
 @media (min-width: 992px)    { #drawer { --bs-offcanvas-width: 560px; } }
 @media (min-width: 1200px)   { #drawer { --bs-offcanvas-width: 840px; } }
 
+/* ── Project list (dashboard table view) ──────────────────────────────── */
+/* Replaces .table-responsive to avoid overflow-x:auto clipping dropdowns.
+   Adds min-height so the list fills the viewport like the kanban board. */
+
+.sp-project-list {
+  min-height: calc(100vh - 240px);
+  overflow: visible;          /* dropdowns must NOT be clipped               */
+}
+@media (max-width: 575.98px) {
+  .sp-project-list {
+    overflow-x: auto;         /* small screens still get horizontal scroll   */
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* ── Kanban board ────────────────────────────────────────────────────── */
 
 .kanban-board {

@@ -329,7 +329,7 @@ function renderList(active, deleted, el) {
     ...deleted.map(p => rowHTML(p, true)),
   ].join('');
   el.innerHTML = `
-    <div class="table-responsive">
+    <div class="sp-project-list">
       <table class="table table-hover align-middle mb-0">
         <thead>
           <tr>
@@ -495,9 +495,13 @@ let _drawerPhotoUploader = null;
 // on the drawer element).
 
 async function _refreshCurrentDrawer() {
-  if (!_currentDrawerProject) return;
+  if (!_currentDrawerProject || !_drawerProjectId) return;
   const id = _currentDrawerProject.id;
+  // Stale guard: if the drawer switches to a different project while we
+  // are awaiting Firestore, discard the outdated response.
+  const refreshId = _drawerProjectId;
   const snap = await firebase.firestore().collection('projects').doc(id).get();
+  if (_drawerProjectId !== refreshId) return;
   if (!snap.exists) return;
   // Keep the raw doc shape (id + all top-level fields: projectName, customerName,
   // status, lastCalcRun, offertes, ...). renderDrawer internally
@@ -512,6 +516,7 @@ async function _refreshCurrentDrawer() {
     const [comments] = await Promise.all([
       listComments(id).catch(err => { console.warn('listComments failed', err); return []; }),
     ]);
+    if (_drawerProjectId !== refreshId) return;
     renderComments(fresh, comments);
     if (_drawerPhotoUploader) await _drawerPhotoUploader.refresh();
   } catch (err) {
@@ -520,7 +525,12 @@ async function _refreshCurrentDrawer() {
 }
 
 async function openDrawer(projectId) {
+  // Guard: if a different drawer is already loading, the stale response must
+  // not overwrite the new one. We capture the ID at call-time and compare
+  // after every await to detect a superseded open.
   _drawerProjectId = projectId;
+  const openId = projectId;
+
   const drawerEl = document.getElementById('drawer');
   const body     = document.getElementById('drawerBody');
   const header   = document.getElementById('drawerHeader');
@@ -538,6 +548,8 @@ async function openDrawer(projectId) {
   await withSpinner(async () => {
     try {
       const project = await getProject(projectId);
+      // Stale guard: drawer was re-opened for a different project while we awaited
+      if (_drawerProjectId !== openId) return;
       if (!project || project.deletedAt) {
         body.innerHTML = '<div class="alert alert-danger">Project niet gevonden of verwijderd.</div>';
         return;
@@ -548,6 +560,8 @@ async function openDrawer(projectId) {
       const [comments] = await Promise.all([
         listComments(projectId).catch(e => { console.warn('listComments failed', e); return []; }),
       ]);
+      // Stale guard after async comments fetch
+      if (_drawerProjectId !== openId) return;
       renderComments(project, comments);
       _drawerPhotoUploader = mountPhotoUploader(document.getElementById('drawerPhotoUploader'), {
         projectId: project.id,
@@ -560,6 +574,7 @@ async function openDrawer(projectId) {
         setTimeout(refreshProjectList, 400);
       }).catch(err => console.warn('markCommentsRead failed', err));
     } catch (e) {
+      if (_drawerProjectId !== openId) return;
       body.innerHTML = `<div class="alert alert-danger">Kon project niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
     }
   });
@@ -576,7 +591,7 @@ function closeDrawer() {
 
 async function refreshDrawerAfterChange() {
   const countEl = document.getElementById('drawerPhotosCount');
-  if (!countEl || !_drawerPhotoUploader) return;
+  if (!countEl || !_drawerPhotoUploader || !_drawerProjectId) return;
   try {
     const photos = await listProjectPhotos(_drawerProjectId);
     countEl.textContent = photos.length > 0 ? `(${photos.length})` : '';
