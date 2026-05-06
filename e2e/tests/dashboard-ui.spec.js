@@ -23,12 +23,8 @@ test.describe('Dashboard UI', () => {
     await context.close();
   });
 
-  test.afterAll(async ({ browser }) => {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    await cleanupProject(page, projectId, customerName);
-    await page.close();
-    await context.close();
+  test.afterAll(async () => {
+    await cleanupProject(projectId);
   });
 
   test('search filters projects', async ({ page }) => {

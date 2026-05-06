@@ -1,6 +1,12 @@
 // e2e/helpers/project-helpers.js
 import { expect } from '@playwright/test';
 import { firebaseSignIn } from './auth-fixture.js';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const require = createRequire(import.meta.url);
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * Creates a new test project and returns the project ID.
@@ -95,72 +101,78 @@ export async function uploadCsvToProject(page, projectId, csvPath) {
 }
 
 /**
- * Deletes a test project (soft delete + hard delete).
+ * Initialise a Firebase Admin app scoped to E2E cleanup.
+ * Re-uses an existing app named 'e2e-cleanup' if one is already initialised
+ * (multiple test suites may run in the same Node process).
+ */
+function _getAdminApp() {
+  const admin = require('firebase-admin');
+  const APP_NAME = 'e2e-cleanup';
+  try {
+    return admin.app(APP_NAME);
+  } catch {
+    const sa = require(join(__dirname, '..', 'service-account-key.json'));
+    return admin.initializeApp({
+      credential: admin.credential.cert(sa),
+      storageBucket: 'smartpeak-roi.firebasestorage.app',
+    }, APP_NAME);
+  }
+}
+
+/**
+ * Hard-deletes a test project via Firebase Admin SDK.
+ * Cascades: subcollections (photos, comments) + Storage blobs + project doc.
  *
- * @param {import('@playwright/test').Page} page - Playwright page instance
+ * This replaces the old UI-driven cleanup which was fragile (timing-dependent
+ * button clicks, silent failures leaving orphaned projects).
+ *
  * @param {string} projectId - The project ID to delete
- * @param {string} customerName - The customer name (for searching)
  * @returns {Promise<void>}
  */
-export async function cleanupProject(page, projectId, customerName) {
+export async function cleanupProject(projectId) {
+  const app = _getAdminApp();
+  const db = app.firestore();
+  const bucket = app.storage().bucket();
+
+  console.log(`[cleanup] Hard-deleting project ${projectId} via Admin SDK`);
+
   try {
-    // Navigate to dashboard
-    await page.goto('/dashboard.html');
-
-    // Authenticate
-    await firebaseSignIn(page);
-
-    // Wait for search field to be visible (auth-gated)
-    await page.waitForSelector('#projectSearch', {
-      state: 'visible',
-      timeout: 15_000,
-    });
-
-    // Search for the project
-    await page.fill('#projectSearch', customerName);
-    await page.waitForTimeout(500);
-
-    // Soft delete: click delete button and handle confirm dialog
-    const deleteBtn = page.locator(`.deleteBtn[data-id="${projectId}"]`);
-
-    const deleteCount = await deleteBtn.count();
-    if (deleteCount === 0) {
-      console.warn(`[cleanup] Project ${projectId} not found for soft delete, skipping`);
-      return;
+    // 1. Delete subcollection: photos
+    const photoSnap = await db.collection(`projects/${projectId}/photos`).get();
+    if (!photoSnap.empty) {
+      const batch = db.batch();
+      photoSnap.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      console.log(`[cleanup]   Deleted ${photoSnap.size} photo docs`);
     }
 
-    // Handle confirm dialog
-    page.once('dialog', dialog => dialog.accept());
-    await deleteBtn.click();
-    await page.waitForTimeout(1500);
-
-    // Enable "Show deleted" toggle
-    await page.check('#toggleShowDeleted');
-    await page.waitForTimeout(500);
-
-    // Search again for the soft-deleted project
-    await page.fill('#projectSearch', customerName);
-    await page.waitForTimeout(500);
-
-    // Hard delete: click permanent delete button
-    const permdelBtn = page.locator(`.permdelBtn[data-id="${projectId}"]`);
-
-    const permdelCount = await permdelBtn.count();
-    if (permdelCount === 0) {
-      console.warn(`[cleanup] Project ${projectId} not found for hard delete`);
-      return;
+    // 2. Delete subcollection: comments
+    const commentSnap = await db.collection(`projects/${projectId}/comments`).get();
+    if (!commentSnap.empty) {
+      const batch = db.batch();
+      commentSnap.docs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+      console.log(`[cleanup]   Deleted ${commentSnap.size} comment docs`);
     }
 
-    page.once('dialog', dialog => dialog.accept());
-    await permdelBtn.click();
-    await page.waitForTimeout(1500);
+    // 3. Delete Storage files under projects/{id}/
+    try {
+      const [files] = await bucket.getFiles({ prefix: `projects/${projectId}/` });
+      if (files.length > 0) {
+        await Promise.all(files.map(f => f.delete().catch(() => {})));
+        console.log(`[cleanup]   Deleted ${files.length} storage files`);
+      }
+    } catch (e) {
+      // Storage bucket may not be configured or empty — non-fatal
+      console.warn(`[cleanup]   Storage cleanup skipped: ${e.message}`);
+    }
 
-    // Verify project is gone
-    const projectNameBtn = page.locator(`.projectNameBtn[data-id="${projectId}"]`);
-    const finalCount = await projectNameBtn.count();
-    expect(finalCount).toBe(0);
+    // 4. Delete the project document itself
+    await db.doc(`projects/${projectId}`).delete();
+    console.log(`[cleanup]   Project doc deleted`);
+
   } catch (error) {
     console.error(`[cleanup] Failed to cleanup project ${projectId}:`, error.message);
-    // Don't re-throw - cleanup should be best-effort
+    // Still best-effort — don't crash the test run
   }
 }
