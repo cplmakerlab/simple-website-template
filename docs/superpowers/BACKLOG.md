@@ -48,9 +48,12 @@ Status: `[ ]` open · `[~]` bezig · `[x]` klaar
 
 ## C. Code-kwaliteit & robuustheid
 
-- [ ] **C1. CSV-parsing hardenen**
-      Validatie van datumformaat, kolomnamen, lege rijen.
-      Duidelijke foutmeldingen i.p.v. stille failures.
+- [x] **C1. CSV-parsing hardenen**
+      `validateCsvHeaders()` controleert verplichte Fluvius kolommen
+      (Van (datum), Register, Volume). `parseDate()` retourneert `null`
+      i.p.v. NaN Date bij ongeldige input. `extractCsvForStorage()` en
+      `csvToAllDaysAndMeta()` skippen rijen met ongeldige datums en
+      geven duidelijke Nederlandse foutmeldingen. 17 nieuwe unit tests.
 - [ ] **C2. Input-validatie bounds**
       Inverter-kW (0.1–100), tariefprijzen (0–2 €/kWh),
       capaciteit, etc. Vóór Firestore-writes.

@@ -4,13 +4,28 @@
 //
 // Also exposed on window for non-module scripts that depend on globals.
 
+// Required column headers for a valid Fluvius CSV export.
+const REQUIRED_HEADERS = ['Van (datum)', 'Register', 'Volume'];
+
+/**
+ * Parse a semicolon-separated Fluvius CSV into an array of row objects.
+ * Skips data rows with fewer columns than the header.
+ *
+ * @param {string} text — raw CSV text
+ * @returns {{ rows: object[], headers: string[] } | object[]}
+ *   Returns plain array of row objects (backward-compatible).
+ */
 export function parseCSV(text) {
+  if (!text || !text.trim()) return [];
   const lines = text.trim().split('\n');
+  if (lines.length === 0) return [];
   const header = lines[0].split(';').map(h => h.trim());
   const rows = [];
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(';');
-    if (cols.length < 9) continue;
+    const line = lines[i].trim();
+    if (!line) continue; // skip empty lines
+    const cols = line.split(';');
+    if (cols.length < header.length) continue; // skip truncated rows
     const obj = {};
     header.forEach((h, idx) => { obj[h] = (cols[idx] || '').trim(); });
     rows.push(obj);
@@ -18,10 +33,45 @@ export function parseCSV(text) {
   return rows;
 }
 
+/**
+ * Validate that CSV text contains the required Fluvius headers.
+ * Returns an object with `{ valid, errors, headers }`.
+ *
+ * @param {string} csvText — raw CSV text
+ * @returns {{ valid: boolean, errors: string[], headers: string[] }}
+ */
+export function validateCsvHeaders(csvText) {
+  const errors = [];
+  if (!csvText || !csvText.trim()) {
+    return { valid: false, errors: ['Het CSV bestand is leeg.'], headers: [] };
+  }
+  const lines = csvText.trim().split('\n');
+  const headers = lines[0].split(';').map(h => h.trim());
+
+  const missing = REQUIRED_HEADERS.filter(h => !headers.includes(h));
+  if (missing.length > 0) {
+    errors.push(
+      `Verplichte kolommen ontbreken: ${missing.join(', ')}. ` +
+      'Controleer of dit een geldig Fluvius CSV-export is.'
+    );
+  }
+  return { valid: errors.length === 0, errors, headers };
+}
+
+/**
+ * Parse a dd-mm-yyyy date string. Returns null for unparseable input.
+ */
 export function parseDate(str) {
-  // dd-mm-yyyy
-  const [d, m, y] = str.split('-');
-  return new Date(+y, +m - 1, +d);
+  if (!str || typeof str !== 'string') return null;
+  const parts = str.split('-');
+  if (parts.length !== 3) return null;
+  const [d, m, y] = parts;
+  const day = +d, month = +m, year = +y;
+  if (!year || !month || !day || month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const date = new Date(year, month - 1, day);
+  // Guard against NaN dates (e.g. from overflow or bad input)
+  if (isNaN(date.getTime())) return null;
+  return date;
 }
 
 export function parsVolume(str) {
@@ -35,8 +85,15 @@ export function parsVolume(str) {
 //
 // Returns: { eanCode, meterNr, meterType, dailyCompact: { startDate, afname[], injectie[],
 //            afnamedag[], afnamenacht[], injectiedag[], injectienacht[] } }
-// Throws Error('Geen data gevonden in het CSV bestand.') if the CSV has no usable rows.
+//
+// Throws descriptive Error if the CSV is invalid or has no usable data rows.
 export function extractCsvForStorage(csvText) {
+  // Validate headers first
+  const validation = validateCsvHeaders(csvText);
+  if (!validation.valid) {
+    throw new Error(validation.errors[0]);
+  }
+
   const rows = parseCSV(csvText);
 
   let eanCode = '', meterNr = '', meterType = '';
@@ -50,13 +107,14 @@ export function extractCsvForStorage(csvText) {
   }
 
   const dayMap = {};
+  let skippedDates = 0;
   for (const row of rows) {
     const dateStr = row['Van (datum)'];
     if (!dateStr) continue;
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) continue;
-    const key = `${parts[2]}-${parts[1]}-${parts[0]}`;
-    if (!dayMap[key]) dayMap[key] = { date: parseDate(dateStr), afname: 0, injectie: 0, afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0 };
+    const date = parseDate(dateStr);
+    if (!date) { skippedDates++; continue; }
+    const key = date.toISOString().slice(0, 10);
+    if (!dayMap[key]) dayMap[key] = { date, afname: 0, injectie: 0, afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0 };
     const register = (row['Register'] || '').toLowerCase();
     const vol = parsVolume(row['Volume']);
     if (register.includes('afname'))   dayMap[key].afname   += vol;
@@ -68,7 +126,13 @@ export function extractCsvForStorage(csvText) {
   }
 
   const allDays = Object.values(dayMap).sort((a, b) => a.date - b.date);
-  if (!allDays.length) throw new Error('Geen data gevonden in het CSV bestand.');
+
+  if (!allDays.length) {
+    const detail = skippedDates > 0
+      ? ` ${skippedDates} rij(en) hadden een ongeldig datumformaat (verwacht: dd-mm-jjjj).`
+      : '';
+    throw new Error('Geen bruikbare data gevonden in het CSV bestand.' + detail);
+  }
 
   const startDate = allDays[0].date.toISOString().slice(0, 10);
   return {
@@ -91,4 +155,5 @@ if (typeof window !== 'undefined') {
   window.parseDate = parseDate;
   window.parsVolume = parsVolume;
   window.extractCsvForStorage = extractCsvForStorage;
+  window.validateCsvHeaders = validateCsvHeaders;
 }

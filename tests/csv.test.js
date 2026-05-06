@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseCSV, parseDate, parsVolume, extractCsvForStorage } from '../assets/js/csv.js';
+import { parseCSV, parseDate, parsVolume, extractCsvForStorage, validateCsvHeaders } from '../assets/js/csv.js';
 
 describe('parseCSV', () => {
   it('splits semicolon-separated rows into objects keyed by header', () => {
@@ -10,7 +10,7 @@ describe('parseCSV', () => {
     expect(rows[0]['Kolom B']).toBe('waarde2');
   });
 
-  it('skips rows with fewer columns than required minimum', () => {
+  it('skips rows with fewer columns than header', () => {
     const csv = 'A;B;C;D;E;F;G;H;I\nval1;val2\nval1;val2;val3;val4;val5;val6;val7;val8;val9\n';
     const rows = parseCSV(csv);
     expect(rows).toHaveLength(1);
@@ -27,6 +27,54 @@ describe('parseCSV', () => {
     const rows = parseCSV('Header\n');
     expect(rows).toEqual([]);
   });
+
+  it('returns empty array for null/undefined/empty string', () => {
+    expect(parseCSV(null)).toEqual([]);
+    expect(parseCSV(undefined)).toEqual([]);
+    expect(parseCSV('')).toEqual([]);
+    expect(parseCSV('   ')).toEqual([]);
+  });
+
+  it('skips blank lines in the middle of data', () => {
+    const csv = 'A;B\nval1;val2\n\nval3;val4\n';
+    const rows = parseCSV(csv);
+    expect(rows).toHaveLength(2);
+  });
+});
+
+describe('validateCsvHeaders', () => {
+  it('passes for valid Fluvius CSV headers', () => {
+    const csv = 'EAN-code;Meter;Metertype;Van (datum);Tot (datum);Register;Volume;Eenheid;Validatiestatus\ndata';
+    const result = validateCsvHeaders(csv);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('fails for empty input', () => {
+    const result = validateCsvHeaders('');
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('leeg');
+  });
+
+  it('fails for null/undefined', () => {
+    expect(validateCsvHeaders(null).valid).toBe(false);
+    expect(validateCsvHeaders(undefined).valid).toBe(false);
+  });
+
+  it('reports missing required columns', () => {
+    const csv = 'EAN-code;Meter;Metertype\ndata;data;data';
+    const result = validateCsvHeaders(csv);
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('Van (datum)');
+    expect(result.errors[0]).toContain('Register');
+    expect(result.errors[0]).toContain('Volume');
+  });
+
+  it('passes when only required columns are present (no extras)', () => {
+    const csv = 'Van (datum);Register;Volume\n01-01-2024;Afname;1,5';
+    const result = validateCsvHeaders(csv);
+    expect(result.valid).toBe(true);
+  });
 });
 
 describe('parseDate', () => {
@@ -42,6 +90,36 @@ describe('parseDate', () => {
     expect(d.getFullYear()).toBe(2024);
     expect(d.getMonth()).toBe(0);
     expect(d.getDate()).toBe(1);
+  });
+
+  it('returns null for null/undefined/empty', () => {
+    expect(parseDate(null)).toBeNull();
+    expect(parseDate(undefined)).toBeNull();
+    expect(parseDate('')).toBeNull();
+  });
+
+  it('returns null for non-string input', () => {
+    expect(parseDate(12345)).toBeNull();
+    expect(parseDate({})).toBeNull();
+  });
+
+  it('returns null for wrong format (yyyy-mm-dd)', () => {
+    expect(parseDate('2024-01-15')).toBeNull();
+  });
+
+  it('returns null for invalid month', () => {
+    expect(parseDate('15-13-2024')).toBeNull();
+    expect(parseDate('15-00-2024')).toBeNull();
+  });
+
+  it('returns null for invalid day', () => {
+    expect(parseDate('00-03-2024')).toBeNull();
+    expect(parseDate('32-03-2024')).toBeNull();
+  });
+
+  it('returns null for garbage input', () => {
+    expect(parseDate('abc-def-ghi')).toBeNull();
+    expect(parseDate('not-a-date')).toBeNull();
   });
 });
 
@@ -109,8 +187,37 @@ describe('extractCsvForStorage', () => {
     expect(result.dailyCompact.injectienacht[0]).toBeCloseTo(1.0, 2);
   });
 
-  it('throws on empty CSV', () => {
+  it('throws on empty CSV with valid headers', () => {
     const header = 'EAN-code;Meter;Metertype;Van (datum);Tot (datum);Register;Volume;Eenheid;Validatiestatus';
-    expect(() => extractCsvForStorage(header + '\n')).toThrow('Geen data gevonden');
+    expect(() => extractCsvForStorage(header + '\n')).toThrow('Geen bruikbare data');
+  });
+
+  it('throws on CSV with missing required headers', () => {
+    const badCsv = 'Kolom A;Kolom B;Kolom C\nval1;val2;val3';
+    expect(() => extractCsvForStorage(badCsv)).toThrow('Verplichte kolommen ontbreken');
+  });
+
+  it('throws on completely empty input', () => {
+    expect(() => extractCsvForStorage('')).toThrow('leeg');
+  });
+
+  it('skips rows with invalid dates and still processes valid ones', () => {
+    const csv = [
+      'EAN-code;Meter;Metertype;Van (datum);Tot (datum);Register;Volume;Eenheid;Validatiestatus',
+      '="541";M001;DMM;INVALID;02-01-2024;Afname;5,000;kWh;Gevalideerd',
+      '="541";M001;DMM;01-01-2024;02-01-2024;Afname;3,000;kWh;Gevalideerd',
+    ].join('\n');
+    const result = extractCsvForStorage(csv);
+    expect(result.dailyCompact.afname).toHaveLength(1);
+    expect(result.dailyCompact.afname[0]).toBeCloseTo(3.0, 2);
+  });
+
+  it('throws with date detail when all dates are invalid', () => {
+    const csv = [
+      'EAN-code;Meter;Metertype;Van (datum);Tot (datum);Register;Volume;Eenheid;Validatiestatus',
+      '="541";M001;DMM;BAAD;02-01-2024;Afname;5,000;kWh;Gevalideerd',
+      '="541";M001;DMM;NOPE;03-01-2024;Injectie;3,000;kWh;Gevalideerd',
+    ].join('\n');
+    expect(() => extractCsvForStorage(csv)).toThrow('ongeldig datumformaat');
   });
 });
