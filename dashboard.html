@@ -14,6 +14,7 @@
   <script type="module" src="assets/js/shared-helpers.js"></script>
   <script type="module" src="assets/js/csv.js"></script>
   <script src="assets/js/firebase-init.js"></script>
+  <script src="assets/js/status-chip.js"></script>
   <script src="assets/js/offertes-ui.js"></script>
   <script type="module" src="assets/js/photo-uploader.js"></script>
   <style>
@@ -194,30 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── PROJECT LIST ───────────────────────────────────────────────────────────
-function statusChipHTML(statusKey, projectId) {
-  const meta = getStatusMeta(statusKey);
-  const readonly = projectId == null;
-  if (readonly) {
-    return `<span class="badge status-chip readonly" style="background:${meta.color};color:#fff;">${escapeHtml(meta.label)}</span>`;
-  }
-  const dropdownId = `stDd_${projectId}`;
-  const options = PROJECT_STATUSES.map(s => `
-    <li><button type="button" class="dropdown-item d-flex align-items-center gap-2"
-                data-status="${s.key}" data-project-id="${projectId}">
-      <span class="d-inline-block rounded-circle" style="width:10px;height:10px;background:${s.color};flex-shrink:0;"></span>
-      ${escapeHtml(s.label)}
-    </button></li>
-  `).join('');
-  return `
-    <div class="dropdown d-inline-block">
-      <button type="button" class="badge status-chip border-0" style="background:${meta.color};color:#fff;"
-              id="${dropdownId}" data-bs-toggle="dropdown" data-bs-strategy="fixed" aria-expanded="false">
-        ${escapeHtml(meta.label)} <i class="fa-solid fa-caret-down ms-1"></i>
-      </button>
-      <ul class="dropdown-menu" aria-labelledby="${dropdownId}">${options}</ul>
-    </div>
-  `;
-}
+// statusChipHTML() lives in assets/js/status-chip.js (shared component)
 
 function rowHTML(p, isDeleted) {
   const updated = fmtDate(p.updatedAt);
@@ -808,21 +786,8 @@ function renderComments(project, comments) {
   if (drawer) wireOffertesClicks(drawer, () => _currentDrawerProject, _refreshCurrentDrawer);
 })();
 
-// Status-dropdown delegation (Bootstrap dropdown-items for status change)
-document.addEventListener('click', async (ev) => {
-  const opt = ev.target.closest('.dropdown-menu .dropdown-item[data-status][data-project-id]');
-  if (!opt) return;
-  const statusKey = opt.getAttribute('data-status');
-  const projectId = opt.getAttribute('data-project-id');
-  await withSpinner(async () => {
-    try {
-      await updateProjectStatus(projectId, statusKey);
-      await refreshProjectList();
-    } catch (err) {
-      showToast('Kon status niet wijzigen: ' + (err && err.message ? err.message : err), 'danger');
-    }
-  });
-});
+// Status-dropdown delegation via shared component (assets/js/status-chip.js)
+wireStatusChipClicks(document, () => refreshProjectList());
 
 // Responsive view: re-render on breakpoint cross (992px)
 let _wasDesktop = window.innerWidth >= 992;

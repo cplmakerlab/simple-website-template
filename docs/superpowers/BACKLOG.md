@@ -35,10 +35,10 @@ Status: `[ ]` open · `[~]` bezig · `[x]` klaar
       Geïntegreerd in alle 5 bestanden (dashboard, project-edit, index,
       photo-uploader, offertes-ui). Foto-uploads tonen voortgangsbalk
       met "X van Y geüpload".
-- [ ] **B3. Status-chip component**
-      Status-chips (badge + kleur + dropdown) worden in dashboard
-      lijst, bord, en drawer apart gerenderd. Eén `renderStatusChip(status, opts)`
-      met optionele dropdown-picker.
+- [x] **B3. Status-chip component**
+      `statusChipHTML(statusKey, projectId)` en `wireStatusChipClicks(el, onChange)`
+      geëxtraheerd naar `assets/js/status-chip.js`. Gebruikt door dashboard
+      lijst, bord, en drawer via één gedeeld bestand.
 - [x] **B4. Toast-component consolideren**
       Backoffice: `showToast` in `shared-helpers.js` (Bootstrap 5 toast).
       Calculator: eigen lichtgewicht `showToast` (geen Bootstrap, eigen #toast).
