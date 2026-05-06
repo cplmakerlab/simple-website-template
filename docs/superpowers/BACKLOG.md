@@ -28,11 +28,13 @@ Status: `[ ]` open · `[~]` bezig · `[x]` klaar
 - [x] **B1. Upload-component generaliseren**
       `mountPhotoUploader(containerEl, opts)` factory in
       `assets/js/photo-uploader.js`. Gebruikt in dashboard drawer + project-edit.
-- [ ] **B2. Spinner/loading-component**
-      Loading-state wordt op meerdere plekken ad-hoc getoond
-      (config laden, drawer openen, foto uploaden, CSV parsen).
-      Eén `showSpinner(container)` / `hideSpinner(container)` helper
-      of een CSS-only spinner-class.
+- [x] **B2. Spinner/loading-component**
+      Globale overlay spinner in `shared-helpers.js`:
+      `showSpinner(opts)`, `updateSpinner(opts)`, `hideSpinner()`, `withSpinner(fn)`.
+      CSS in `smartpeak.css` + inline in `index.html`.
+      Geïntegreerd in alle 5 bestanden (dashboard, project-edit, index,
+      photo-uploader, offertes-ui). Foto-uploads tonen voortgangsbalk
+      met "X van Y geüpload".
 - [ ] **B3. Status-chip component**
       Status-chips (badge + kleur + dropdown) worden in dashboard
       lijst, bord, en drawer apart gerenderd. Eén `renderStatusChip(status, opts)`

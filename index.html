@@ -582,6 +582,55 @@
     .icon-ok    { color: #16a34a; }
     .icon-warn  { color: #f59e0b; }
     .icon-danger{ color: #dc2626; }
+
+    /* ── Global spinner overlay ─────────────────────────────────────────── */
+    .sp-spinner-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.35);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+    .sp-spinner-overlay.active { display: flex; }
+    .sp-spinner-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 32px 40px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+      min-width: 200px;
+      max-width: 320px;
+    }
+    .sp-spinner-ring {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #e0e5ee;
+      border-top-color: var(--primary, #2c7be5);
+      border-radius: 50%;
+      animation: sp-spin 0.8s linear infinite;
+    }
+    @keyframes sp-spin { to { transform: rotate(360deg); } }
+    .sp-spinner-message {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--text);
+      text-align: center;
+      margin: 0;
+    }
+    .sp-spinner-progress { display: none; width: 100%; }
+    .sp-spinner-progress.active { display: block; }
+    .sp-spinner-count {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 4px;
+      text-align: center;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7"></script>
   <script type="module" src="assets/js/csv.js"></script>
@@ -764,7 +813,7 @@ import {
   buildYearBuckets, buildMonthBuckets, buildDayBuckets,
   availableMonthKeys, buildYearBucketsFromMonthMap, buildMonthBucketsFromMonthMap,
 } from './assets/js/calc-engine.js';
-import { escapeHtml } from './assets/js/shared-helpers.js';
+import { escapeHtml, showSpinner, updateSpinner, hideSpinner, withSpinner } from './assets/js/shared-helpers.js';
 
 // ─── CSV PARSER ────────────────────────────────────────────────────────────────
 // CSV helpers (parseCSV, parseDate, parsVolume) are in assets/js/csv.js
@@ -1030,27 +1079,30 @@ async function copyShareLink() {
   const urlRow   = document.getElementById('shareUrlRow');
   const urlInput = document.getElementById('shareUrlInput');
   urlRow.style.display = 'none';
-  showToast('🔗 Deellink aanmaken…');
-  try {
-    const ref = await createShare(state, _projectId || null);
-    const url = location.origin + location.pathname + '?s=' + ref.id;
-    urlInput.value = url;
-    if (navigator.clipboard) {
-      try {
-        await navigator.clipboard.writeText(url);
-        showToast('🔗 Deellink gekopieerd naar klembord!');
-      } catch {
+
+  return withSpinner(async () => {
+    try {
+      const ref = await createShare(state, _projectId || null);
+      const url = location.origin + location.pathname + '?s=' + ref.id;
+      urlInput.value = url;
+      if (navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(url);
+          showToast('🔗 Deellink gekopieerd naar klembord!');
+        } catch {
+          urlRow.style.display = '';
+          urlInput.select();
+          showToast('Kopieer de link hieronder handmatig.');
+        }
+      } else {
         urlRow.style.display = '';
         urlInput.select();
-        showToast('Kopieer de link hieronder handmatig.');
       }
-    } else {
-      urlRow.style.display = '';
-      urlInput.select();
+    } catch (e) {
+      showToast('❌ Deellink maken mislukt: ' + (e && e.message ? e.message : e));
+      throw e;
     }
-  } catch (e) {
-    showToast('❌ Deellink maken mislukt: ' + (e && e.message ? e.message : e));
-  }
+  }, { message: 'Deellink aanmaken...' });
 }
 
 function _applyLoadedState(state, showBanner) {
@@ -1152,19 +1204,22 @@ function _populateConfigSelects(selectedTypes) {
 async function loadConfigs() {
   const statusEl = document.getElementById('configsStatus');
   statusEl.innerHTML = '<span class="spinner"></span> Laden...';
-  try {
-    const cfg = await getProductsConfig();
-    if (!cfg || !cfg.csvUrl) throw new Error('config/products.csvUrl ontbreekt.');
-    const resp = await fetch(cfg.csvUrl);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    _sheetConfigs = parseSheetConfigs(await resp.text());
-    if (!_sheetConfigs.length) throw new Error('Geen configuraties gevonden in de sheet.');
-    _populateConfigSelects();
-    document.getElementById('configSelectorsArea').style.display = '';
-    statusEl.textContent = `✅ ${_sheetConfigs.length} configuraties geladen.`;
-  } catch(e) {
-    statusEl.textContent = `❌ Fout bij laden: ${e.message}`;
-  }
+  return withSpinner(async () => {
+    try {
+      const cfg = await getProductsConfig();
+      if (!cfg || !cfg.csvUrl) throw new Error('config/products.csvUrl ontbreekt.');
+      const resp = await fetch(cfg.csvUrl);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      _sheetConfigs = parseSheetConfigs(await resp.text());
+      if (!_sheetConfigs.length) throw new Error('Geen configuraties gevonden in de sheet.');
+      _populateConfigSelects();
+      document.getElementById('configSelectorsArea').style.display = '';
+      statusEl.textContent = `✅ ${_sheetConfigs.length} configuraties geladen.`;
+    } catch(e) {
+      statusEl.textContent = `❌ Fout bij laden: ${e.message}`;
+      throw e;
+    }
+  }, { message: 'Configuraties laden...' });
 }
 
 // ─── MAIN CALC ─────────────────────────────────────────────────────────────────
@@ -1195,23 +1250,43 @@ async function calculate() {
   // ── Guard: confirm before Bereken if removing a config that has an offerte-PDF ──
   if (!(await _confirmConfigCascade(_projectId, selectedConfigs.map(c => c.type)))) return;
 
-  // ── Project-mode path: use the project's stored CSV instead of a file upload ──
-  if (_projectId && _projectDoc && _projectDoc.csvUpload) {
-    const cu = _projectDoc.csvUpload;
-    const allDays = buildAllDaysFromDailyCompact(cu.dailyCompact);
-    processData(
-      { allDays, eanCode: cu.eanCode || '', meterNr: cu.meterNr || '', meterType: cu.meterType || '' },
-      pvInv, selectedConfigs, priceDay, priceNight
-    );
-    return;
-  }
+  // Show spinner before starting calculation
+  showSpinner({ message: 'Berekening uitvoeren...' });
 
-  // ── Normal path: read CSV from the file input ──
-  const fileInput = document.getElementById('csvFile');
-  if (!fileInput.files.length) { alert('Laad eerst een CSV bestand op.'); return; }
-  const reader = new FileReader();
-  reader.onload = e => processData(e.target.result, pvInv, selectedConfigs, priceDay, priceNight);
-  reader.readAsText(fileInput.files[0], 'UTF-8');
+  try {
+    // ── Project-mode path: use the project's stored CSV instead of a file upload ──
+    if (_projectId && _projectDoc && _projectDoc.csvUpload) {
+      const cu = _projectDoc.csvUpload;
+      const allDays = buildAllDaysFromDailyCompact(cu.dailyCompact);
+      await processDataAsync(
+        { allDays, eanCode: cu.eanCode || '', meterNr: cu.meterNr || '', meterType: cu.meterType || '' },
+        pvInv, selectedConfigs, priceDay, priceNight
+      );
+      return;
+    }
+
+    // ── Normal path: read CSV from the file input ──
+    const fileInput = document.getElementById('csvFile');
+    if (!fileInput.files.length) {
+      hideSpinner();
+      alert('Laad eerst een CSV bestand op.');
+      return;
+    }
+
+    // Convert FileReader callback to Promise
+    const text = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = () => reject(new Error('Bestand lezen mislukt'));
+      reader.readAsText(fileInput.files[0], 'UTF-8');
+    });
+
+    await processDataAsync(text, pvInv, selectedConfigs, priceDay, priceNight);
+  } catch (err) {
+    hideSpinner();
+    console.error('Calculate error:', err);
+    alert('Berekening mislukt: ' + (err && err.message ? err.message : err));
+  }
 }
 
 // ─── MAIN CALC ─────────────────────────────────────────────────────────────────
@@ -1224,6 +1299,17 @@ function processData(input, pvInv, selectedConfigs, priceDay, priceNight) {
   const d = processDataPure(input, pvInv, selectedConfigs, priceDay, priceNight);
   if (!d) { alert('Geen data gevonden in het CSV bestand.'); return; }
   renderResults(d);
+}
+
+// Async wrapper for processData to allow awaiting the project save
+async function processDataAsync(input, pvInv, selectedConfigs, priceDay, priceNight) {
+  const d = processDataPure(input, pvInv, selectedConfigs, priceDay, priceNight);
+  if (!d) {
+    hideSpinner();
+    alert('Geen data gevonden in het CSV bestand.');
+    return;
+  }
+  await renderResultsAsync(d);
 }
 
 
@@ -1533,6 +1619,44 @@ function renderResults(d) {
   }
 }
 
+// Async version of renderResults that awaits the project save before completing
+async function renderResultsAsync(d) {
+  _saved = d; // persist for save/share — also read by chart event handlers
+  _chartState = { level: 'month', dayMonthIdx: -1 }; // reset to default view on each render
+  _setActiveLevel('month');
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Use the same rendering logic as renderResults (call the sync version to do the heavy lifting)
+  // but instead of fire-and-forget save, we await it
+
+  // Temporarily disable auto-save in renderResults by clearing the project context
+  const tempProjectId = _projectId;
+  const tempProjectDoc = _projectDoc;
+  _projectId = null;
+  _projectDoc = null;
+
+  // Call the original renderResults to do all the rendering
+  renderResults(d);
+
+  // Restore project context
+  _projectId = tempProjectId;
+  _projectDoc = tempProjectDoc;
+
+  // Now do the save and wait for it
+  if (_projectId && _projectDoc) {
+    try {
+      await saveProjectCalcRun(d);
+    } catch (err) {
+      console.error('Auto-save failed:', err);
+      showToast('⚠️ Niet opgeslagen — controleer netwerk');
+    }
+  }
+
+  // Finally hide the spinner
+  hideSpinner();
+}
+
 // Pre-Bereken confirm when the save would cascade-delete PDFs.
 // Returns true if the user confirms (or no PDFs are on the line), false if cancelled.
 async function _confirmConfigCascade(projectId, newSelectedTypes) {
@@ -1729,10 +1853,12 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadShareAndEngageReadOnly(id) {
-  const share = await getShare(id);
-  if (!share || !share.payload) throw new Error('Share niet gevonden');
-  _applyLoadedState(share.payload, true);
-  engageReadOnly();
+  return withSpinner(async () => {
+    const share = await getShare(id);
+    if (!share || !share.payload) throw new Error('Share niet gevonden');
+    _applyLoadedState(share.payload, true);
+    engageReadOnly();
+  }, { message: 'Deellink laden...' });
 }
 
 // Engage read-only mode: called after a ?data=<b64> share-link has been
@@ -1951,46 +2077,48 @@ function applyProjectToCalcForm(project) {
 }
 
 async function loadProjectIntoUI(id) {
-  const proj = await getProject(id);
-  if (!proj || proj.deletedAt) {
-    alert('Project niet gevonden of verwijderd.');
-    window.location.href = 'dashboard.html';
-    return;
-  }
-  _projectDoc = proj;
-
-  // Hide the regular CSV-upload card — in project-mode the CSV lives in Firestore and is
-  // managed via the project banner's "📁 CSV" button (plus the missing-CSV prompt).
-  const csvCard = document.getElementById('csvUploadCard');
-  if (csvCard) csvCard.style.display = 'none';
-
-  // Render banner
-  document.getElementById('pbName').textContent     = getProjectLabel(proj);
-  document.getElementById('pbCustomer').textContent = proj.customerName || '—';
-  renderProjectStatusChip();
-  document.getElementById('projectBanner').style.display = '';
-  renderProjectValuesCard(proj);
-  applyProjectToCalcForm(proj);
-
-  // If we have CSV + calc data, reuse the v:5 share-link restore path.
-  if (proj.csvUpload && proj.lastCalcRun) {
-    const restored = buildSavedFromProject(proj);
-    _applyLoadedState(restored, /*showBanner*/ false);
-    // #results hash (set by dashboard's 💾 button) → scroll to results block.
-    if (window.location.hash === '#results') {
-      const firstResultCard = document.querySelector('#results .card');
-      if (firstResultCard) {
-        setTimeout(() => firstResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-      }
+  return withSpinner(async () => {
+    const proj = await getProject(id);
+    if (!proj || proj.deletedAt) {
+      alert('Project niet gevonden of verwijderd.');
+      window.location.href = 'dashboard.html';
+      return;
     }
-  } else if (proj.csvUpload && !proj.lastCalcRun) {
-    // CSV present but never calculated — load the form values (if any) but don't auto-render results.
-    // User clicks Bereken when ready.
-  } else {
-    // No CSV at all — show the upload prompt.
-    document.getElementById('projectMissingCsv').style.display = '';
-  }
-  wireProjectCsvUpload();
+    _projectDoc = proj;
+
+    // Hide the regular CSV-upload card — in project-mode the CSV lives in Firestore and is
+    // managed via the project banner's "📁 CSV" button (plus the missing-CSV prompt).
+    const csvCard = document.getElementById('csvUploadCard');
+    if (csvCard) csvCard.style.display = 'none';
+
+    // Render banner
+    document.getElementById('pbName').textContent     = getProjectLabel(proj);
+    document.getElementById('pbCustomer').textContent = proj.customerName || '—';
+    renderProjectStatusChip();
+    document.getElementById('projectBanner').style.display = '';
+    renderProjectValuesCard(proj);
+    applyProjectToCalcForm(proj);
+
+    // If we have CSV + calc data, reuse the v:5 share-link restore path.
+    if (proj.csvUpload && proj.lastCalcRun) {
+      const restored = buildSavedFromProject(proj);
+      _applyLoadedState(restored, /*showBanner*/ false);
+      // #results hash (set by dashboard's 💾 button) → scroll to results block.
+      if (window.location.hash === '#results') {
+        const firstResultCard = document.querySelector('#results .card');
+        if (firstResultCard) {
+          setTimeout(() => firstResultCard.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+        }
+      }
+    } else if (proj.csvUpload && !proj.lastCalcRun) {
+      // CSV present but never calculated — load the form values (if any) but don't auto-render results.
+      // User clicks Bereken when ready.
+    } else {
+      // No CSV at all — show the upload prompt.
+      document.getElementById('projectMissingCsv').style.display = '';
+    }
+    wireProjectCsvUpload();
+  }, { message: 'Project laden...' });
 }
 
 function wireProjectCsvUpload() {
@@ -2012,25 +2140,29 @@ function wireProjectCsvUpload() {
     if (!file) return;
     const isReplace = fileInput.dataset.replace === '1' && _projectDoc.csvUpload;
     if (isReplace && !confirm('Vorige CSV en berekening blijven bewaard tot je opnieuw rekent. Doorgaan?')) return;
-    try {
-      const text = await file.text();
-      const csvData = extractCsvForStorage(text);
-      await setProjectCsv(_projectId, csvData);
-      // Refetch project + re-render
-      _projectDoc = await getProject(_projectId);
-      document.getElementById('projectMissingCsv').style.display = 'none';
-      // Hydrate the saved state with the new CSV but keep the (possibly stale) lastCalcRun.
-      if (_projectDoc.lastCalcRun) {
-        const restored = buildSavedFromProject(_projectDoc);
-        _applyLoadedState(restored, /*showBanner*/ false);
-      } else {
-        // No prior calc — reset UI to fresh form state.
-        // Future: pre-populate eanCode etc. For Phase 1 we simply tell the user to recompute.
-        alert('CSV opgeslagen. Vul de form in en klik op Bereken om te rekenen.');
+
+    await withSpinner(async () => {
+      try {
+        const text = await file.text();
+        const csvData = extractCsvForStorage(text);
+        await setProjectCsv(_projectId, csvData);
+        // Refetch project + re-render
+        _projectDoc = await getProject(_projectId);
+        document.getElementById('projectMissingCsv').style.display = 'none';
+        // Hydrate the saved state with the new CSV but keep the (possibly stale) lastCalcRun.
+        if (_projectDoc.lastCalcRun) {
+          const restored = buildSavedFromProject(_projectDoc);
+          _applyLoadedState(restored, /*showBanner*/ false);
+        } else {
+          // No prior calc — reset UI to fresh form state.
+          // Future: pre-populate eanCode etc. For Phase 1 we simply tell the user to recompute.
+          alert('CSV opgeslagen. Vul de form in en klik op Bereken om te rekenen.');
+        }
+      } catch (err) {
+        alert('CSV upload mislukt: ' + (err && err.message ? err.message : err));
+        throw err;
       }
-    } catch (err) {
-      alert('CSV upload mislukt: ' + (err && err.message ? err.message : err));
-    }
+    }, { message: 'CSV uploaden...' });
   });
 }
 
@@ -2071,13 +2203,16 @@ function openProjectStatusPopover() {
       const newStatus = opt.dataset.status;
       closeProjectStatusPopover();
       if (newStatus === _projectDoc.status) return;
-      try {
-        await updateProjectStatus(_projectId, newStatus);
-        _projectDoc.status = newStatus;
-        renderProjectStatusChip();
-      } catch (err) {
-        alert('Kon status niet wijzigen: ' + (err && err.message ? err.message : err));
-      }
+      await withSpinner(async () => {
+        try {
+          await updateProjectStatus(_projectId, newStatus);
+          _projectDoc.status = newStatus;
+          renderProjectStatusChip();
+        } catch (err) {
+          alert('Kon status niet wijzigen: ' + (err && err.message ? err.message : err));
+          throw err;
+        }
+      }, { message: 'Status bijwerken...' });
     });
   });
   setTimeout(() => { document.addEventListener('click', closeProjectStatusPopover, { once: true }); }, 0);

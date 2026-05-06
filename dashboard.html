@@ -128,7 +128,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js" integrity="sha512-7Pi/otdlbbCR+LnW+F7PwFcSDJOuUJB3OxtEHbg4vSMvzvJjde4Po1v4BR9Gdc9aXNUNFVUY+SK51wWT8WF0Gg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <script type="module">
-import { escapeHtml, showToast, showState, shortEmail, fmtDate, fmtRelTime } from './assets/js/shared-helpers.js';
+import { escapeHtml, showToast, showState, shortEmail, fmtDate, fmtRelTime, showSpinner, updateSpinner, hideSpinner, withSpinner } from './assets/js/shared-helpers.js';
 
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
 
@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     document.getElementById('userDisplayName').textContent = user.displayName || user.email;
     showState('stateAuthorized');
-    refreshProjectList();
+    refreshProjectList(true);
   });
 
   document.getElementById('toggleShowDeleted').addEventListener('change', refreshProjectList);
@@ -264,16 +264,25 @@ function rowHTML(p, isDeleted) {
 // Cached list of projects from Firestore. Filtering + render happens on this cache.
 let _projectsCache = { active: [], deleted: [] };
 
-async function refreshProjectList() {
+async function refreshProjectList(showSpinnerOverlay = false) {
   const el = document.getElementById('projectList');
   el.innerHTML = '<p class="sp-empty-state">⏳ Laden…</p>';
   const showDeleted = document.getElementById('toggleShowDeleted').checked;
-  try {
-    _projectsCache.active  = await listActiveProjects();
-    _projectsCache.deleted = showDeleted ? await listDeletedProjects() : [];
-    renderCurrent();
-  } catch (e) {
-    el.innerHTML = `<div class="alert alert-danger">Kon projecten niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+
+  const doRefresh = async () => {
+    try {
+      _projectsCache.active  = await listActiveProjects();
+      _projectsCache.deleted = showDeleted ? await listDeletedProjects() : [];
+      renderCurrent();
+    } catch (e) {
+      el.innerHTML = `<div class="alert alert-danger">Kon projecten niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+    }
+  };
+
+  if (showSpinnerOverlay) {
+    await withSpinner(doRefresh);
+  } else {
+    await doRefresh();
   }
 }
 
@@ -399,14 +408,18 @@ function wireRowActions(el) {
   el.querySelectorAll('.deleteBtn').forEach(btn => {
     btn.addEventListener('click', async () => {
       if (!confirm('Project verwijderen? Het wordt soft-deleted en blijft herstelbaar via "Toon verwijderde".')) return;
-      try { await softDeleteProject(btn.dataset.id); await refreshProjectList(); }
-      catch (err) { showToast('Kon niet verwijderen: ' + (err && err.message ? err.message : err), 'danger'); }
+      await withSpinner(async () => {
+        try { await softDeleteProject(btn.dataset.id); await refreshProjectList(); }
+        catch (err) { showToast('Kon niet verwijderen: ' + (err && err.message ? err.message : err), 'danger'); }
+      });
     });
   });
   el.querySelectorAll('.restoreBtn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      try { await restoreProject(btn.dataset.id); await refreshProjectList(); }
-      catch (err) { showToast('Kon niet herstellen: ' + (err && err.message ? err.message : err), 'danger'); }
+      await withSpinner(async () => {
+        try { await restoreProject(btn.dataset.id); await refreshProjectList(); }
+        catch (err) { showToast('Kon niet herstellen: ' + (err && err.message ? err.message : err), 'danger'); }
+      });
     });
   });
   el.querySelectorAll('.permdelBtn').forEach(btn => {
@@ -414,14 +427,16 @@ function wireRowActions(el) {
       const id   = btn.dataset.id;
       const name = btn.dataset.name || '(project)';
       if (!confirm(`Definitief verwijderen van '${name}'?\n\nAlle gegevens, opmerkingen en foto's worden permanent gewist. Dit kan niet ongedaan worden.`)) return;
-      try {
-        btn.disabled = true;
-        await hardDeleteProject(id);
-        await refreshProjectList();
-      } catch (err) {
-        showToast('Definitief verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
-        btn.disabled = false;
-      }
+      btn.disabled = true;
+      await withSpinner(async () => {
+        try {
+          await hardDeleteProject(id);
+          await refreshProjectList();
+        } catch (err) {
+          showToast('Definitief verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
+          btn.disabled = false;
+        }
+      });
     });
   });
 }
@@ -457,12 +472,14 @@ function wireBoard(el) {
       // No-op if already in this phase.
       const proj = _projectsCache.active.find(p => p.id === id);
       if (proj && phaseForStatus(proj.status).key === phaseKey) return;
-      try {
-        await updateProjectStatus(id, phase.statuses[0]);
-        await refreshProjectList();
-      } catch (err) {
-        showToast('Status wijzigen mislukt: ' + (err && err.message ? err.message : err), 'danger');
-      }
+      await withSpinner(async () => {
+        try {
+          await updateProjectStatus(id, phase.statuses[0]);
+          await refreshProjectList();
+        } catch (err) {
+          showToast('Status wijzigen mislukt: ' + (err && err.message ? err.message : err), 'danger');
+        }
+      });
     });
   });
 }
@@ -502,7 +519,7 @@ async function _refreshCurrentDrawer() {
   }
 }
 
-function openDrawer(projectId) {
+async function openDrawer(projectId) {
   _drawerProjectId = projectId;
   const drawerEl = document.getElementById('drawer');
   const body     = document.getElementById('drawerBody');
@@ -518,17 +535,19 @@ function openDrawer(projectId) {
 
   bootstrap.Offcanvas.getOrCreateInstance(drawerEl).show();
 
-  getProject(projectId).then(project => {
-    if (!project || project.deletedAt) {
-      body.innerHTML = '<div class="alert alert-danger">Project niet gevonden of verwijderd.</div>';
-      return;
-    }
-    _currentDrawerProject = project;
-    renderDrawer(project);
-    // Load comments in parallel; mount the photo uploader component.
-    return Promise.all([
-      listComments(projectId).catch(e => { console.warn('listComments failed', e); return []; }),
-    ]).then(([comments]) => {
+  await withSpinner(async () => {
+    try {
+      const project = await getProject(projectId);
+      if (!project || project.deletedAt) {
+        body.innerHTML = '<div class="alert alert-danger">Project niet gevonden of verwijderd.</div>';
+        return;
+      }
+      _currentDrawerProject = project;
+      renderDrawer(project);
+      // Load comments in parallel; mount the photo uploader component.
+      const [comments] = await Promise.all([
+        listComments(projectId).catch(e => { console.warn('listComments failed', e); return []; }),
+      ]);
       renderComments(project, comments);
       _drawerPhotoUploader = mountPhotoUploader(document.getElementById('drawerPhotoUploader'), {
         projectId: project.id,
@@ -540,9 +559,9 @@ function openDrawer(projectId) {
       markCommentsRead(projectId).then(() => {
         setTimeout(refreshProjectList, 400);
       }).catch(err => console.warn('markCommentsRead failed', err));
-    });
-  }).catch(e => {
-    body.innerHTML = `<div class="alert alert-danger">Kon project niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+    } catch (e) {
+      body.innerHTML = `<div class="alert alert-danger">Kon project niet laden: ${escapeHtml(e && e.message ? e.message : String(e))}</div>`;
+    }
   });
 }
 
@@ -707,13 +726,15 @@ function renderDrawer(project) {
   if (delBtn) {
     delBtn.addEventListener('click', async () => {
       if (!confirm('Project verwijderen? Het wordt soft-deleted en blijft herstelbaar via "Toon verwijderde".')) return;
-      try {
-        await softDeleteProject(project.id);
-        closeDrawer();
-        await refreshProjectList();
-      } catch (err) {
-        showToast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
-      }
+      await withSpinner(async () => {
+        try {
+          await softDeleteProject(project.id);
+          closeDrawer();
+          await refreshProjectList();
+        } catch (err) {
+          showToast('Verwijderen mislukt: ' + (err && err.message ? err.message : err), 'danger');
+        }
+      });
     });
   }
 
@@ -726,17 +747,19 @@ function renderDrawer(project) {
     const text = input.value;
     if (!text.trim()) { errEl.textContent = 'Leeg.'; return; }
     btn.disabled = true; btn.textContent = 'Bezig…';
-    try {
-      await addComment(project.id, text);
-      input.value = '';
-      // Refresh comments list
-      const fresh = await listComments(project.id);
-      renderComments(project, fresh);
-    } catch (e) {
-      errEl.textContent = e && e.message ? e.message : String(e);
-    } finally {
-      btn.disabled = false; btn.textContent = 'Versturen';
-    }
+    await withSpinner(async () => {
+      try {
+        await addComment(project.id, text);
+        input.value = '';
+        // Refresh comments list
+        const fresh = await listComments(project.id);
+        renderComments(project, fresh);
+      } catch (e) {
+        errEl.textContent = e && e.message ? e.message : String(e);
+      } finally {
+        btn.disabled = false; btn.textContent = 'Versturen';
+      }
+    });
   });
 }
 
@@ -771,13 +794,18 @@ function renderComments(project, comments) {
 })();
 
 // Status-dropdown delegation (Bootstrap dropdown-items for status change)
-document.addEventListener('click', (ev) => {
+document.addEventListener('click', async (ev) => {
   const opt = ev.target.closest('.dropdown-menu .dropdown-item[data-status][data-project-id]');
   if (!opt) return;
   const statusKey = opt.getAttribute('data-status');
   const projectId = opt.getAttribute('data-project-id');
-  updateProjectStatus(projectId, statusKey).then(() => refreshProjectList()).catch(err => {
-    showToast('Kon status niet wijzigen: ' + (err && err.message ? err.message : err), 'danger');
+  await withSpinner(async () => {
+    try {
+      await updateProjectStatus(projectId, statusKey);
+      await refreshProjectList();
+    } catch (err) {
+      showToast('Kon status niet wijzigen: ' + (err && err.message ? err.message : err), 'danger');
+    }
   });
 });
 

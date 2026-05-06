@@ -12,6 +12,109 @@ export function escapeHtml(s) {
 
 export function shortEmail(e) { return e ? String(e).split('@')[0] : '\u2014'; }
 
+// --- Global Spinner ---
+
+/**
+ * Lazily creates and returns the global spinner overlay element.
+ * DOM is injected once at `<body>` level.
+ */
+function _ensureSpinnerEl() {
+  let el = document.getElementById('spGlobalSpinner');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'spGlobalSpinner';
+  el.className = 'sp-spinner-overlay';
+  el.innerHTML = `
+    <div class="sp-spinner-content">
+      <div class="sp-spinner-ring"></div>
+      <div class="sp-spinner-message"></div>
+      <div class="sp-spinner-progress">
+        <div class="progress"><div class="progress-bar" role="progressbar" style="width:0%"></div></div>
+        <div class="sp-spinner-count"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(el);
+  return el;
+}
+
+/**
+ * Show a global centered spinner overlay that blocks all UI interaction.
+ * @param {Object} [opts]
+ * @param {string} [opts.message]  — text shown below the spinner ring
+ * @param {boolean} [opts.progress] — show progress bar
+ * @param {number}  [opts.current]  — current item (e.g. 3)
+ * @param {number}  [opts.total]    — total items (e.g. 10)
+ */
+export function showSpinner(opts) {
+  const el  = _ensureSpinnerEl();
+  const msg = el.querySelector('.sp-spinner-message');
+  const prg = el.querySelector('.sp-spinner-progress');
+  const bar = el.querySelector('.sp-spinner-progress .progress-bar');
+  const cnt = el.querySelector('.sp-spinner-count');
+
+  msg.textContent = (opts && opts.message) || '';
+
+  if (opts && opts.progress) {
+    prg.classList.add('active');
+    const pct = (opts.total > 0) ? Math.round(((opts.current || 0) / opts.total) * 100) : 0;
+    bar.style.width = pct + '%';
+    cnt.textContent = (opts.current || 0) + ' van ' + (opts.total || 0) + ' geüpload';
+  } else {
+    prg.classList.remove('active');
+    bar.style.width = '0%';
+    cnt.textContent = '';
+  }
+
+  el.classList.add('active');
+}
+
+/**
+ * Update spinner message / progress without hiding it.
+ * @param {Object} opts — same shape as showSpinner opts
+ */
+export function updateSpinner(opts) {
+  const el = document.getElementById('spGlobalSpinner');
+  if (!el || !el.classList.contains('active')) return;
+
+  if (opts.message !== undefined) {
+    el.querySelector('.sp-spinner-message').textContent = opts.message;
+  }
+  if (opts.progress !== undefined) {
+    const prg = el.querySelector('.sp-spinner-progress');
+    if (opts.progress) prg.classList.add('active');
+    else               prg.classList.remove('active');
+  }
+  if (opts.current !== undefined && opts.total !== undefined) {
+    const bar = el.querySelector('.sp-spinner-progress .progress-bar');
+    const cnt = el.querySelector('.sp-spinner-count');
+    const pct = opts.total > 0 ? Math.round((opts.current / opts.total) * 100) : 0;
+    bar.style.width = pct + '%';
+    cnt.textContent = opts.current + ' van ' + opts.total + ' geüpload';
+  }
+}
+
+/** Hide the global spinner overlay. Safe to call when already hidden. */
+export function hideSpinner() {
+  const el = document.getElementById('spGlobalSpinner');
+  if (el) el.classList.remove('active');
+}
+
+/**
+ * Convenience wrapper: show spinner, await fn(), hide spinner.
+ * On error the spinner is still hidden; the error is re-thrown.
+ * @param {Function} fn  — async function to execute
+ * @param {Object}  [opts] — passed to showSpinner
+ * @returns {Promise<*>} result of fn()
+ */
+export async function withSpinner(fn, opts) {
+  showSpinner(opts);
+  try {
+    return await fn();
+  } finally {
+    hideSpinner();
+  }
+}
+
 // --- UI Feedback ---
 
 /**
@@ -78,4 +181,8 @@ export function fmtRelTime(ts) {
 if (typeof window !== 'undefined') {
   window.escapeHtml = escapeHtml;
   window.showToast = showToast;
+  window.showSpinner = showSpinner;
+  window.updateSpinner = updateSpinner;
+  window.hideSpinner = hideSpinner;
+  window.withSpinner = withSpinner;
 }
