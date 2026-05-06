@@ -54,8 +54,11 @@ Status: `[ ]` open · `[~]` bezig · `[x]` klaar
 - [ ] **C2. Input-validatie bounds**
       Inverter-kW (0.1–100), tariefprijzen (0–2 €/kWh),
       capaciteit, etc. Vóór Firestore-writes.
-- [ ] **C3. Dashboard drawer race condition**
-      Guard op `projectId` voordat snapshot-listener de drawer update.
+- [x] **C3. Dashboard drawer race condition**
+      Stale-guard patroon in `openDrawer()`, `_refreshCurrentDrawer()`,
+      en null-guard in `refreshDrawerAfterChange()`. Na elke `await`
+      wordt `_drawerProjectId` vergeleken met het captured ID; bij
+      mismatch wordt de stale response weggegooid.
 - [x] **C4. Magic numbers → constanten**
       `100`, `2.5`, `200` → `CALC_CONSTANTS` in `calc-engine.js`.
 - [ ] **C5. `renderResults()` opsplitsen**
