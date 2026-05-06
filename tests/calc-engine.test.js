@@ -8,6 +8,8 @@ import {
   processDataPure,
   computePerYearStats,
   averageStats,
+  validateCalcInputs,
+  VALIDATION_BOUNDS,
 } from '../assets/js/calc-engine.js';
 import {
   DATASET_PERFECT_DAY,
@@ -396,5 +398,171 @@ describe('averageStats', () => {
     // Recovery% = (avgChargedFull / totalAfname) * 100
     const expectedRecoveryFull = (scenWCAvg.chargedFull / result.totalAfname) * 100;
     expect(scenWCAvg.recoveryPctFull).toBeCloseTo(expectedRecoveryFull, 2);
+  });
+});
+
+// ─── VALIDATION TESTS ─────────────────────────────────────────────────────────
+
+const VALID_CONFIGS = [
+  { type: 'TestBat', batCap: 10, batInv: 5, eff: 0.9, price: 5000 },
+];
+
+describe('validateCalcInputs', () => {
+  it('returns empty array for valid inputs', () => {
+    const errors = validateCalcInputs(5, 0.30, NaN, VALID_CONFIGS);
+    expect(errors).toEqual([]);
+  });
+
+  it('returns empty array with valid dual tariff', () => {
+    const errors = validateCalcInputs(5, 0.30, 0.18, VALID_CONFIGS);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects NaN pvInverter', () => {
+    const errors = validateCalcInputs(NaN, 0.30, NaN, VALID_CONFIGS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('Omvormer vermogen');
+  });
+
+  it('rejects pvInverter below minimum', () => {
+    const errors = validateCalcInputs(0.01, 0.30, NaN, VALID_CONFIGS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('0.1');
+  });
+
+  it('rejects pvInverter above maximum', () => {
+    const errors = validateCalcInputs(150, 0.30, NaN, VALID_CONFIGS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('100');
+  });
+
+  it('rejects NaN priceDay', () => {
+    const errors = validateCalcInputs(5, NaN, NaN, VALID_CONFIGS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('Dagtarief');
+  });
+
+  it('rejects priceDay above maximum', () => {
+    const errors = validateCalcInputs(5, 5.00, NaN, VALID_CONFIGS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('2');
+  });
+
+  it('rejects priceDay below minimum', () => {
+    const errors = validateCalcInputs(5, 0.001, NaN, VALID_CONFIGS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('0.01');
+  });
+
+  it('rejects priceNight above maximum when specified', () => {
+    const errors = validateCalcInputs(5, 0.30, 3.00, VALID_CONFIGS);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('Nachttarief');
+  });
+
+  it('accepts priceNight = NaN (single tariff)', () => {
+    const errors = validateCalcInputs(5, 0.30, NaN, VALID_CONFIGS);
+    expect(errors).toEqual([]);
+  });
+
+  it('accepts priceNight = 0 (single tariff)', () => {
+    const errors = validateCalcInputs(5, 0.30, 0, VALID_CONFIGS);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects config with zero batInv (division by zero risk)', () => {
+    const badConfigs = [{ type: 'Bad', batCap: 10, batInv: 0, eff: 0.9, price: 5000 }];
+    const errors = validateCalcInputs(5, 0.30, NaN, badConfigs);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('batterij omvormer');
+  });
+
+  it('rejects config with zero batCap', () => {
+    const badConfigs = [{ type: 'Bad', batCap: 0, batInv: 5, eff: 0.9, price: 5000 }];
+    const errors = validateCalcInputs(5, 0.30, NaN, badConfigs);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('capaciteit');
+  });
+
+  it('rejects config with efficiency > 1', () => {
+    const badConfigs = [{ type: 'Bad', batCap: 10, batInv: 5, eff: 1.5, price: 5000 }];
+    const errors = validateCalcInputs(5, 0.30, NaN, badConfigs);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('rendement');
+  });
+
+  it('rejects config with zero efficiency', () => {
+    const badConfigs = [{ type: 'Bad', batCap: 10, batInv: 5, eff: 0, price: 5000 }];
+    const errors = validateCalcInputs(5, 0.30, NaN, badConfigs);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toContain('rendement');
+  });
+
+  it('accumulates multiple errors', () => {
+    const badConfigs = [{ type: 'Bad', batCap: 0, batInv: 0, eff: 0, price: 5000 }];
+    const errors = validateCalcInputs(NaN, NaN, 5.0, badConfigs);
+    // NaN pvInv + NaN priceDay + bad priceNight + 3 config errors = 6
+    expect(errors.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it('handles empty config array', () => {
+    const errors = validateCalcInputs(5, 0.30, NaN, []);
+    expect(errors).toEqual([]);
+  });
+
+  it('handles null config array', () => {
+    const errors = validateCalcInputs(5, 0.30, NaN, null);
+    expect(errors).toEqual([]);
+  });
+});
+
+describe('VALIDATION_BOUNDS', () => {
+  it('has expected keys', () => {
+    expect(VALIDATION_BOUNDS).toHaveProperty('pvInverterKw');
+    expect(VALIDATION_BOUNDS).toHaveProperty('priceDay');
+    expect(VALIDATION_BOUNDS).toHaveProperty('priceNight');
+    expect(VALIDATION_BOUNDS).toHaveProperty('batteryCapKwh');
+    expect(VALIDATION_BOUNDS).toHaveProperty('batteryInvKw');
+    expect(VALIDATION_BOUNDS).toHaveProperty('efficiency');
+  });
+
+  it('each bound has min, max, and label', () => {
+    for (const [key, bound] of Object.entries(VALIDATION_BOUNDS)) {
+      expect(bound).toHaveProperty('min');
+      expect(bound).toHaveProperty('max');
+      expect(bound).toHaveProperty('label');
+      expect(bound.min).toBeLessThan(bound.max);
+    }
+  });
+});
+
+describe('processDataPure defensive guard', () => {
+  it('filters out configs with zero batInv instead of crashing', () => {
+    const { days, priceDay } = DATASET_PERFECT_DAY;
+    const badConfig = { type: 'ZeroBatInv', batCap: 10, batInv: 0, eff: 0.9, price: 5000 };
+    const goodConfig = { type: 'Good', batCap: 10, batInv: 5, eff: 0.9, price: 5000 };
+
+    const result = processDataPure(
+      { allDays: days, eanCode: '', meterNr: '', meterType: '' },
+      5, [badConfig, goodConfig], priceDay, NaN
+    );
+
+    // Should not crash, and should have only the valid config in results
+    expect(result).not.toBeNull();
+    expect(result.configResults).toHaveLength(1);
+    expect(result.configResults[0].cfg.type).toBe('Good');
+  });
+
+  it('returns empty configResults when all configs are invalid', () => {
+    const { days, priceDay } = DATASET_PERFECT_DAY;
+    const badConfig = { type: 'ZeroBatInv', batCap: 10, batInv: 0, eff: 0.9, price: 5000 };
+
+    const result = processDataPure(
+      { allDays: days, eanCode: '', meterNr: '', meterType: '' },
+      5, [badConfig], priceDay, NaN
+    );
+
+    expect(result).not.toBeNull();
+    expect(result.configResults).toHaveLength(0);
   });
 });

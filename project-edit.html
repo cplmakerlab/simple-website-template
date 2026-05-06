@@ -988,15 +988,33 @@ function collectFromForm() {
   const errors = {};  // { fieldId-or-key: { msg, invId? } }
   if (!customerName) errors.fCustomerName = { msg: 'Klantnaam is verplicht.' };
 
-  // Inverter-verplichting (ingevuld in Task 7): elk inverter-kaartje moet powerKw > 0 hebben.
+  // Inverter bounds (mirrors VALIDATION_BOUNDS in calc-engine.js)
+  const INV_KW_MAX = 100;
   for (let i = 0; i < _project.solar.inverters.length; i++) {
     const inv = _project.solar.inverters[i];
-    if (!(Number(inv.powerKw) > 0)) {
+    const kw = Number(inv.powerKw);
+    if (!(kw > 0)) {
       errors[`inv_powerKw_${inv.id}`] = {
         msg: `Omvormer ${i + 1}: vermogen (kW) is verplicht als de omvormer in de lijst staat.`,
         invId: inv.id,
       };
+    } else if (kw > INV_KW_MAX) {
+      errors[`inv_powerKw_${inv.id}`] = {
+        msg: `Omvormer ${i + 1}: vermogen (${kw} kW) lijkt onrealistisch (max ${INV_KW_MAX} kW).`,
+        invId: inv.id,
+      };
     }
+  }
+
+  // Price bounds (mirrors VALIDATION_BOUNDS in calc-engine.js)
+  const PRICE_MAX = 2.00;
+  const priceDay = Number(_project.supplier?.priceDay);
+  const priceNight = Number(_project.supplier?.priceNight);
+  if (!isNaN(priceDay) && priceDay > 0 && priceDay > PRICE_MAX) {
+    errors.fPriceDay = { msg: `Dagtarief (${priceDay} €/kWh) lijkt onrealistisch (max ${PRICE_MAX} €/kWh).` };
+  }
+  if (!isNaN(priceNight) && priceNight > 0 && priceNight > PRICE_MAX) {
+    errors.fPriceNight = { msg: `Nachttarief (${priceNight} €/kWh) lijkt onrealistisch (max ${PRICE_MAX} €/kWh).` };
   }
 
   if (Object.keys(errors).length > 0) {
@@ -1022,7 +1040,7 @@ function collectFromForm() {
 
 async function save({ andCalc }) {
   // Clear previous field-level errors before each attempt
-  ['fProjectName', 'fCustomerName'].forEach(clearFieldError);
+  ['fProjectName', 'fCustomerName', 'fPriceDay', 'fPriceNight'].forEach(clearFieldError);
   // Clear any inverter powerKw errors
   document.querySelectorAll('[data-inv-field="powerKw"].is-invalid').forEach(el => {
     el.classList.remove('is-invalid');

@@ -13,6 +13,69 @@ export const CALC_CONSTANTS = {
   CAP_SWEEP_STOP_AFTER_STEPS: 3,
 };
 
+// Reasonable bounds for calculator inputs (Belgian residential solar/battery market).
+export const VALIDATION_BOUNDS = {
+  pvInverterKw:  { min: 0.1, max: 100,  label: 'Omvormer vermogen (kW)' },
+  priceDay:      { min: 0.01, max: 2.00, label: 'Dagtarief (€/kWh)' },
+  priceNight:    { min: 0.01, max: 2.00, label: 'Nachttarief (€/kWh)' },
+  batteryCapKwh: { min: 0.5,  max: 200,  label: 'Batterijcapaciteit (kWh)' },
+  batteryInvKw:  { min: 0.1,  max: 100,  label: 'Batterij omvormer (kW)' },
+  efficiency:    { min: 0.5,  max: 1.0,  label: 'Rendement' },
+};
+
+/**
+ * Validate the core calculator inputs and return an array of error messages.
+ * Returns [] when all inputs are valid.
+ *
+ * @param {number} pvInv - PV inverter power in kW
+ * @param {number} priceDay - Day tariff in €/kWh
+ * @param {number} priceNight - Night tariff in €/kWh (NaN = single tariff, skip)
+ * @param {Array} selectedConfigs - Array of { batCap, batInv, eff, price, type }
+ * @returns {string[]} Array of human-readable error messages (Dutch)
+ */
+export function validateCalcInputs(pvInv, priceDay, priceNight, selectedConfigs) {
+  const errors = [];
+  const B = VALIDATION_BOUNDS;
+
+  // PV inverter
+  if (isNaN(pvInv)) {
+    errors.push('Omvormer vermogen is verplicht.');
+  } else if (pvInv < B.pvInverterKw.min || pvInv > B.pvInverterKw.max) {
+    errors.push(`Omvormer vermogen moet tussen ${B.pvInverterKw.min} en ${B.pvInverterKw.max} kW liggen.`);
+  }
+
+  // Day price
+  if (isNaN(priceDay)) {
+    errors.push('Dagtarief is verplicht.');
+  } else if (priceDay < B.priceDay.min || priceDay > B.priceDay.max) {
+    errors.push(`Dagtarief moet tussen ${B.priceDay.min} en ${B.priceDay.max} €/kWh liggen.`);
+  }
+
+  // Night price (optional — NaN means single tariff)
+  if (!isNaN(priceNight) && priceNight > 0) {
+    if (priceNight < B.priceNight.min || priceNight > B.priceNight.max) {
+      errors.push(`Nachttarief moet tussen ${B.priceNight.min} en ${B.priceNight.max} €/kWh liggen.`);
+    }
+  }
+
+  // Selected configs
+  if (selectedConfigs && selectedConfigs.length) {
+    for (const cfg of selectedConfigs) {
+      if (cfg.batCap <= 0 || cfg.batCap > B.batteryCapKwh.max) {
+        errors.push(`Config "${cfg.type}": capaciteit (${cfg.batCap} kWh) is ongeldig.`);
+      }
+      if (cfg.batInv <= 0 || cfg.batInv > B.batteryInvKw.max) {
+        errors.push(`Config "${cfg.type}": batterij omvormer (${cfg.batInv} kW) is ongeldig.`);
+      }
+      if (cfg.eff <= 0 || cfg.eff > 1) {
+        errors.push(`Config "${cfg.type}": rendement (${cfg.eff}) moet tussen 0 en 1 liggen.`);
+      }
+    }
+  }
+
+  return errors;
+}
+
 export const MONTH_NL_FULL = [
   'Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni',
   'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'
@@ -350,6 +413,10 @@ export function processDataPure(input, pvInv, selectedConfigs, priceDay, priceNi
   const scaleFactor = isFullYear ? 1 : (365 / daysInWindow);
 
   const configResults = selectedConfigs.map(cfg => {
+    // Defensive: skip configs with invalid battery specs to avoid division by zero
+    if (!cfg.batCap || cfg.batCap <= 0 || !cfg.batInv || cfg.batInv <= 0 || !cfg.eff || cfg.eff <= 0) {
+      return null;
+    }
     const pvGtBat    = pvInv > cfg.batInv;
     const thresholdWC  = pvGtBat ? cfg.batCap * (pvInv / cfg.batInv) : cfg.batCap;
     const thresholdOpt = cfg.batCap;
@@ -380,7 +447,7 @@ export function processDataPure(input, pvInv, selectedConfigs, priceDay, priceNi
       batteryInverter: cfg.batInv,
     });
     return { cfg, pvGtBat, thresholdWC, thresholdOpt, scenWC, scenOpt };
-  });
+  }).filter(Boolean);
 
   // ── Monthly map (simplified — no threshold columns) ────────────────────────
   const monthMap = {};

@@ -805,13 +805,14 @@
 <script type="module">
 import { extractCsvForStorage } from './assets/js/csv.js';
 import {
-  CALC_CONSTANTS, MONTH_NL_FULL,
+  CALC_CONSTANTS, MONTH_NL_FULL, VALIDATION_BOUNDS,
   formatDate, fmt2, fmtEur, renderWithAvg,
   parseCSVLine, parseEurAmount, parseSheetConfigs,
   csvToAllDaysAndMeta, buildAllDaysFromDailyCompact,
   calcScenario, processDataPure, computePerYearStats, averageStats,
   buildYearBuckets, buildMonthBuckets, buildDayBuckets,
   availableMonthKeys, buildYearBucketsFromMonthMap, buildMonthBucketsFromMonthMap,
+  validateCalcInputs,
 } from './assets/js/calc-engine.js';
 import { escapeHtml, showSpinner, updateSpinner, hideSpinner, withSpinner } from './assets/js/shared-helpers.js';
 
@@ -1246,6 +1247,13 @@ async function calculate() {
     .filter(Boolean);
 
   if (!selectedConfigs.length) { alert('Kies minstens één productconfiguratie.'); return; }
+
+  // ── Bounds validation ────────────────────────────────────────────────────
+  const validationErrors = validateCalcInputs(pvInv, priceDay, priceNight, selectedConfigs);
+  if (validationErrors.length) {
+    alert(validationErrors.join('\n'));
+    return;
+  }
 
   // ── Guard: confirm before Bereken if removing a config that has an offerte-PDF ──
   if (!(await _confirmConfigCascade(_projectId, selectedConfigs.map(c => c.type)))) return;
