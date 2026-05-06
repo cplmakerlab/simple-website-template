@@ -103,10 +103,10 @@ export function csvToAllDaysAndMeta(csvText) {
   for (const row of rows) {
     const dateStr = row['Van (datum)'];
     if (!dateStr) continue;
-    const parts = dateStr.split('-');
-    if (parts.length !== 3) continue;
-    const key = `${parts[2]}-${parts[1]}-${parts[0]}`;
-    if (!dayMap[key]) dayMap[key] = { date: parseDate(dateStr), afname: 0, injectie: 0, afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0 };
+    const date = parseDate(dateStr);
+    if (!date) continue; // skip rows with unparseable dates
+    const key = date.toISOString().slice(0, 10);
+    if (!dayMap[key]) dayMap[key] = { date, afname: 0, injectie: 0, afnamedag: 0, afnamenacht: 0, injectiedag: 0, injectienacht: 0 };
     const register = (row['Register'] || '').toLowerCase();
     const vol = parsVolume(row['Volume']);
     if (register.includes('afname'))   dayMap[key].afname   += vol;
