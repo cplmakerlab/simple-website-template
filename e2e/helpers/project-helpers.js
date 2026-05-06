@@ -129,6 +129,20 @@ function _getAdminApp() {
  * @param {string} projectId - The project ID to delete
  * @returns {Promise<void>}
  */
+/**
+ * Returns an Admin Firestore instance for direct DB assertions in tests.
+ */
+export function getAdminFirestore() {
+  return _getAdminApp().firestore();
+}
+
+/**
+ * Returns an Admin Storage bucket for direct storage assertions in tests.
+ */
+export function getAdminStorage() {
+  return _getAdminApp().storage().bucket();
+}
+
 export async function cleanupProject(projectId) {
   const app = _getAdminApp();
   const db = app.firestore();
