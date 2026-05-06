@@ -11,10 +11,11 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
-  <script src="assets/js/csv.js"></script>
+  <script type="module" src="assets/js/shared-helpers.js"></script>
+  <script type="module" src="assets/js/csv.js"></script>
   <script src="assets/js/firebase-init.js"></script>
   <script src="assets/js/offertes-ui.js"></script>
-  <script src="assets/js/photo-uploader.js"></script>
+  <script type="module" src="assets/js/photo-uploader.js"></script>
   <style>
     /*
      * Page-specific overrides live here. Global app styles are in
@@ -126,13 +127,10 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.bundle.min.js" integrity="sha512-7Pi/otdlbbCR+LnW+F7PwFcSDJOuUJB3OxtEHbg4vSMvzvJjde4Po1v4BR9Gdc9aXNUNFVUY+SK51wWT8WF0Gg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-<script>
+<script type="module">
+import { escapeHtml, showToast, showState, shortEmail, fmtDate, fmtRelTime } from './assets/js/shared-helpers.js';
+
 // ─── ENTRY POINT ─────────────────────────────────────────────────────────────
-function showState(which) {
-  ['stateLoggedOut', 'stateNotWhitelisted', 'stateAuthorized'].forEach(id => {
-    document.getElementById(id).classList.toggle('hide', id !== which);
-  });
-}
 
 document.addEventListener('DOMContentLoaded', () => {
   // Wire sign-in button
@@ -196,17 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ─── PROJECT LIST ───────────────────────────────────────────────────────────
-function fmtDate(ts) {
-  // ts = Firestore Timestamp
-  if (!ts || typeof ts.toDate !== 'function') return '—';
-  return ts.toDate().toLocaleDateString('nl-BE', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function shortName(email) {
-  if (!email) return '—';
-  return email.split('@')[0];
-}
-
 function statusChipHTML(statusKey, projectId) {
   const meta = getStatusMeta(statusKey);
   const readonly = projectId == null;
@@ -272,28 +259,6 @@ function rowHTML(p, isDeleted) {
         </div>
       </td>
     </tr>`;
-}
-
-function escapeHtml(s) {
-  return String(s || '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-}
-
-function showToast(message, variant = 'primary') {
-  const container = document.getElementById('toastContainer');
-  const id = 't_' + Date.now();
-  const html = `
-    <div id="${id}" class="toast text-bg-${variant} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-      <div class="d-flex">
-        <div class="toast-body">${escapeHtml(message)}</div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Sluiten"></button>
-      </div>
-    </div>
-  `;
-  container.insertAdjacentHTML('beforeend', html);
-  const el = document.getElementById(id);
-  const t = bootstrap.Toast.getOrCreateInstance(el, { delay: 4000 });
-  el.addEventListener('hidden.bs.toast', () => el.remove());
-  t.show();
 }
 
 // Cached list of projects from Firestore. Filtering + render happens on this cache.
@@ -506,22 +471,6 @@ function wireBoard(el) {
 let _drawerProjectId    = null;
 let _currentDrawerProject = null;
 let _drawerPhotoUploader = null;
-
-function fmtRelTime(ts) {
-  if (!ts || typeof ts.toDate !== 'function') return '—';
-  const date = ts.toDate();
-  const diffSec = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
-  if (diffSec < 60)     return 'net nu';
-  if (diffSec < 3600)   return Math.floor(diffSec / 60) + ' min geleden';
-  const sameDay = date.toDateString() === new Date().toDateString();
-  if (sameDay) return 'vandaag ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
-    return 'gisteren ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
-  }
-  return date.toLocaleDateString('nl-BE', { day: '2-digit', month: 'short' }) +
-         ' ' + date.toLocaleTimeString('nl-BE', { hour: '2-digit', minute: '2-digit' });
-}
 
 // Offerte upload modal + config-row rendering + click delegation all live in
 // assets/js/offertes-ui.js — shared between dashboard.html and project-edit.html.
@@ -803,7 +752,7 @@ function renderComments(project, comments) {
   list.innerHTML = comments.map(c => `
     <div class="bg-light rounded p-2">
       <div class="d-flex justify-content-between gap-2 mb-1">
-        <span class="fw-semibold text-primary-emphasis small">${escapeHtml(shortName(c.author))}</span>
+        <span class="fw-semibold text-primary-emphasis small">${escapeHtml(shortEmail(c.author))}</span>
         <span class="text-muted small">${fmtRelTime(c.createdAt)}</span>
       </div>
       <div style="white-space:pre-wrap;font-size:0.92rem;line-height:1.35;">${escapeHtml(c.text || '')}</div>

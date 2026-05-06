@@ -1,5 +1,7 @@
 /* global firebase, bootstrap, makeThumbnail, uploadProjectPhotoWithThumb, listProjectPhotos,
-          deleteProjectPhoto, backfillThumbnail, escapeHtml, showToast */
+          deleteProjectPhoto, backfillThumbnail, showToast */
+
+import { escapeHtml } from './shared-helpers.js';
 
 // assets/js/photo-uploader.js
 // Shared photo-uploader component — used in dashboard.html drawer and
@@ -8,14 +10,6 @@
 
 (function (global) {
   'use strict';
-
-  function _esc(s) {
-    return (typeof escapeHtml === 'function')
-      ? escapeHtml(s == null ? '' : String(s))
-      : String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
-          '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-        }[c]));
-  }
 
   function _toast(msg, variant) {
     if (typeof showToast === 'function') return showToast(msg, variant || 'danger');
@@ -148,14 +142,14 @@
       grid.innerHTML = state.photos.map((p, i) => {
         const src = p.thumbUrl || p.downloadUrl;
         if (!src) {
-          return `<div class="photo-tile broken" title="${_esc(p.fetchError || 'Kon foto niet laden')}">${_esc(p.name || 'onbekend')}</div>`;
+          return `<div class="photo-tile broken" title="${escapeHtml(p.fetchError || 'Kon foto niet laden')}">${escapeHtml(p.name || 'onbekend')}</div>`;
         }
         const isSerial = p.tag === 'serial';
         const tagIcon  = isSerial ? 'fa-barcode' : 'fa-camera';
         const tagLabel = isSerial ? 'Serieel'    : 'Situatie';
         return `<div class="photo-tile" data-pu-tile data-idx="${i}">
-          <img src="${_esc(src)}" alt="${_esc(p.name || '')}" />
-          <span class="pu-tag-indicator" title="${_esc(tagLabel)}"><i class="fa-solid ${_esc(tagIcon)}"></i></span>
+          <img src="${escapeHtml(src)}" alt="${escapeHtml(p.name || '')}" />
+          <span class="pu-tag-indicator" title="${escapeHtml(tagLabel)}"><i class="fa-solid ${escapeHtml(tagIcon)}"></i></span>
         </div>`;
       }).join('');
       grid.querySelectorAll('[data-pu-tile]').forEach(tile => {
@@ -352,15 +346,15 @@
       list.innerHTML = uploadedIds.map(id => {
         const t = thumbByIdMap.get(id) || { blobUrl: '', name: '' };
         return `
-          <div class="d-flex align-items-center gap-3 mb-2 pb-2 border-bottom" data-pu-modal-row data-photo-id="${_esc(id)}">
-            <img src="${_esc(t.blobUrl)}" alt="${_esc(t.name)}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;" />
+          <div class="d-flex align-items-center gap-3 mb-2 pb-2 border-bottom" data-pu-modal-row data-photo-id="${escapeHtml(id)}">
+            <img src="${escapeHtml(t.blobUrl)}" alt="${escapeHtml(t.name)}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;" />
             <div class="flex-grow-1">
-              <div class="small text-muted text-truncate" style="max-width:200px;">${_esc(t.name)}</div>
+              <div class="small text-muted text-truncate" style="max-width:200px;">${escapeHtml(t.name)}</div>
               <div class="btn-group btn-group-sm mt-1" role="group">
-                <input type="radio" class="btn-check" name="tag-${_esc(id)}" id="tag-${_esc(id)}-s" value="situatie" checked />
-                <label class="btn btn-outline-primary" for="tag-${_esc(id)}-s"><i class="fa-solid fa-camera me-1"></i>Situatie</label>
-                <input type="radio" class="btn-check" name="tag-${_esc(id)}" id="tag-${_esc(id)}-r" value="serial" />
-                <label class="btn btn-outline-primary" for="tag-${_esc(id)}-r"><i class="fa-solid fa-barcode me-1"></i>Serieel</label>
+                <input type="radio" class="btn-check" name="tag-${escapeHtml(id)}" id="tag-${escapeHtml(id)}-s" value="situatie" checked />
+                <label class="btn btn-outline-primary" for="tag-${escapeHtml(id)}-s"><i class="fa-solid fa-camera me-1"></i>Situatie</label>
+                <input type="radio" class="btn-check" name="tag-${escapeHtml(id)}" id="tag-${escapeHtml(id)}-r" value="serial" />
+                <label class="btn btn-outline-primary" for="tag-${escapeHtml(id)}-r"><i class="fa-solid fa-barcode me-1"></i>Serieel</label>
               </div>
             </div>
           </div>`;

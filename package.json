@@ -1,0 +1,16 @@
+{
+  "name": "battery-roi-tool",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test --config e2e/playwright.config.js",
+    "test:all": "vitest run && playwright test --config e2e/playwright.config.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.59.1",
+    "firebase-admin": "^13.8.0",
+    "vitest": "^3.1.0"
+  }
+}
