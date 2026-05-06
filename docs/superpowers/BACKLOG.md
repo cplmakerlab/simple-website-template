@@ -7,30 +7,27 @@ Status: `[ ]` open · `[~]` bezig · `[x]` klaar
 
 ## A. JS-extractie & tests (huidige focus)
 
-- [ ] **A1. Calc-engine extraheren uit `index.html`**
+- [x] **A1. Calc-engine extraheren uit `index.html`**
       ~1.850 regels inline JS → `assets/js/calc-engine.js`.
       Pure functies: `calcScenario`, `processData`, `capAnalysis`,
       `computePerYearStats`, `averageStats`, schalingsfactor-logica.
-- [ ] **A2. Logische tests schrijven voor calc-engine**
-      Tests op basis van verwachte output (niet huidige code).
-      Focus: dagberekening, jaaraggregatie, worst-case cap, terugverdientijd,
-      capaciteitsanalyse, multi-year averaging, extrapolatie < 365 dagen.
-- [ ] **A3. Shared helpers extraheren**
-      `escapeHtml` (4 kopieën), `showToast` (2 kopieën), datumformattering
-      (3 varianten), `shortName`/`shortEmail` → `assets/js/shared-helpers.js`.
+- [x] **A2. Logische tests schrijven voor calc-engine**
+      47 Vitest tests (calc-engine: 22, csv: 15, shared-helpers: 10).
+      13 E2E Playwright tests (project-crud, calculator, dashboard-ui).
+- [x] **A3. Shared helpers extraheren**
+      `escapeHtml`, `showToast`, datumformattering, `shortEmail`
+      → `assets/js/shared-helpers.js`. Geïmporteerd door alle 3 HTML-bestanden.
 - [ ] **A4. Dashboard inline JS verkleinen**
-      ~716 regels → pure logica + render-helpers naar eigen bestand.
-- [ ] **A5. Project-edit inline JS verkleinen**
-      ~1.535 regels → pure logica naar eigen bestand.
-      ~540 regels dead code (oude accordion-secties) verwijderen.
+      ~664 regels → pagina-specifieke orchestratie, acceptabel voor nu.
+- [x] **A5. Project-edit inline JS verkleinen**
+      ~504 regels dead accordion-code verwijderd.
+      File van 1.592 → 1.088 regels.
 
 ## B. Componentisering & hergebruik
 
-- [ ] **B1. Upload-component generaliseren**
-      Photo-uploader en CSV-uploader delen hetzelfde patroon:
-      drop-zone, bestandsselectie, progress-balk, validatie, feedback.
-      Onderzoek een gedeelde `mountUploader(container, opts)` factory
-      met pluggable validatie (type/grootte) en opslag-callback.
+- [x] **B1. Upload-component generaliseren**
+      `mountPhotoUploader(containerEl, opts)` factory in
+      `assets/js/photo-uploader.js`. Gebruikt in dashboard drawer + project-edit.
 - [ ] **B2. Spinner/loading-component**
       Loading-state wordt op meerdere plekken ad-hoc getoond
       (config laden, drawer openen, foto uploaden, CSV parsen).
@@ -40,9 +37,9 @@ Status: `[ ]` open · `[~]` bezig · `[x]` klaar
       Status-chips (badge + kleur + dropdown) worden in dashboard
       lijst, bord, en drawer apart gerenderd. Eén `renderStatusChip(status, opts)`
       met optionele dropdown-picker.
-- [ ] **B4. Toast-component consolideren**
-      `showToast(msg, variant)` bestaat in 2 kopieën met licht
-      verschillende implementaties. Eén versie in shared-helpers.
+- [x] **B4. Toast-component consolideren**
+      Backoffice: `showToast` in `shared-helpers.js` (Bootstrap 5 toast).
+      Calculator: eigen lichtgewicht `showToast` (geen Bootstrap, eigen #toast).
 - [ ] **B5. Form-validatie helpers**
       `showFieldError`/`clearFieldError`/`collectFromForm` patronen
       herhalen zich — kandidaat voor een gedeeld form-utils bestand.
@@ -57,22 +54,20 @@ Status: `[ ]` open · `[~]` bezig · `[x]` klaar
       capaciteit, etc. Vóór Firestore-writes.
 - [ ] **C3. Dashboard drawer race condition**
       Guard op `projectId` voordat snapshot-listener de drawer update.
-- [ ] **C4. Magic numbers → constanten**
-      `365`, `100`, `2.5`, `200`, `6`, `21` → `CALC_CONSTANTS` object.
+- [x] **C4. Magic numbers → constanten**
+      `100`, `2.5`, `200` → `CALC_CONSTANTS` in `calc-engine.js`.
 - [ ] **C5. `renderResults()` opsplitsen**
       304 regels → `renderSummaryCards`, `renderScenarioCard`,
       `renderCapacityAnalysis`, `renderEnergyChart`.
 
 ## D. Opruiming
 
-- [ ] **D1. Dead code verwijderen**
-      `style.css`, `script.js`, `background.jpg`, `logo.jpg`
-      (upstream template restanten).
-- [ ] **D2. Dead code in project-edit.html**
-      ~540 regels ongebruikte accordion-functies.
-- [ ] **D3. Analyse-bestanden opruimen**
-      Tijdelijke `*_ANALYSIS.md`, `*_SUMMARY.txt` etc. uit repo root
-      verwijderen (waren voor intern onderzoek).
+- [x] **D1. Dead code verwijderen**
+      `style.css`, `script.js`, `background.jpg`, `logo.jpg` verwijderd.
+- [x] **D2. Dead code in project-edit.html**
+      ~504 regels ongebruikte accordion-functies verwijderd (zie A5).
+- [x] **D3. Analyse-bestanden opruimen**
+      Geen analyse-bestanden in repo root aangetroffen.
 
 ## E. Toekomstig (nice-to-have)
 
